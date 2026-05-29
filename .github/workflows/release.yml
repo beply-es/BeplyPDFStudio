@@ -1,0 +1,108 @@
+name: Release Plugin
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Parse facturascripts.ini
+        id: ini
+        run: |
+          parse_field() {
+            local val
+            val=$(grep -E "^${1}\s*=" facturascripts.ini | head -1 | sed 's/[^=]*=\s*//' | sed 's/^"\(.*\)"$/\1/' | xargs)
+            echo "$val"
+          }
+
+          VERSION=$(parse_field version)
+          NAME=$(parse_field name)
+          MIN_VERSION=$(parse_field min_version)
+          MAX_VERSION=$(parse_field max_version)
+          MIN_PHP=$(parse_field min_php)
+          DESCRIPTION=$(parse_field description)
+
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "name=${NAME}" >> "$GITHUB_OUTPUT"
+          echo "min_version=${MIN_VERSION}" >> "$GITHUB_OUTPUT"
+          echo "max_version=${MAX_VERSION:-Sin limite}" >> "$GITHUB_OUTPUT"
+          echo "min_php=${MIN_PHP}" >> "$GITHUB_OUTPUT"
+          echo "description=${DESCRIPTION}" >> "$GITHUB_OUTPUT"
+
+      - name: Check if tag already exists
+        id: check
+        run: |
+          TAG="v${{ steps.ini.outputs.version }}"
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::Tag $TAG already exists — skipping release."
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Generate release notes
+        if: steps.check.outputs.skip == 'false'
+        id: changelog
+        run: |
+          PREV_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          if [ -n "$PREV_TAG" ]; then
+            NOTES=$(git log "${PREV_TAG}..HEAD" --pretty=format:"- %s (%h)" --no-merges)
+          else
+            NOTES=$(git log --pretty=format:"- %s (%h)" --no-merges -20)
+          fi
+
+          if [ -z "$NOTES" ]; then
+            NOTES="- Release inicial"
+          fi
+
+          {
+            echo "notes<<CHANGELOG_EOF"
+            echo "$NOTES"
+            echo "CHANGELOG_EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Build plugin zip
+        if: steps.check.outputs.skip == 'false'
+        run: |
+          NAME="${{ steps.ini.outputs.name }}"
+          mkdir -p /tmp/build/"${NAME}"
+          rsync -a \
+            --exclude='.git' \
+            --exclude='.github' \
+            --exclude='Tests' \
+            --exclude='.gitignore' \
+            ./ /tmp/build/"${NAME}"/
+          VERSION="${{ steps.ini.outputs.version }}"
+          cd /tmp/build && zip -r /tmp/"${NAME}-v${VERSION}".zip "${NAME}"/
+
+      - name: Create GitHub Release
+        if: steps.check.outputs.skip == 'false'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: "v${{ steps.ini.outputs.version }}"
+          name: "${{ steps.ini.outputs.name }} v${{ steps.ini.outputs.version }}"
+          body: |
+            ## ${{ steps.ini.outputs.name }} v${{ steps.ini.outputs.version }}
+
+            | Campo | Valor |
+            |-------|-------|
+            | **Version** | `${{ steps.ini.outputs.version }}` |
+            | **Version minima FS** | `${{ steps.ini.outputs.min_version }}` |
+            | **Version maxima FS** | `${{ steps.ini.outputs.max_version }}` |
+            | **PHP minimo** | `${{ steps.ini.outputs.min_php }}` |
+
+            ### Descripcion
+            ${{ steps.ini.outputs.description }}
+
+            ### Notas de version
+            ${{ steps.changelog.outputs.notes }}
+          files: /tmp/${{ steps.ini.outputs.name }}-v${{ steps.ini.outputs.version }}.zip
