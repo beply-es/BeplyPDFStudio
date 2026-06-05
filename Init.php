@@ -69,6 +69,10 @@ class Init extends InitClass
     public function update(): void
     {
         $this->ensureStyleSchema();
+        if (!$this->isBaseSchemaReady()) {
+            return;
+        }
+
         $this->seedGlobalStyle();
         $this->seedDefaultPrintFormats();
         $this->migrateLineColumns();
@@ -121,6 +125,16 @@ class Init extends InitClass
         } catch (\Throwable $e) {
             Tools::log()->warning('beplypdf-style-fields-cache-error: ' . $e->getMessage());
         }
+    }
+
+    private function isBaseSchemaReady(): bool
+    {
+        $db = new DataBase();
+        if (!$db->connect()) {
+            return false;
+        }
+
+        return $db->tableExists('formatos_documentos');
     }
 
     /** Crea un estilo global por defecto (diseño Summary) si todavía no existe ninguno. */
