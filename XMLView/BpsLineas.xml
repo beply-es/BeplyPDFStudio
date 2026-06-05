@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+ * This file is part of BeplyPDFStudio plugin for FacturaScripts
+ * Copyright (C) 2026 Beply Technologies S.L.
+ *
+ * EditListView de BeplyPdfColumn: cada fila es una columna de la tabla de líneas.
+-->
+<view>
+    <columns>
+        <column name="style" display="none" order="100">
+            <widget type="number" fieldname="idstyle"/>
+        </column>
+        <column name="order" title="order" numcolumns="2" order="105">
+            <widget type="number" fieldname="orden"/>
+        </column>
+        <column name="field" title="field" numcolumns="4" order="110">
+            <widget type="select" fieldname="fieldname" translate="true">
+                <values title="line-field-description">descripcion</values>
+                <values title="line-field-line-number">numlinea</values>
+                <values title="line-field-reference">referencia</values>
+                <values title="line-field-quantity">cantidad</values>
+                <values title="line-field-unit-price">pvpunitario</values>
+                <values title="line-field-discount">dtopor</values>
+                <values title="line-field-amount">pvptotal</values>
+                <values title="line-field-vat">iva</values>
+                <values title="line-field-surcharge">recargo</values>
+                <values title="line-field-irpf">irpf</values>
+                <values title="line-field-total-vat">totaliva</values>
+            </widget>
+        </column>
+        <column name="align" title="alignment" numcolumns="2" order="120">
+            <widget type="select" fieldname="align" translate="true">
+                <values title="align-left">left</values>
+                <values title="align-center">center</values>
+                <values title="align-right">right</values>
+            </widget>
+        </column>
+        <column name="coltype" title="type" numcolumns="2" order="130">
+            <widget type="select" fieldname="coltype" translate="true">
+                <values title="type-text">text</values>
+                <values title="type-number">number</values>
+                <values title="type-money">money</values>
+                <values title="type-percentage">percentage</values>
+            </widget>
+        </column>
+        <column name="width" title="width" numcolumns="2" order="140">
+            <widget type="number" fieldname="width" min="0" step="1"/>
+        </column>
+    </columns>
+</view>

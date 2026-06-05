@@ -1,0 +1,5 @@
+{% if draft_warning|default('') %}
+<div style="position: fixed; top: 42%; left: -8%; width: 116%; z-index: 20; text-align: center; color: {{ color1 }}; opacity: 0.14; font-size: {{ title_font_size + 18 }}px; font-weight: 800; transform: rotate(-35deg); text-transform: uppercase; letter-spacing: 1px; line-height: 1.25;">
+  {{ draft_warning }}
+</div>
+{% endif %}

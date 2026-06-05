@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+ * This file is part of BeplyPDFStudio plugin for FacturaScripts
+ * Copyright (C) 2026 Beply Technologies S.L.
+-->
+<view>
+    <columns>
+        <column name="name" order="100"><widget type="text" fieldname="nombre"/></column>
+        <column name="design" order="110"><widget type="text" fieldname="diseno"/></column>
+        <column name="active" display="center" order="120"><widget type="checkbox" fieldname="activo"/></column>
+    </columns>
+</view>

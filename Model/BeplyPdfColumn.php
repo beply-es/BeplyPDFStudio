@@ -1,0 +1,103 @@
+<?php
+/**
+ * This file is part of BeplyPDFStudio plugin for FacturaScripts
+ * Copyright (C) 2026 Beply Technologies S.L.
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Lesser General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ */
+
+namespace FacturaScripts\Plugins\BeplyPDFStudio\Model;
+
+use FacturaScripts\Core\Template\ModelClass;
+use FacturaScripts\Core\Template\ModelTrait;
+use FacturaScripts\Plugins\BeplyPDFStudio\Lib\BeplyPdfConfig;
+
+/**
+ * Una columna de la tabla de líneas de un estilo PDF. Se edita como fila de un
+ * EditListView nativo (cada celda un select/number), hija de BeplyPdfStyle.
+ */
+class BeplyPdfColumn extends ModelClass
+{
+    use ModelTrait;
+
+    /** @var int */
+    public $id;
+
+    /** @var int */
+    public $idstyle;
+
+    /** @var string */
+    public $fieldname;
+
+    /** @var string */
+    public $align;
+
+    /** @var string */
+    public $coltype;
+
+    /** @var int ancho relativo (0 = automático/reparto) */
+    public $width;
+
+    /** @var int */
+    public $orden;
+
+    public function clear(): void
+    {
+        parent::clear();
+        $this->fieldname = 'descripcion';
+        $this->align = 'left';
+        $this->coltype = 'text';
+        $this->width = 0;
+        $this->orden = 100;
+    }
+
+    public static function primaryColumn(): string
+    {
+        return 'id';
+    }
+
+    public function primaryDescriptionColumn(): string
+    {
+        return 'fieldname';
+    }
+
+    public static function tableName(): string
+    {
+        return 'beply_pdf_columns';
+    }
+
+    /** Fuerza que la tabla padre se cree antes (orden de instalación). */
+    public function install(): string
+    {
+        new BeplyPdfStyle();
+        return parent::install();
+    }
+
+    public function test(): bool
+    {
+        if (!in_array($this->fieldname, BeplyPdfConfig::COLUMNAS, true)) {
+            $this->fieldname = 'descripcion';
+        }
+        if (!in_array($this->align, BeplyPdfConfig::POSICIONES, true)) {
+            $this->align = 'left';
+        }
+        if (!in_array($this->coltype, BeplyPdfConfig::COLUMN_TYPES, true)) {
+            $this->coltype = 'text';
+        }
+        if (!is_numeric($this->width) || $this->width < 0) {
+            $this->width = 0;
+        }
+        return parent::test();
+    }
+}

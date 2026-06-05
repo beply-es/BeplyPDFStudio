@@ -1,0 +1,12 @@
+GNU LESSER GENERAL PUBLIC LICENSE
+Version 3, 29 June 2007
+
+BeplyPDFStudio se publica bajo la GNU Lesser General Public License, versión 3 o posterior
+(LGPL-3.0-or-later).
+
+Texto completo:
+- LGPL-3.0: https://www.gnu.org/licenses/lgpl-3.0.txt
+- GPL-3.0 (referenciada): https://www.gnu.org/licenses/gpl-3.0.txt
+
+Marcador de posición: incluir el texto íntegro de la LGPL-3.0 al empaquetar el release si
+la política de Beply lo requiere embebido.

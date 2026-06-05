@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Textos funcionales del formato. El texto final principal vive en FormatoDocumento.texto. -->
+<view>
+    <columns>
+        <group name="thanks-texts" title="thanks-text" icon="fa-solid fa-align-left" numcolumns="12">
+            <column name="thanks-title" numcolumns="6" order="100"><widget type="text" fieldname="thanks_title"/></column>
+            <column name="thanks-text" numcolumns="6" order="110"><widget type="text" fieldname="thanks_text"/></column>
+        </group>
+        <group name="footer-image" title="footer-image" icon="fa-solid fa-image" numcolumns="12">
+            <column name="footer-image" numcolumns="12" order="100">
+                <widget type="library" fieldname="id_footer_image" icon="fa-solid fa-image" accept=".gif,.jpg,.png"/>
+            </column>
+            <column name="footer-image-align" numcolumns="6" order="110">
+                <widget type="select" fieldname="footer_image_align" translate="true">
+                    <values title="align-left">left</values><values title="align-center">center</values>
+                    <values title="align-right">right</values>
+                </widget>
+            </column>
+            <column name="footer-image-width" numcolumns="6" order="120"><widget type="number" fieldname="footer_image_width"/></column>
+        </group>
+    </columns>
+</view>

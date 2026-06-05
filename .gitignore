@@ -19,3 +19,12 @@ Thumbs.db
 
 # Cache
 *.cache
+
+# Playwright / visual evidence generated locally
+/test-results/
+/playwright-report/
+/docs/testing/evidencias/playwright-visual-compat/*.png
+/docs/testing/evidencias/playwright-visual-compat/*.json
+
+# Entorno Python de WeasyPrint (se construye en la imagen, no se versiona)
+.venv/

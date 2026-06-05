@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+ * This file is part of BeplyPDFStudio plugin for FacturaScripts
+ * Copyright (C) 2026 Beply Technologies S.L.
+-->
+<view>
+    <columns>
+        <group name="logo" title="group-logo" icon="fa-solid fa-image" numcolumns="12">
+            <column name="logo" numcolumns="12" order="100">
+                <widget type="library" fieldname="idlogo" icon="fa-solid fa-image" accept=".gif,.jpg,.png"/>
+            </column>
+            <column name="logo-position" numcolumns="6" order="110">
+                <widget type="select" fieldname="logo_position" translate="true">
+                    <values title="align-left">left</values>
+                    <values title="align-center">center</values>
+                    <values title="align-right">right</values>
+                </widget>
+            </column>
+            <column name="logo-size" numcolumns="6" order="120"><widget type="number" fieldname="logo_size"/></column>
+        </group>
+    </columns>
+</view>

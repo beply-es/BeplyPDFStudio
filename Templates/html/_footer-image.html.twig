@@ -1,0 +1,5 @@
+{% if footer_image|default('') %}
+<div class="footer-image" style="margin-top: {{ (font_size * 1.2)|round }}px; text-align: {{ footer_image_align|default('center') }}; break-inside: avoid;">
+  <img src="{{ footer_image }}" alt="" style="width: {{ footer_image_width|default(520) }}px; max-width: 100%; height: auto; display: inline-block;"/>
+</div>
+{% endif %}

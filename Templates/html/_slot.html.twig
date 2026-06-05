@@ -1,0 +1,11 @@
+{% set beply_slot_blocks = extension_blocks[slot]|default([]) %}
+{% if beply_slot_blocks %}
+<div class="beply-slot" data-beply-slot="{{ slot }}">
+  {% for block in beply_slot_blocks %}
+  <div class="beply-slot-block{% if block.key %} beply-slot-block-{{ block.key }}{% endif %}">
+    {% if block.title %}<div class="beply-slot-title">{{ block.title }}</div>{% endif %}
+    <div class="beply-slot-body">{{ block.html|raw }}</div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}

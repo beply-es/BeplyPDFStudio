@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<style>
+  /* Fuentes cargadas por fichero (file://) — el plugin no depende de fuentes instaladas. */
+  {{ font_faces|raw }}
+  /* ===================== REGLAS GENERALES (robustez SIEMPRE) ===================== */
+  @page {
+    size: {{ page_size }};
+    /* En páginas 2+ el margen superior = marginTop configurado + banda para la sub-cabecera */
+    margin: {{ page_mt + 13 }}mm {{ page_mr }}mm {{ page_mb }}mm {{ page_ml }}mm;
+    {% if page_footer_content %}
+    @{{ page_footer_box }} {
+      content: {{ page_footer_content|raw }};
+      font-family: '{{ font_family }}', Arial, sans-serif;
+      font-size: {{ page_footer_size }}px;
+      color: {{ faint_color }};
+    }
+    {% endif %}
+    /* Sub-cabecera de continuación (solo páginas 2+, se suprime en :first), a todo el ancho */
+    @top-left {
+      content: element(contInfo);
+      vertical-align: bottom;
+      width: 100%;
+    }
+  }
+  @page :first {
+    /* La 1ª página NO lleva sub-cabecera: margen superior configurado tal cual */
+    margin-top: {{ page_mt }}mm;
+    @top-left { content: none; }
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: '{{ font_family }}', 'Helvetica Neue', Arial, sans-serif;
+    color: {{ text_color }};
+    font-size: {{ font_size }}px;
+    -webkit-font-smoothing: antialiased;
+  }
+  img { max-width: 100%; height: auto; }
+
+  /* Maqueta con TABLAS (no flex): ancho 100% garantizado y render consistente */
+  table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+  th, td { vertical-align: top; overflow-wrap: break-word; word-break: break-word; }
+  thead { display: table-header-group; }   /* la cabecera de tabla se repite al paginar */
+  tr { break-inside: avoid; }               /* las filas no se parten entre páginas */
+  .l-banner, .l-meta, .l-parties, .l-lines-wrap, .l-totals-wrap, .l-footer-band, .bottom { break-inside: avoid; }
+  .bottom { transform: translateY({{ bottom_anchor_gap }}px); transform-origin: top left; }
+
+  /* Sub-cabecera de continuación (running element en el margen superior, solo páginas 2+) */
+  .cont-info { position: running(contInfo); display: block; width: 100%; font-size: {{ font_size - 1 }}px; color: {{ muted_color }}; border-bottom: 1.5px solid {{ color1 }}; padding-bottom: 5px; margin-bottom: {{ page_mt }}mm; }
+  .cont-info b { color: {{ color1 }}; font-weight: 800; }
+
+  /* ===================== BANDA SUPERIOR CORPORATIVA ===================== */
+  .l-banner {
+    background: {{ color1 }};
+    /* A SANGRE: 100% de ancho (fuera del margen) con el contenido dentro del margen */
+    margin: -{{ page_mt }}mm -{{ page_mr }}mm {{ (font_size * 1.8)|round }}px -{{ page_ml }}mm;
+    width: calc(100% + {{ page_ml + page_mr }}mm);
+    padding: {{ (font_size * 1.3)|round }}px {{ page_mr }}mm {{ (font_size * 1.3)|round }}px {{ page_ml }}mm;
+  }
+  .l-banner-inner { width: 100%; }
+  .l-banner-inner td {
+    padding: 0;
+    vertical-align: middle;
+  }
+  img.banner-logo {
+    width: {{ logo_size }}px;
+    max-width: 100%;
+    height: auto;
+  }
+  .banner-logo-text {
+    font-weight: 800;
+    font-size: {{ (font_size + 10) }}px;
+    color: {{ color2 }};
+    letter-spacing: -0.5px;
+    text-transform: uppercase;
+  }
+  .banner-name {
+    font-weight: 800;
+    font-size: {{ (font_size + 6) }}px;
+    color: {{ color2 }};
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    line-height: 1.2;
+  }
+  .banner-contact {
+    font-size: {{ (font_size - 1) }}px;
+    color: {{ color2 }};
+    line-height: 1.4;
+    margin-top: 4px;
+    opacity: 0.85;
+  }
+
+  /* ===================== BLOQUE META (Nº FACTURA / FECHA) ===================== */
+  .l-meta {
+    margin-bottom: {{ (font_size * 1.2)|round }}px;
+    text-align: right;
+  }
+  .meta-inner {
+    display: inline-block;
+    text-align: right;
+  }
+  .meta-row {
+    font-size: {{ font_size }}px;
+    line-height: 1.6;
+  }
+  .meta-row b {
+    font-weight: 800;
+    letter-spacing: 0.3px;
+    text-transform: uppercase;
+    padding-right: 10px;
+  }
+  .meta-row .meta-val {
+    font-weight: 400;
+    min-width: 80px;
+    display: inline-block;
+    text-align: right;
+  }
+  .l-rule {
+    border: none;
+    border-top: 1px solid {{ border_color }};
+    margin-bottom: {{ (font_size * 1.8)|round }}px;
+  }
+
+  /* ===================== DOS COLUMNAS: EMISOR / RECEPTOR ===================== */
+  .l-parties {
+    margin-bottom: {{ (font_size * 2)|round }}px;
+  }
+  .l-parties td {
+    vertical-align: top;
+  }
+  .party-left {
+    padding-right: {{ (font_size * 1.5)|round }}px;
+    border-right: 1px solid {{ border_color }};
+  }
+  .party-right {
+    padding-left: {{ (font_size * 1.5)|round }}px;
+  }
+  .party-name {
+    font-weight: 800;
+    font-size: {{ font_size }}px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    margin-bottom: 4px;
+    line-height: 1.3;
+    color: {{ text_color }};
+  }
+  .party-info {
+    font-size: {{ font_size }}px;
+    color: {{ muted_color }};
+    line-height: 1.3;
+  }
+  .customer-label {
+    font-size: {{ (font_size - 1) }}px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: {{ muted_color }};
+    margin-bottom: 4px;
+  }
+  .party-extra-box { vertical-align: top; padding-left: {{ (font_size * 1.5)|round }}px; border-left: 1px solid {{ border_color }}; }
+  .party-extra-box .beply-slot-block { break-inside: avoid; }
+  .party-extra-box .beply-slot-title { font-size: {{ (font_size - 1) }}px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; color: {{ muted_color }}; margin-bottom: 4px; }
+  .party-extra-box .beply-slot-body { font-size: {{ font_size }}px; color: {{ muted_color }}; line-height: 1.3; }
+
+  /* ===================== TABLA DE LÍNEAS / BLOQUE INFERIOR ===================== */
+  .l-lines-and-totals {
+    border: 1px solid {{ border_color }};
+    margin-bottom: {{ (font_size * 2)|round }}px;
+  }
+  .l-totals-wrap {
+    border: 1px solid {{ border_color }};
+    margin-bottom: {{ (font_size * 2)|round }}px;
+  }
+  .desc-table { table-layout: auto; border-collapse: collapse; }
+  .desc-table th, .desc-table td { white-space: nowrap; }
+  .desc-table th:first-child, .desc-table td:first-child { width: 100%; white-space: normal; word-break: break-word; }
+  .desc-table thead th {
+    background: {{ color3 }};
+    color: {{ text_color }};
+    font-weight: 800;
+    font-size: {{ font_size }}px;
+    padding: 9px 12px;
+    text-transform: uppercase;
+    border-bottom: 2px solid {{ border_color }};
+  }
+  .desc-table tbody td {
+    font-size: {{ font_size }}px;
+    padding: 9px 12px;
+    color: {{ muted_color }};
+    border-top: 1px solid {{ faint_color }};
+  }
+  /* Bandeado de filas */
+  .desc-table tbody tr:nth-child(even) td { background: {{ color3 }}; }
+  /* Línea de cierre de la tabla de líneas */
+  .desc-table tbody tr:last-child td { border-bottom: 1px solid {{ color1 }}; }
+
+  /* Separador entre tabla de líneas y bloque de totales */
+  .totals-divider {
+    border-top: 1px solid {{ border_color }};
+  }
+
+  /* Totales: tabla auto-dimensionada anclada a la derecha */
+  .totals-outer {
+    padding: 8px 14px 10px 14px;
+  }
+  .totals-inner {
+    table-layout: auto;
+    border-collapse: collapse;
+    width: auto;
+    margin-left: auto;
+  }
+  .totals-inner td {
+    font-size: {{ font_size }}px;
+    padding: 3px 6px;
+    white-space: nowrap;
+    color: {{ muted_color }};
+  }
+  .totals-inner .t-label {
+    text-align: right;
+    font-weight: 400;
+  }
+  .totals-inner .t-value {
+    text-align: right;
+    min-width: 95px;
+  }
+  .totals-inner .t-total-row td {
+    font-weight: 800;
+    color: {{ text_color }};
+    font-size: {{ (font_size + 1) }}px;
+    border-top: 1px solid {{ border_color }};
+    padding-top: 8px;
+    padding-bottom: 8px;
+    text-transform: uppercase;
+  }
+
+  /* ===================== OBSERVACIONES / RECIBOS ===================== */
+  .obs { margin-top: {{ (font_size * 2)|round }}px; font-size: {{ font_size }}px; color: {{ muted_color }}; line-height: 1.5; }
+  .obs .t { font-weight: 800; color: {{ text_color }}; }
+  .recibo-table { margin-top: {{ (font_size * 2)|round }}px; table-layout: auto; border: 1px solid {{ border_color }}; }
+  .recibo-table th, .recibo-table td { white-space: nowrap; }
+  .recibo-table th:nth-child(2), .recibo-table td:nth-child(2) { width: 100%; white-space: normal; word-break: break-word; }
+  .recibo-table thead th {
+    background: {{ color3 }};
+    color: {{ text_color }};
+    font-weight: 800;
+    font-size: {{ font_size }}px;
+    padding: 9px 14px;
+    text-transform: uppercase;
+    border-bottom: 2px solid {{ border_color }};
+  }
+  .recibo-table tbody td { font-size: {{ font_size }}px; padding: 9px 14px; color: {{ muted_color }}; border-top: 1px solid {{ faint_color }}; }
+  .recibo-table tbody tr:nth-child(even) td { background: {{ color3 }}; }
+  .recibo-table tbody tr:last-child td { border-bottom: 1px solid {{ color1 }}; }
+  .end-text { margin-top: {{ (font_size * 1.3)|round }}px; font-size: {{ (font_size - 1) }}px; color: {{ muted_color }}; }
+  .thanks { margin-top: {{ (font_size * 1.5)|round }}px; text-align: center; }
+  .thanks-title { font-size: {{ title_font_size }}px; font-weight: 800; color: {{ color1 }}; }
+  .thanks-text { font-size: {{ font_size }}px; color: {{ muted_color }}; margin-top: 3px; }
+
+  /* ===================== BANDA PIE CORPORATIVA ===================== */
+  .l-footer-band {
+    background: {{ color1 }};
+    /* A SANGRE como la banda superior */
+    /* Pegado al fondo de la página (se repite en cada página), a sangre */
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    padding: {{ (font_size * 0.8)|round }}px {{ page_mr }}mm {{ (font_size * 0.8)|round }}px {{ page_ml }}mm;
+    text-align: center;
+    font-size: {{ (font_size - 1) }}px;
+    color: {{ color2 }};
+    line-height: 1.5;
+  }
+</style>
+</head>
+<body>
+{% include '_draft-warning.html.twig' %}
+<div class="sheet">
+
+  {# Sub-cabecera de continuación: aparece en el margen superior de las páginas 2+ (no en la 1ª) #}
+  <div class="cont-info"><b>{{ doc.title }}{% if doc.code %} {{ doc.code }}{% endif %}</b>{% if doc.date %} · {{ doc.date }}{% endif %}{% if customer.name %} · {{ customer.name }}{% endif %}</div>
+
+  <div class="top">
+
+    {# ---------- BANDA SUPERIOR: logo izquierda · nombre+contacto derecha ---------- #}
+    <div class="l-banner">
+      <table class="l-banner-inner">
+        <tr>
+          <td style="width:40%;">
+            {% if logo_white %}
+              <img class="banner-logo" src="{{ logo_white }}" alt=""/>
+            {% else %}
+              <span class="banner-logo-text">{{ company.name }}</span>
+            {% endif %}
+          </td>
+          <td style="width:60%; text-align:right;">
+            <div class="banner-name">{{ company.name }}</div>
+            {% if company.contact %}
+            <div class="banner-contact">{{ company.contact }}</div>
+            {% endif %}
+          </td>
+        </tr>
+      </table>
+    </div>
+
+    {# ---------- META: Nº FACTURA / FECHA (alineado a la derecha · solo documentos) ---------- #}
+    {% if is_document %}
+    <div class="l-meta">
+      <div class="meta-inner">
+        {% if doc.code %}
+        <div class="meta-row"><b>{{ 'invoice-number'|trans }}:</b><span class="meta-val">{{ doc.code }}</span></div>
+        {% endif %}
+        {% if doc.numero %}
+        <div class="meta-row"><b>{{ 'number'|trans }}:</b><span class="meta-val">{{ doc.numero }}</span></div>
+        {% endif %}
+        {% if doc.supplier_number %}
+        <div class="meta-row"><b>{{ 'numsupplier'|trans }}:</b><span class="meta-val">{{ doc.supplier_number }}</span></div>
+        {% endif %}
+        {% if doc.date %}
+        <div class="meta-row"><b>{{ 'date'|trans }}:</b><span class="meta-val">{{ doc.date }}</span></div>
+        {% endif %}
+        {% if doc.serie %}
+        <div class="meta-row"><b>{{ 'serie'|trans }}:</b><span class="meta-val">{{ doc.serie }}</span></div>
+        {% endif %}
+        {% if doc.numero2 %}
+        <div class="meta-row"><b>Nº 2:</b><span class="meta-val">{{ doc.numero2 }}</span></div>
+        {% endif %}
+        {% if doc.payment_date %}
+        <div class="meta-row"><b>{{ 'payment-date'|trans }}:</b><span class="meta-val">{{ doc.payment_date }}</span></div>
+        {% endif %}
+        {% for parent in doc.parent_docs %}
+        <div class="meta-row"><b>{{ 'document'|trans }}:</b><span class="meta-val">{{ parent }}</span></div>
+        {% endfor %}
+      </div>
+    </div>
+    {% else %}
+    {# En genérico: título de la impresión (listado/ficha/informe) en lugar de la meta de factura #}
+    <div class="l-meta"><div class="meta-inner"><div class="meta-row"><b>{{ doc.title }}</b></div></div></div>
+    {% endif %}
+    <hr class="l-rule"/>
+
+    {# ---------- DOS COLUMNAS: EMISOR (izquierda) / RECEPTOR (derecha · solo documentos) ---------- #}
+    {% if is_document %}
+    {% set party_extra_slot = slots.PARTY_CUSTOMER_AFTER %}
+    {% set party_extra_blocks = extension_blocks[party_extra_slot]|default([]) %}
+    {% set has_party_extra = party_extra_blocks is not empty %}
+    <table class="l-parties">
+      <tr>
+        <td style="width:{% if has_party_extra %}37%{% else %}50%{% endif %};" class="party-left">
+          <div class="party-name">{{ company.name }}</div>
+          <div class="party-info">
+            {% if company.cifnif %}NIF: {{ company.cifnif }}<br/>{% endif %}
+            {% for l in company.lines %}{{ l }}{% if not loop.last %}<br/>{% endif %}{% endfor %}
+            {% if company.contact %}<br/>{{ company.contact }}{% endif %}
+          </div>
+        </td>
+        <td style="width:{% if has_party_extra %}35%{% else %}50%{% endif %};" class="party-right">
+          <div class="customer-label">{{ customer.label }}{% if customer.code %} {{ customer.code }}{% endif %}</div>
+          <div class="party-name">{{ customer.name }}</div>
+          <div class="party-info">
+            {% if customer.cifnif %}NIF: {{ customer.cifnif }}<br/>{% endif %}
+            {% for l in customer.lines %}{{ l }}<br/>{% endfor %}
+            {% include '_shipping-address.html.twig' %}
+            {% if customer.agent %}{{ customer.agent }}<br/>{% endif %}
+            {% if customer.phones %}Tel: {{ customer.phones }}<br/>{% endif %}
+            {% if customer.email %}{{ customer.email }}{% endif %}
+          </div>
+        </td>
+        {% if has_party_extra %}
+        <td class="party-extra-box" style="width:28%;">
+          {% set slot = party_extra_slot %}{% include '_slot.html.twig' %}
+        </td>
+        {% endif %}
+      </tr>
+    </table>
+    {% endif %}
+
+    {# ---------- TABLA DE LÍNEAS ---------- #}
+    {% set slot = slots.LINES_BEFORE %}{% include '_slot.html.twig' %}
+    <div class="l-lines-and-totals">
+      <table class="desc-table">
+        <thead>
+          <tr>{% for c in columns %}<th style="text-align:{{ c.align }};{% if not is_document %}width:{{ c.width }}%;white-space:normal;{% endif %}">{{ c.label }}</th>{% endfor %}</tr>
+        </thead>
+        <tbody>
+          {% for row in lines %}
+          <tr>{% for cell in row %}<td style="text-align:{{ cell.align }};{% if not is_document %}white-space:normal;{% endif %}">{{ cell.value }}</td>{% endfor %}</tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+  </div>{# /top #}
+
+  <div class="bottom">
+
+    {% if is_document %}
+    <div class="l-totals-wrap">
+      <div class="totals-divider"></div>
+      <div class="totals-outer">
+        <table class="totals-inner">
+          {% for t in taxes %}
+          <tr>
+            <td class="t-label">{{ 'subtotal'|trans }}</td>
+            <td class="t-value">{{ t.base }}</td>
+          </tr>
+          <tr>
+            <td class="t-label">{{ 'net'|trans }}</td>
+            <td class="t-value">{{ t.base }}</td>
+          </tr>
+          <tr>
+            <td class="t-label">{{ 'taxes'|trans }} {{ t.pct }}</td>
+            <td class="t-value">{{ t.cuota }}</td>
+          </tr>
+          {% if t.re_pct %}
+          <tr>
+            <td class="t-label">RE {{ t.re_pct }}</td>
+            <td class="t-value">{{ t.re_cuota }}</td>
+          </tr>
+          {% endif %}
+          {% endfor %}
+          <tr class="t-total-row">
+            <td class="t-label">{{ 'total'|trans }} {{ doc.title }}</td>
+            <td class="t-value">{{ totals.total }}</td>
+          </tr>
+        </table>
+      </div>
+    </div>
+    {% endif %}
+
+    {# Observaciones + recibos: no se parten entre páginas; quedan sobre la banda pie fija #}
+    <div class="bottom-extra" style="break-inside: avoid;">
+
+    {% if observations %}
+    <div class="obs"><span class="t">{{ 'observations'|trans }}</span><br/>{{ observations|nl2br }}</div>
+    {% endif %}
+
+    {% if receipts %}
+    <table class="recibo-table">
+      <thead><tr>
+        <th style="text-align:center;">{{ 'receipt'|trans }}</th>
+        {% if not hide_payment_methods %}<th style="text-align:center;">{{ 'payment-method'|trans }}</th>{% endif %}
+        <th style="text-align:right;">{{ 'amount'|trans }}</th>
+        <th style="text-align:right;">{{ 'expiration'|trans }}</th>
+      </tr></thead>
+      <tbody>
+      {% for r in receipts %}
+        <tr>
+          <td style="text-align:center;">{{ r.numero }}</td>
+          {% if not hide_payment_methods %}<td style="text-align:center;">{{ r.forma }}</td>{% endif %}
+          <td style="text-align:right;">{{ r.importe }}</td>
+          <td style="text-align:right;">{{ r.vencimiento }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+
+    {% if is_document and footer_text %}<div class="end-text">{{ footer_text|nl2br }}</div>{% endif %}
+    {% include '_footer-image.html.twig' %}
+    {% if is_document and (thanks_title or thanks_text) %}
+    <div class="thanks">
+      {% if thanks_title %}<div class="thanks-title">{{ thanks_title }}</div>{% endif %}
+      {% if thanks_text %}<div class="thanks-text">{{ thanks_text }}</div>{% endif %}
+    </div>
+    {% endif %}
+
+    </div>{# /bottom-extra #}
+
+  </div>{# /bottom #}
+
+  {# ---------- BANDA PIE CORPORATIVA ---------- #}
+  <div class="l-footer-band">
+    {% if company.contact %}{{ company.contact }}{% elseif footer_text %}{{ footer_text }}{% else %}{{ company.name }}{% endif %}
+  </div>
+
+</div>
+</body>
+</html>

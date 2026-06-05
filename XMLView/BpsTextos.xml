@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+ * This file is part of BeplyPDFStudio plugin for FacturaScripts
+ * Copyright (C) 2026 Beply Technologies S.L.
+-->
+<view>
+    <columns>
+        <group name="texts" title="group-texts" icon="fa-solid fa-align-left" numcolumns="12">
+            <column name="footer-text" numcolumns="12" order="100"><widget type="textarea" fieldname="footer_text"/></column>
+            <column name="footer-align" numcolumns="6" order="110">
+                <widget type="select" fieldname="footer_align" translate="true">
+                    <values title="align-left">left</values><values title="align-center">center</values>
+                    <values title="align-right">right</values><values title="align-justify">justify</values>
+                </widget>
+            </column>
+            <column name="footer-font-size" numcolumns="6" order="120"><widget type="number" fieldname="footer_font_size"/></column>
+            <column name="footer-image" numcolumns="12" order="130">
+                <widget type="library" fieldname="id_footer_image" icon="fa-solid fa-image" accept=".gif,.jpg,.png"/>
+            </column>
+            <column name="footer-image-align" numcolumns="6" order="140">
+                <widget type="select" fieldname="footer_image_align" translate="true">
+                    <values title="align-left">left</values><values title="align-center">center</values>
+                    <values title="align-right">right</values>
+                </widget>
+            </column>
+            <column name="footer-image-width" numcolumns="6" order="150"><widget type="number" fieldname="footer_image_width"/></column>
+            <column name="thanks-title" numcolumns="6" order="160"><widget type="text" fieldname="thanks_title"/></column>
+            <column name="thanks-text" numcolumns="6" order="170"><widget type="text" fieldname="thanks_text"/></column>
+            <column name="page-footer-text" numcolumns="12" order="180"><widget type="text" fieldname="page_footer_text"/></column>
+            <column name="page-footer-align" numcolumns="6" order="190">
+                <widget type="select" fieldname="page_footer_align" translate="true">
+                    <values title="align-left">left</values><values title="align-center">center</values>
+                    <values title="align-right">right</values><values title="align-justify">justify</values>
+                </widget>
+            </column>
+            <column name="page-footer-font-size" numcolumns="6" order="200"><widget type="number" fieldname="page_footer_font_size"/></column>
+        </group>
+    </columns>
+</view>

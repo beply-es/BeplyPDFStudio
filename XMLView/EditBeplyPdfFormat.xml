@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+ * Datos nativos del formato de impresión. La plantilla visual se configura aparte.
+-->
+<view>
+    <columns>
+        <group name="data" title="printing-format" icon="fa-solid fa-print" numcolumns="12">
+            <column name="name" order="100">
+                <widget type="text" fieldname="nombre" maxlength="30"/>
+            </column>
+            <column name="title" order="110">
+                <widget type="text" fieldname="titulo" maxlength="30"/>
+            </column>
+            <column name="logo" order="120">
+                <widget type="library" fieldname="idlogo" icon="fa-solid fa-image" onclick="EditAttachedFile" accept=".gif,.jpg,.png"/>
+            </column>
+            <column name="additional-text" numcolumns="12" order="130">
+                <widget type="textarea" fieldname="texto"/>
+            </column>
+        </group>
+        <group name="apply" title="apply" icon="fa-solid fa-filter" numcolumns="12">
+            <column name="auto-apply-to" numcolumns="12" order="100">
+                <widget type="checkbox" fieldname="autoaplicar"/>
+            </column>
+            <column name="doc-type" order="110">
+                <widget type="select" fieldname="tipodoc" translate="true">
+                    <values title="customer-estimation">PresupuestoCliente</values>
+                    <values title="customer-order">PedidoCliente</values>
+                    <values title="customer-delivery-note">AlbaranCliente</values>
+                    <values title="customer-invoice">FacturaCliente</values>
+                    <values title="supplier-estimation">PresupuestoProveedor</values>
+                    <values title="supplier-order">PedidoProveedor</values>
+                    <values title="supplier-delivery-note">AlbaranProveedor</values>
+                    <values title="supplier-invoice">FacturaProveedor</values>
+                </widget>
+            </column>
+            <column name="company" titleurl="ListEmpresa" order="120">
+                <widget type="select" fieldname="idempresa" icon="fa-solid fa-building" onclick="EditEmpresa" required="true">
+                    <values source="empresas" fieldcode="idempresa" fieldtitle="nombrecorto"/>
+                </widget>
+            </column>
+            <column name="serie" titleurl="ListSerie" order="130">
+                <widget type="select" fieldname="codserie" onclick="EditSerie">
+                    <values source="series" fieldcode="codserie" fieldtitle="descripcion"/>
+                </widget>
+            </column>
+        </group>
+    </columns>
+</view>

@@ -1,0 +1,5 @@
+{% set shipping_lines = shipping.lines|default([]) %}
+{% if shipping_lines %}
+  <strong>{{ shipping.label|default('shipping-address'|trans) }}</strong><br/>
+  {% for l in shipping_lines %}{{ l }}<br/>{% endfor %}
+{% endif %}

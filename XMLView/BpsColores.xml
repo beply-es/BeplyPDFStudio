@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+ * This file is part of BeplyPDFStudio plugin for FacturaScripts
+ * Copyright (C) 2026 Beply Technologies S.L.
+-->
+<view>
+    <columns>
+        <group name="colors" title="group-colors" icon="fa-solid fa-palette" numcolumns="12">
+            <column name="color-primary" numcolumns="6" order="100"><widget type="color" fieldname="color_primary"/></column>
+            <column name="color-secondary" numcolumns="6" order="110"><widget type="color" fieldname="color_secondary"/></column>
+            <column name="color-tertiary" numcolumns="6" order="120"><widget type="color" fieldname="color_tertiary"/></column>
+            <column name="color-text" numcolumns="6" order="130"><widget type="color" fieldname="color_text"/></column>
+        </group>
+    </columns>
+</view>

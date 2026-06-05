@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<style>
+  /* Fuentes cargadas por fichero (file://) — el plugin no depende de fuentes instaladas. */
+  {{ font_faces|raw }}
+  /* ===================== REGLAS GENERALES (robustez SIEMPRE) ===================== */
+  @page {
+    size: {{ page_size }};
+    /* En páginas 2+ el margen superior = marginTop configurado + banda para la sub-cabecera,
+       de modo que el CONTENIDO siga respetando el marginTop configurado (la banda es extra). */
+    margin: {{ page_mt + 13 }}mm {{ page_mr }}mm {{ page_mb }}mm {{ page_ml }}mm;
+    {% if page_footer_content %}
+    @{{ page_footer_box }} {
+      content: {{ page_footer_content|raw }};
+      font-family: '{{ font_family }}', Arial, sans-serif;
+      font-size: {{ page_footer_size }}px;
+      color: {{ faint_color }};
+    }
+    {% endif %}
+    /* Sub-cabecera de continuación (solo páginas 2+, se suprime en :first), a todo el ancho */
+    @top-left {
+      content: element(contInfo);
+      vertical-align: bottom;
+      width: 100%;
+    }
+  }
+  @page :first {
+    /* La 1ª página NO lleva sub-cabecera: margen superior configurado tal cual */
+    margin-top: {{ page_mt }}mm;
+    @top-left { content: none; }
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: '{{ font_family }}', 'Helvetica Neue', Arial, sans-serif;
+    color: {{ text_color }};
+    font-size: {{ font_size }}px;
+    -webkit-font-smoothing: antialiased;
+  }
+  img { max-width: 100%; height: auto; }
+
+  /* Maqueta con TABLAS (no flex): ancho 100% garantizado y render consistente */
+  table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+  th, td { vertical-align: top; overflow-wrap: break-word; word-break: break-word; }
+  thead { display: table-header-group; }
+  tr { break-inside: avoid; }
+  .l-header, .l-title-az, .l-docinfo, .l-items, .l-totals-az, .l-payment-az { break-inside: avoid; }
+
+  /* Sub-cabecera de continuación (running element en el margen superior, solo páginas 2+) */
+  .cont-info { position: running(contInfo); display: block; width: 100%; font-size: {{ font_size - 1 }}px; color: {{ muted_color }}; border-bottom: 1.5px solid {{ color1 }}; padding-bottom: 5px; margin-bottom: {{ page_mt }}mm; }
+  .cont-info b { color: {{ color1 }}; font-weight: 800; }
+  /* Totales + observaciones + recibos en PACK: separación mínima de las líneas y sin partirse al paginar */
+  .bottom { break-inside: avoid; transform: translateY({{ bottom_anchor_gap }}px); transform-origin: top left; }
+
+  /* ===================== BARRAS DE ACENTO SUPERIOR / INFERIOR ===================== */
+  .az-bar-top {
+    width: 100%;
+    height: 5px;
+    background: {{ color1 }};
+    margin-bottom: {{ (font_size * 1.8)|round }}px;
+  }
+  .az-bar-bottom {
+    width: 100%;
+    height: 5px;
+    background: {{ color1 }};
+    margin-top: {{ (font_size * 1.8)|round }}px;
+  }
+
+  /* ===================== CABECERA: logo izq · empresa/contacto der ===================== */
+  .l-header { margin-bottom: {{ (font_size * 2)|round }}px; }
+  .logo-cell-az { text-align: left; vertical-align: middle; }
+  .logo-cell-az img { width: {{ logo_size }}px; max-width: 100%; height: auto; }
+  .logo-text-az { font-weight: 800; font-size: {{ font_size + 14 }}px; letter-spacing: -1px; color: {{ color1 }}; }
+  .company-block-az { text-align: right; vertical-align: middle; }
+  .company-name-az { font-weight: 800; font-size: {{ font_size }}px; letter-spacing: .3px; text-transform: uppercase; margin-bottom: 4px; }
+  .company-info-az { font-size: {{ font_size }}px; line-height: 1.3; color: {{ muted_color }}; }
+  .company-contact-az { font-size: {{ font_size }}px; color: {{ muted_color }}; margin-top: 4px; line-height: 1.3; }
+
+  /* ===================== TÍTULO BIG + BARRA ACENTO IZQUIERDA ===================== */
+  .az-title-wrap {
+    margin-bottom: {{ (font_size * 1.6)|round }}px;
+    padding-bottom: {{ (font_size * 0.8)|round }}px;
+    border-bottom: 2px solid {{ border_color }};
+  }
+  .az-title-accent {
+    display: inline-block;
+    width: 5px;
+    background: {{ color1 }};
+    margin-right: 10px;
+    vertical-align: middle;
+    height: {{ title_font_size + 8 }}px;
+  }
+  .az-title-text {
+    display: inline-block;
+    vertical-align: middle;
+    font-size: {{ title_font_size }}px;
+    font-weight: 800;
+    color: {{ color1 }};
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+
+  /* ===================== DOC INFO: Nº · Fecha (izq) | Cliente (der) ===================== */
+  .l-docinfo { margin-bottom: {{ (font_size * 1.6)|round }}px; }
+  .l-docinfo td { vertical-align: top; }
+  .az-doc-label { font-weight: 800; font-size: {{ font_size }}px; }
+  .az-doc-value { font-size: {{ font_size }}px; color: {{ muted_color }}; }
+  .az-doc-row { margin-bottom: 5px; }
+
+  /* Caja TOTAL DUE arriba-derecha */
+  .az-due-wrap { margin-bottom: {{ (font_size * 1.2)|round }}px; }
+  .az-due-label { font-size: {{ font_size }}px; font-weight: 800; color: {{ muted_color }}; text-transform: uppercase; margin-bottom: 3px; }
+  .az-due-box {
+    display: inline-block;
+    background: {{ color1 }};
+    color: {{ color2 }};
+    font-weight: 800;
+    font-size: {{ title_font_size }}px;
+    padding: 10px 20px;
+    white-space: nowrap;
+  }
+
+  /* Bloque cliente derecha */
+  .az-client-cell { text-align: left; }
+  .az-client-accent-wrap { display: table; margin-bottom: 9px; }
+  .az-client-accent-bar {
+    display: table-cell;
+    width: 4px;
+    background: {{ color1 }};
+    vertical-align: top;
+    padding-right: 8px;
+  }
+  .az-client-label {
+    display: table-cell;
+    vertical-align: middle;
+    font-weight: 800;
+    font-size: {{ font_size + 1 }}px;
+    text-transform: uppercase;
+    color: {{ text_color }};
+  }
+  .az-client-name { font-weight: 800; font-size: {{ font_size }}px; margin-bottom: 2px; }
+  .az-client-info { font-size: {{ font_size }}px; line-height: 1.3; color: {{ muted_color }}; }
+  .party-extra-box { vertical-align: top; }
+  .party-extra-box .beply-slot-block { break-inside: avoid; }
+  .party-extra-box .beply-slot-title { border-left: 4px solid {{ color1 }}; padding-left: 8px; font-weight: 800; font-size: {{ font_size + 1 }}px; text-transform: uppercase; color: {{ text_color }}; margin-bottom: 7px; }
+  .party-extra-box .beply-slot-body { font-size: {{ font_size }}px; line-height: 1.3; color: {{ muted_color }}; }
+
+  /* ===================== TABLA DE LÍNEAS ===================== */
+  .desc-table { table-layout: auto; margin-bottom: {{ (font_size * 1.5)|round }}px; }
+  .desc-table th, .desc-table td { white-space: nowrap; }
+  .desc-table th:first-child, .desc-table td:first-child { width: 100%; white-space: normal; word-break: break-word; }
+  .desc-table thead th { background: {{ color1 }}; color: {{ color2 }}; font-weight: 800; font-size: {{ font_size }}px; padding: 9px 12px; text-transform: uppercase; }
+  .desc-table tbody td { font-size: {{ font_size }}px; padding: 9px 12px; color: {{ muted_color }}; }
+  .desc-table tbody tr:nth-child(even) td { background: {{ color3 }}; }
+  .desc-table tbody tr:last-child td { border-bottom: 1px solid {{ color1 }}; }
+
+  /* ===================== TOTALES LADO DERECHO ===================== */
+  .l-totals-az { margin-bottom: {{ (font_size * 1.5)|round }}px; }
+  .totals-stack { width: auto; table-layout: auto; margin-left: auto; }
+  .totals-stack td { font-size: {{ font_size }}px; padding: 5px 14px; white-space: nowrap; }
+  .totals-stack .ts-label { text-align: left; color: {{ muted_color }}; }
+  .totals-stack .ts-value { text-align: right; color: {{ muted_color }}; }
+  .totals-stack .ts-total-row td { background: {{ color1 }}; color: {{ color2 }}; font-weight: 800; font-size: {{ font_size + 2 }}px; padding: 8px 14px; }
+
+  /* ===================== PAGO / RECIBOS + TÉRMINOS ===================== */
+  .l-payment-az { margin-top: {{ (font_size * 1.5)|round }}px; }
+  .l-payment-az td { vertical-align: top; }
+
+  .az-section-header { display: table; margin-bottom: 12px; }
+  .az-section-accent {
+    display: table-cell;
+    width: 4px;
+    background: {{ color1 }};
+    vertical-align: top;
+    padding-right: 8px;
+  }
+  .az-section-label {
+    display: table-cell;
+    vertical-align: middle;
+    font-weight: 800;
+    font-size: {{ font_size }}px;
+    text-transform: uppercase;
+    color: {{ text_color }};
+  }
+  .az-payment-body { font-size: {{ font_size }}px; color: {{ muted_color }}; line-height: 1.5; }
+  .az-payment-row { margin-bottom: 3px; }
+  .az-payment-label { font-weight: 800; color: {{ text_color }}; }
+
+  .az-obs-body { font-size: {{ font_size }}px; color: {{ muted_color }}; line-height: 1.5; }
+
+  /* recibo tabla inline */
+  .az-recibo-table { margin-top: 4px; table-layout: auto; }
+  .az-recibo-table th, .az-recibo-table td { white-space: nowrap; font-size: {{ font_size - 1 }}px; }
+  .az-recibo-table th:nth-child(2), .az-recibo-table td:nth-child(2) { width: 100%; white-space: normal; word-break: break-word; }
+  .az-recibo-table thead th { background: {{ color1 }}; color: {{ color2 }}; font-weight: 800; padding: 6px 10px; text-transform: uppercase; }
+  .az-recibo-table tbody td { padding: 6px 10px; color: {{ muted_color }}; }
+  .az-recibo-table tbody tr:nth-child(even) td { background: {{ color3 }}; }
+  .az-recibo-table tbody tr:last-child td { border-bottom: 1px solid {{ color1 }}; }
+
+  .end-text { margin-top: {{ (font_size * 1.3)|round }}px; font-size: {{ font_size - 1 }}px; color: {{ muted_color }}; }
+  .thanks { margin-top: {{ (font_size * 1.5)|round }}px; text-align: center; }
+  .thanks-title { font-size: {{ title_font_size }}px; font-weight: 800; color: {{ color1 }}; }
+  .thanks-text { font-size: {{ font_size }}px; color: {{ muted_color }}; margin-top: 3px; }
+</style>
+</head>
+<body>
+{% include '_draft-warning.html.twig' %}
+<div class="sheet">
+
+  {# Sub-cabecera de continuación: aparece en el margen superior de las páginas 2+ (no en la 1ª) #}
+  <div class="cont-info"><b>{{ doc.title }}{% if doc.code %} {{ doc.code }}{% endif %}</b>{% if doc.date %} · {{ doc.date }}{% endif %}{% if customer.name %} · {{ customer.name }}{% endif %}</div>
+
+  {# ===== BARRA SUPERIOR ===== #}
+  <div class="az-bar-top"></div>
+
+  <div class="top">
+
+    {# ===== CABECERA: logo izq · empresa/contacto der ===== #}
+    <table class="l-header"><tr>
+      <td class="logo-cell-az" style="width:40%; vertical-align:middle;">
+        {% if logo %}
+          <img src="{{ logo }}" alt=""/>
+        {% else %}
+          <span class="logo-text-az">{{ company.name }}</span>
+        {% endif %}
+      </td>
+      <td class="company-block-az" style="width:60%; vertical-align:middle; text-align:right;">
+        <div class="company-name-az">{{ company.name }}</div>
+        <div class="company-info-az">
+          {% if company.cifnif %}NIF: {{ company.cifnif }}<br/>{% endif %}
+          {% for l in company.lines %}{{ l }}{% if not loop.last %}<br/>{% endif %}{% endfor %}
+        </div>
+        {% if company.contact %}<div class="company-contact-az">{{ company.contact }}</div>{% endif %}
+      </td>
+    </tr></table>
+
+    {# ===== TÍTULO GRANDE (con barra acento izquierda) ===== #}
+    <div class="az-title-wrap">
+      <span class="az-title-accent"></span><span class="az-title-text">{{ doc.title }}</span>
+    </div>
+
+    {# ===== LÍNEA DOC: CLIENTE + Nº/FECHA (izq) | TOTAL (der) — solo documentos ===== #}
+    {% if is_document %}
+    {% set party_extra_slot = slots.PARTY_CUSTOMER_AFTER %}
+    {% set party_extra_blocks = extension_blocks[party_extra_slot]|default([]) %}
+    {% set has_party_extra = party_extra_blocks is not empty %}
+    <table class="l-docinfo"><tr>
+      {# Columna izquierda: cliente + número/fecha #}
+      <td style="width:{% if has_party_extra %}45%{% else %}60%{% endif %}; vertical-align:top; padding-right:24px;">
+        {# INVOICE TO: cliente #}
+        <div class="az-client-accent-wrap">
+          <div class="az-client-accent-bar"></div>
+          <div class="az-client-label">{{ customer.label }}{% if customer.code %} {{ customer.code }}{% endif %}:</div>
+        </div>
+        {% if customer.name %}<div class="az-client-name">{{ customer.name }}</div>{% endif %}
+        <div class="az-client-info">
+          {% if customer.cifnif %}NIF: {{ customer.cifnif }}<br/>{% endif %}
+          {% for l in customer.lines %}{{ l }}<br/>{% endfor %}
+          {% include '_shipping-address.html.twig' %}
+          {% if customer.agent %}{{ customer.agent }}<br/>{% endif %}
+          {% if customer.phones %}Tel: {{ customer.phones }}<br/>{% endif %}
+          {% if customer.email %}{{ customer.email }}{% endif %}
+        </div>
+        {# Nº / Fecha #}
+        <div style="margin-top:{{ (font_size * 1.2)|round }}px;">
+          {% if doc.code %}
+          <div class="az-doc-row"><span class="az-doc-label">{{ 'invoice-number'|trans|upper }}:&nbsp;</span><span class="az-doc-value">{{ doc.code }}</span></div>
+          {% endif %}
+          {% if doc.numero %}
+          <div class="az-doc-row"><span class="az-doc-label">{{ 'number'|trans|upper }}:&nbsp;</span><span class="az-doc-value">{{ doc.numero }}</span></div>
+          {% endif %}
+          {% if doc.supplier_number %}<div class="az-doc-row"><span class="az-doc-label">{{ 'numsupplier'|trans|upper }}:&nbsp;</span><span class="az-doc-value">{{ doc.supplier_number }}</span></div>{% endif %}
+          {% if doc.serie %}<div class="az-doc-row"><span class="az-doc-label">{{ 'serie'|trans|upper }}:&nbsp;</span><span class="az-doc-value">{{ doc.serie }}</span></div>{% endif %}
+          {% if doc.numero2 %}<div class="az-doc-row"><span class="az-doc-label">Nº 2:&nbsp;</span><span class="az-doc-value">{{ doc.numero2 }}</span></div>{% endif %}
+          {% if doc.payment_date %}<div class="az-doc-row"><span class="az-doc-label">{{ 'payment-date'|trans|upper }}:&nbsp;</span><span class="az-doc-value">{{ doc.payment_date }}</span></div>{% endif %}
+          {% for parent in doc.parent_docs %}<div class="az-doc-row"><span class="az-doc-label">{{ 'document'|trans|upper }}:&nbsp;</span><span class="az-doc-value">{{ parent }}</span></div>{% endfor %}
+          <div class="az-doc-row"><span class="az-doc-label">{{ 'date'|trans|upper }}:&nbsp;</span><span class="az-doc-value">{{ doc.date }}</span></div>
+        </div>
+      </td>
+      {% if has_party_extra %}
+      <td class="party-extra-box" style="width:27%; padding-right:18px;">
+        {% set slot = party_extra_slot %}{% include '_slot.html.twig' %}
+      </td>
+      {% endif %}
+      {# Columna derecha: caja TOTAL #}
+      <td style="width:{% if has_party_extra %}28%{% else %}40%{% endif %}; vertical-align:top; text-align:right;">
+        <div class="az-due-wrap">
+          <div class="az-due-label">{{ 'total'|trans }}:</div>
+          <div class="az-due-box">{{ totals.total }}</div>
+        </div>
+      </td>
+    </tr></table>
+    {% endif %}
+
+    {# ===== TABLA DE LÍNEAS ===== #}
+    {% set slot = slots.LINES_BEFORE %}{% include '_slot.html.twig' %}
+    <table class="desc-table">
+      <thead>
+        <tr>{% for c in columns %}<th style="text-align:{{ c.align }};{% if not is_document %}width:{{ c.width }}%;white-space:normal;{% endif %}">{{ c.label }}</th>{% endfor %}</tr>
+      </thead>
+      <tbody>
+        {% for row in lines %}
+        <tr>{% for cell in row %}<td style="text-align:{{ cell.align }};{% if not is_document %}white-space:normal;{% endif %}">{{ cell.value }}</td>{% endfor %}</tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="bottom">
+
+    {# ===== TOTALES (lado derecho, estilo Grand Total) — solo documentos ===== #}
+    {% if is_document %}
+    <table class="l-totals-az"><tr>
+      <td style="width:50%;"></td>
+      <td style="width:50%;">
+        <table class="totals-stack">
+          <tr>
+            <td class="ts-label">{{ 'subtotal'|trans }}</td>
+            <td class="ts-value">
+              {# Suma de bases imponibles #}
+              {% set subtotal_val = '' %}
+              {% for t in taxes %}{% if loop.first %}{% set subtotal_val = t.base %}{% endif %}{% endfor %}
+              {{ subtotal_val }}
+            </td>
+          </tr>
+          {% for t in taxes %}
+          <tr>
+            <td class="ts-label">{{ 'vat'|trans }} {{ t.pct }}</td>
+            <td class="ts-value">{{ t.cuota }}</td>
+          </tr>
+          {% if t.re_pct %}
+          <tr>
+            <td class="ts-label">RE {{ t.re_pct }}</td>
+            <td class="ts-value">{{ t.re_cuota }}</td>
+          </tr>
+          {% endif %}
+          {% endfor %}
+          <tr class="ts-total-row">
+            <td class="ts-label">{{ 'total'|trans }}</td>
+            <td class="ts-value">{{ totals.total }}</td>
+          </tr>
+        </table>
+      </td>
+    </tr></table>
+    {% endif %}
+
+    {# ===== PAGO + OBSERVACIONES en dos columnas — solo documentos ===== #}
+    {% if is_document and (receipts or observations or footer_text) %}
+    <table class="l-payment-az"><tr>
+      {# Columna izquierda: Método de pago #}
+      <td style="width:48%; padding-right:20px; vertical-align:top;">
+        {% if receipts and not hide_payment_methods %}
+        <div class="az-section-header">
+          <div class="az-section-accent"></div>
+          <div class="az-section-label">{{ 'payment-method'|trans }}:</div>
+        </div>
+        <div class="az-payment-body">
+          <table class="az-recibo-table">
+            <thead><tr>
+              <th style="text-align:center;">{{ 'receipt'|trans }}</th>
+              <th style="text-align:left;">{{ 'payment-method'|trans }}</th>
+              <th style="text-align:right;">{{ 'amount'|trans }}</th>
+              <th style="text-align:right;">{{ 'expiration'|trans }}</th>
+            </tr></thead>
+            <tbody>
+            {% for r in receipts %}
+              <tr>
+                <td style="text-align:center;">{{ r.numero }}</td>
+                <td style="text-align:left;">{{ r.forma }}</td>
+                <td style="text-align:right;">{{ r.importe }}</td>
+                <td style="text-align:right;">{{ r.vencimiento }}</td>
+              </tr>
+            {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% endif %}
+      </td>
+      {# Columna derecha: Observaciones / Terms #}
+      <td style="width:52%; vertical-align:top;">
+        {% if observations %}
+        <div class="az-section-header">
+          <div class="az-section-accent"></div>
+          <div class="az-section-label">{{ 'observations'|trans }}:</div>
+        </div>
+        <div class="az-obs-body">{{ observations|nl2br }}</div>
+        {% endif %}
+        {% if footer_text %}
+        <div class="end-text" style="margin-top:{{ observations ? (font_size)|round : 0 }}px;">{{ footer_text|nl2br }}</div>
+        {% endif %}
+      </td>
+    </tr></table>
+    {% endif %}
+
+    {% include '_footer-image.html.twig' %}
+
+    {% if is_document and (thanks_title or thanks_text) %}
+    <div class="thanks">
+      {% if thanks_title %}<div class="thanks-title">{{ thanks_title }}</div>{% endif %}
+      {% if thanks_text %}<div class="thanks-text">{{ thanks_text }}</div>{% endif %}
+    </div>
+    {% endif %}
+
+  </div>
+
+  {# ===== BARRA INFERIOR ===== #}
+  <div class="az-bar-bottom"></div>
+
+</div>
+</body>
+</html>

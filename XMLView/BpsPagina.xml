@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+ * This file is part of BeplyPDFStudio plugin for FacturaScripts
+ * Copyright (C) 2026 Beply Technologies S.L.
+-->
+<view>
+    <columns>
+        <group name="page" title="group-page-typography" icon="fa-solid fa-file-lines" numcolumns="12">
+            <column name="paper" numcolumns="6" order="100">
+                <widget type="select" fieldname="paper_size">
+                    <values title="A4">A4</values><values title="A5">A5</values>
+                    <values title="Letter">Letter</values><values title="Legal">Legal</values>
+                </widget>
+            </column>
+            <column name="orientation" numcolumns="6" order="110">
+                <widget type="select" fieldname="orientation" translate="true">
+                    <values title="orientation-portrait">portrait</values>
+                    <values title="orientation-landscape">landscape</values>
+                </widget>
+            </column>
+            <column name="margin-top" numcolumns="6" order="120"><widget type="number" fieldname="margin_top"/></column>
+            <column name="margin-bottom" numcolumns="6" order="130"><widget type="number" fieldname="margin_bottom"/></column>
+            <column name="margin-left" numcolumns="6" order="140"><widget type="number" fieldname="margin_left"/></column>
+            <column name="margin-right" numcolumns="6" order="150"><widget type="number" fieldname="margin_right"/></column>
+            <column name="font" numcolumns="6" order="160">
+                <widget type="select" fieldname="font_family">
+                    <values title="Archivo (Sans-serif)">Archivo</values>
+                    <values title="Assistant (Sans-serif)">Assistant</values>
+                    <values title="Barlow (Sans-serif)">Barlow</values>
+                    <values title="Cabin (Sans-serif)">Cabin</values>
+                    <values title="Comfortaa (Sans-serif)">Comfortaa</values>
+                    <values title="DM Sans (Sans-serif)">DM Sans</values>
+                    <values title="DejaVu Sans (Sans-serif)">DejaVu Sans</values>
+                    <values title="Figtree (Sans-serif)">Figtree</values>
+                    <values title="Fira Sans (Sans-serif)">Fira Sans</values>
+                    <values title="Heebo (Sans-serif)">Heebo</values>
+                    <values title="Hind (Sans-serif)">Hind</values>
+                    <values title="IBM Plex Sans (Sans-serif)">IBM Plex Sans</values>
+                    <values title="Inter (Sans-serif)">Inter</values>
+                    <values title="Jost (Sans-serif)">Jost</values>
+                    <values title="Karla (Sans-serif)">Karla</values>
+                    <values title="Lato (Sans-serif)">Lato</values>
+                    <values title="Libre Franklin (Sans-serif)">Libre Franklin</values>
+                    <values title="Manrope (Sans-serif)">Manrope</values>
+                    <values title="Montserrat (Sans-serif)">Montserrat</values>
+                    <values title="Mulish (Sans-serif)">Mulish</values>
+                    <values title="Noto Sans (Sans-serif)">Noto Sans</values>
+                    <values title="Nunito (Sans-serif)">Nunito</values>
+                    <values title="Nunito Sans (Sans-serif)">Nunito Sans</values>
+                    <values title="Open Sans (Sans-serif)">Open Sans</values>
+                    <values title="PT Sans (Sans-serif)">PT Sans</values>
+                    <values title="Poppins (Sans-serif)">Poppins</values>
+                    <values title="Public Sans (Sans-serif)">Public Sans</values>
+                    <values title="Quicksand (Sans-serif)">Quicksand</values>
+                    <values title="Raleway (Sans-serif)">Raleway</values>
+                    <values title="Roboto (Sans-serif)">Roboto</values>
+                    <values title="Rubik (Sans-serif)">Rubik</values>
+                    <values title="Source Sans 3 (Sans-serif)">Source Sans 3</values>
+                    <values title="Titillium Web (Sans-serif)">Titillium Web</values>
+                    <values title="Work Sans (Sans-serif)">Work Sans</values>
+                    <values title="Alegreya (Serif)">Alegreya</values>
+                    <values title="Bitter (Serif)">Bitter</values>
+                    <values title="Cardo (Serif)">Cardo</values>
+                    <values title="Cormorant Garamond (Serif)">Cormorant Garamond</values>
+                    <values title="Crimson Pro (Serif)">Crimson Pro</values>
+                    <values title="Crimson Text (Serif)">Crimson Text</values>
+                    <values title="DejaVu Serif (Serif)">DejaVu Serif</values>
+                    <values title="Domine (Serif)">Domine</values>
+                    <values title="EB Garamond (Serif)">EB Garamond</values>
+                    <values title="IBM Plex Serif (Serif)">IBM Plex Serif</values>
+                    <values title="Libre Baskerville (Serif)">Libre Baskerville</values>
+                    <values title="Lora (Serif)">Lora</values>
+                    <values title="Merriweather (Serif)">Merriweather</values>
+                    <values title="Noto Serif (Serif)">Noto Serif</values>
+                    <values title="PT Serif (Serif)">PT Serif</values>
+                    <values title="Playfair Display (Serif)">Playfair Display</values>
+                    <values title="Roboto Slab (Serif)">Roboto Slab</values>
+                    <values title="Source Serif 4 (Serif)">Source Serif 4</values>
+                    <values title="Spectral (Serif)">Spectral</values>
+                    <values title="Zilla Slab (Serif)">Zilla Slab</values>
+                    <values title="DejaVu Sans Mono (Monospace)">DejaVu Sans Mono</values>
+                    <values title="Fira Code (Monospace)">Fira Code</values>
+                    <values title="IBM Plex Mono (Monospace)">IBM Plex Mono</values>
+                    <values title="Inconsolata (Monospace)">Inconsolata</values>
+                    <values title="JetBrains Mono (Monospace)">JetBrains Mono</values>
+                    <values title="Roboto Mono (Monospace)">Roboto Mono</values>
+                    <values title="Source Code Pro (Monospace)">Source Code Pro</values>
+                    <values title="Space Mono (Monospace)">Space Mono</values>
+                    <values title="Abril Fatface (Display / Marca)">Abril Fatface</values>
+                    <values title="Anton (Display / Marca)">Anton</values>
+                    <values title="Archivo Black (Display / Marca)">Archivo Black</values>
+                    <values title="Bebas Neue (Display / Marca)">Bebas Neue</values>
+                    <values title="Cinzel (Display / Marca)">Cinzel</values>
+                    <values title="Josefin Sans (Display / Marca)">Josefin Sans</values>
+                    <values title="Lobster (Display / Marca)">Lobster</values>
+                    <values title="Oswald (Display / Marca)">Oswald</values>
+                    <values title="Pacifico (Display / Marca)">Pacifico</values>
+                    <values title="Righteous (Display / Marca)">Righteous</values>
+                    <values title="Teko (Display / Marca)">Teko</values>
+                    <values title="Yeseva One (Display / Marca)">Yeseva One</values>
+                </widget>
+            </column>
+            <column name="font-size" numcolumns="3" order="170"><widget type="number" fieldname="font_size"/></column>
+            <column name="title-font-size" numcolumns="3" order="180"><widget type="number" fieldname="title_font_size"/></column>
+        </group>
+    </columns>
+</view>

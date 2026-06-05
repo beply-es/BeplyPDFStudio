@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+ * This file is part of BeplyPDFStudio plugin for FacturaScripts
+ * Copyright (C) 2026 Beply Technologies S.L.
+-->
+<view>
+    <columns>
+        <group name="advanced" title="group-advanced" icon="fa-solid fa-gear" numcolumns="12">
+            <column name="pdf-password" numcolumns="6" order="100"><widget type="text" fieldname="pdf_password"/></column>
+            <column name="creation-date" numcolumns="6" order="130"><widget type="datetime" fieldname="creado" readonly="true"/></column>
+            <column name="last-update" numcolumns="6" order="140"><widget type="datetime" fieldname="modificado" readonly="true"/></column>
+        </group>
+    </columns>
+</view>

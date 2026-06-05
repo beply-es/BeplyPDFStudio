@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    Document   : beply_pdf_styles.xml
+    Author     : Beply Technologies S.L.
+    Description: Estructura de la tabla de estilos PDF de Beply.
+-->
+<table>
+    <column><name>id</name><type>serial</type><null>NO</null></column>
+    <column><name>nombre</name><type>character varying(100)</type><null>NO</null></column>
+    <column><name>idformato</name><type>integer</type></column>
+    <column><name>idempresa</name><type>integer</type></column>
+    <column><name>diseno</name><type>character varying(30)</type><null>NO</null><default>'classic'</default></column>
+    <column><name>activo</name><type>boolean</type><default>true</default></column>
+    <column><name>creado</name><type>timestamp</type></column>
+    <column><name>modificado</name><type>timestamp</type></column>
+
+    <column><name>paper_size</name><type>character varying(10)</type><default>'A4'</default></column>
+    <column><name>orientation</name><type>character varying(10)</type><default>'portrait'</default></column>
+    <column><name>margin_top</name><type>integer</type><default>20</default></column>
+    <column><name>margin_bottom</name><type>integer</type><default>20</default></column>
+    <column><name>margin_left</name><type>integer</type><default>15</default></column>
+    <column><name>margin_right</name><type>integer</type><default>15</default></column>
+
+    <column><name>idlogo</name><type>integer</type></column>
+    <column><name>logo_asset</name><type>character varying(255)</type></column>
+    <column><name>logo_size</name><type>integer</type><default>100</default></column>
+    <column><name>logo_position</name><type>character varying(10)</type><default>'left'</default></column>
+    <column><name>id_footer_image</name><type>integer</type></column>
+    <column><name>footer_image_asset</name><type>character varying(255)</type></column>
+    <column><name>footer_image_width</name><type>integer</type><default>520</default></column>
+    <column><name>footer_image_align</name><type>character varying(10)</type><default>'center'</default></column>
+    <column><name>color_primary</name><type>character varying(9)</type><default>'#1A1A2E'</default></column>
+    <column><name>color_secondary</name><type>character varying(9)</type><default>'#3F8EFC'</default></column>
+    <column><name>color_tertiary</name><type>character varying(9)</type><default>'#F1F1F1'</default></column>
+    <column><name>color_text</name><type>character varying(9)</type><default>'#222222'</default></column>
+
+    <column><name>font_family</name><type>character varying(20)</type><default>'helvetica'</default></column>
+    <column><name>font_size</name><type>integer</type><default>10</default></column>
+    <column><name>title_font_size</name><type>integer</type><default>18</default></column>
+
+    <column><name>show_customer_code</name><type>boolean</type><default>false</default></column>
+    <column><name>show_customer_phones</name><type>boolean</type><default>false</default></column>
+    <column><name>show_customer_email</name><type>boolean</type><default>false</default></column>
+    <column><name>show_number2</name><type>boolean</type><default>false</default></column>
+    <column><name>show_supplier_number</name><type>boolean</type><default>false</default></column>
+    <column><name>show_payment_date</name><type>boolean</type><default>false</default></column>
+    <column><name>show_agent</name><type>boolean</type><default>false</default></column>
+    <column><name>show_draft_warning</name><type>boolean</type><default>true</default></column>
+    <column><name>show_parent_docs</name><type>boolean</type><default>false</default></column>
+    <column><name>hide_shipping_address</name><type>boolean</type><default>false</default></column>
+    <column><name>hide_invoice_number</name><type>boolean</type><default>false</default></column>
+    <column><name>hide_series</name><type>boolean</type><default>false</default></column>
+    <column><name>hide_notes</name><type>boolean</type><default>false</default></column>
+    <column><name>hide_payment_methods</name><type>boolean</type><default>false</default></column>
+    <column><name>hide_receipts</name><type>boolean</type><default>false</default></column>
+    <column><name>hide_due_dates</name><type>boolean</type><default>false</default></column>
+    <column><name>print_attachments</name><type>boolean</type><default>false</default></column>
+    <column><name>show_without_vat</name><type>boolean</type><default>false</default></column>
+
+    <column><name>line_columns</name><type>character varying(255)</type></column>
+    <column><name>line_columns_align</name><type>character varying(255)</type></column>
+    <column><name>line_columns_type</name><type>character varying(255)</type></column>
+
+    <column><name>footer_text</name><type>text</type></column>
+    <column><name>footer_font_size</name><type>integer</type><default>10</default></column>
+    <column><name>footer_align</name><type>character varying(10)</type><default>'justify'</default></column>
+    <column><name>thanks_title</name><type>character varying(255)</type></column>
+    <column><name>thanks_text</name><type>text</type></column>
+    <column><name>page_footer_text</name><type>character varying(255)</type></column>
+    <column><name>page_footer_font_size</name><type>integer</type><default>10</default></column>
+    <column><name>page_footer_align</name><type>character varying(10)</type><default>'center'</default></column>
+
+    <column><name>pdf_password</name><type>character varying(100)</type></column>
+    <column><name>product_image_width</name><type>integer</type><default>50</default></column>
+    <column><name>product_image_height</name><type>integer</type><default>50</default></column>
+
+    <constraint><name>beply_pdf_styles_pkey</name><type>PRIMARY KEY (id)</type></constraint>
+    <constraint><name>ca_beply_pdf_styles_formato</name><type>FOREIGN KEY (idformato) REFERENCES formatos_documentos (id) ON DELETE CASCADE ON UPDATE CASCADE</type></constraint>
+</table>

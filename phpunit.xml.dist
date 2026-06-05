@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+ * This file is part of BeplyPDFStudio plugin for FacturaScripts
+ * Copyright (C) 2026 Beply Technologies S.L.
+ *
+ * Tests del núcleo (Lib/) independientes del framework. Compatible con PHPUnit 9.x.
+-->
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         bootstrap="Tests/bootstrap.php"
+         colors="true">
+    <testsuites>
+        <testsuite name="BeplyPDFStudio-core">
+            <directory>Tests</directory>
+        </testsuite>
+    </testsuites>
+    <coverage>
+        <include>
+            <directory suffix=".php">Lib</directory>
+        </include>
+    </coverage>
+</phpunit>

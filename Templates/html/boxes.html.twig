@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<style>
+  /* Fuentes cargadas por fichero (file://) — el plugin no depende de fuentes instaladas. */
+  {{ font_faces|raw }}
+  /* ===================== REGLAS GENERALES (robustez SIEMPRE) ===================== */
+  @page {
+    size: {{ page_size }};
+    /* En páginas 2+ el margen superior = marginTop configurado + banda para la sub-cabecera,
+       de modo que el CONTENIDO siga respetando el marginTop configurado (la banda es extra). */
+    margin: {{ page_mt + 13 }}mm {{ page_mr }}mm {{ page_mb }}mm {{ page_ml }}mm;
+    {% if page_footer_content %}
+    @{{ page_footer_box }} {
+      content: {{ page_footer_content|raw }};
+      font-family: '{{ font_family }}', Arial, sans-serif;
+      font-size: {{ page_footer_size }}px;
+      color: {{ faint_color }};
+    }
+    {% endif %}
+    /* Sub-cabecera de continuación (solo páginas 2+, se suprime en :first), a todo el ancho */
+    @top-left {
+      content: element(contInfo);
+      vertical-align: bottom;
+      width: 100%;
+    }
+  }
+  @page :first {
+    /* La 1ª página NO lleva sub-cabecera: margen superior configurado tal cual */
+    margin-top: {{ page_mt }}mm;
+    @top-left { content: none; }
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: '{{ font_family }}', 'Helvetica Neue', Arial, sans-serif;
+    color: {{ text_color }};
+    font-size: {{ font_size }}px;
+    -webkit-font-smoothing: antialiased;
+  }
+  img { max-width: 100%; height: auto; }
+
+  /* Maqueta con TABLAS (no flex): ancho 100% garantizado y render consistente */
+  table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+  th, td { vertical-align: top; overflow-wrap: break-word; word-break: break-word; }
+  thead { display: table-header-group; }   /* la cabecera de tabla se repite al paginar */
+  tr { break-inside: avoid; }               /* las filas no se parten entre páginas */
+  /* OJO: .l-items (caja de líneas) NO lleva break-inside:avoid o una tabla larga no pagina
+     y se generan páginas en blanco. La tabla parte por filas (tr break-inside:avoid). */
+  .l-header, .l-boxes { break-inside: avoid; }
+
+  /* Sub-cabecera de continuación (running element en el margen superior, solo páginas 2+) */
+  .cont-info { position: running(contInfo); display: block; width: 100%; font-size: {{ font_size - 1 }}px; color: {{ muted_color }}; border-bottom: 1.5px solid {{ color1 }}; padding-bottom: 5px; margin-bottom: {{ page_mt }}mm; }
+  .cont-info b { color: {{ color1 }}; font-weight: 800; }
+  /* Totales en PACK: separación mínima de las líneas y sin partirse al paginar */
+  .bottom { break-inside: avoid; transform: translateY({{ bottom_anchor_gap }}px); transform-origin: top left; }
+
+  /* ===================== CABECERA: titulo+empresa izquierda · logo derecha ===================== */
+  .l-header { margin-bottom: {{ (font_size * 1.5)|round }}px; }
+  .doc-title-top { font-weight: 800; font-size: {{ title_font_size }}px; color: {{ color1 }}; margin-bottom: {{ (font_size * 0.6)|round }}px; }
+  .company-name { font-weight: 800; font-size: {{ font_size }}px; letter-spacing: .3px; margin-bottom: 2px; text-transform: uppercase; }
+  .company-info { font-size: {{ font_size }}px; line-height: 1.3; color: {{ muted_color }}; }
+  .company-contact { font-size: {{ font_size }}px; color: {{ muted_color }}; margin-top: {{ (font_size * 0.6)|round }}px; }
+  .logo-cell { text-align: right; vertical-align: top; }
+  .logo-cell img { width: {{ logo_size }}px; max-width: 100%; height: auto; }
+  .logo-text { font-weight: 800; font-size: {{ font_size + 18 }}px; letter-spacing: -1px; }
+
+  /* ===================== BOXES: dos cajas lado a lado ===================== */
+  .l-boxes { margin-bottom: {{ (font_size * 1.5)|round }}px; }
+  .l-boxes > table { table-layout: fixed; }
+  .box-cell { border: 1px solid {{ color1 }}; vertical-align: top; padding: 0; }
+  .box-separator { width: 8px; }
+  .box-header { background: {{ color1 }}; color: {{ color2 }}; font-weight: 800; font-size: {{ font_size }}px; padding: 7px 10px; text-transform: uppercase; }
+  .box-body { padding: 0; }
+  /* tabla interior de la caja (filas etiqueta-valor) */
+  .box-rows { table-layout: auto; width: 100%; }
+  .box-rows td { font-size: {{ font_size }}px; padding: 5px 10px; vertical-align: middle; border: none; }
+  .box-rows .bl { font-weight: 800; white-space: nowrap; padding-right: 6px; width: 1%; }
+  .box-rows .br { text-align: right; white-space: nowrap; }
+  /* contenido libre (cliente) */
+  .box-content { font-size: {{ font_size }}px; line-height: 1.3; padding: 6px 10px; color: {{ muted_color }}; }
+  .party-extra-box { vertical-align: top; }
+  .party-extra-box .beply-slot-block { border: 1px solid {{ color1 }}; break-inside: avoid; }
+  .party-extra-box .beply-slot-title { background: {{ color1 }}; color: {{ color2 }}; font-weight: 800; font-size: {{ font_size }}px; padding: 7px 10px; text-transform: uppercase; }
+  .party-extra-box .beply-slot-body { padding: 6px 10px; font-size: {{ font_size }}px; line-height: 1.3; color: {{ muted_color }}; }
+
+  /* ===================== TABLA DE LÍNEAS con marco rojo ===================== */
+  .l-items { border: 1px solid {{ color1 }}; margin-bottom: {{ (font_size * 1.5)|round }}px; }
+  .desc-table { table-layout: auto; border-collapse: collapse; width: 100%; }
+  .desc-table th, .desc-table td { white-space: nowrap; }
+  .desc-table th:first-child, .desc-table td:first-child { width: 100%; white-space: normal; word-break: break-word; }
+  .desc-table thead th { background: {{ color1 }}; color: {{ color2 }}; font-weight: 800; font-size: {{ font_size }}px; padding: 9px 12px; text-transform: uppercase; }
+  .desc-table tbody td { font-size: {{ font_size }}px; padding: 9px 12px; color: {{ muted_color }}; }
+  /* Bandeado de filas: línea sí, línea no (color terciario en las pares) */
+  .desc-table tbody tr:nth-child(even) td { background: {{ color3 }}; }
+  /* Línea de cierre de la tabla (la última) en color primario, como la cabecera */
+  .desc-table tbody tr:last-child td { border-bottom: 1px solid {{ color1 }}; }
+
+  /* ===================== TABLAS INFERIORES CON MARCO ===================== */
+  .l-bottom-table { border: 1px solid {{ color1 }}; margin-bottom: {{ (font_size * 1.2)|round }}px; break-inside: avoid; }
+  .box-table { table-layout: fixed; border-collapse: collapse; width: 100%; }
+  .box-table thead th { background: {{ color1 }}; color: {{ color2 }}; font-weight: 800; font-size: {{ font_size }}px; padding: 7px 12px; text-transform: uppercase; }
+  .box-table tbody td { font-size: {{ font_size }}px; padding: 7px 12px; color: {{ muted_color }}; }
+  /* Bandeado */
+  .box-table tbody tr:nth-child(even) td { background: {{ color3 }}; }
+  /* Línea de cierre */
+  .box-table tbody tr:last-child td { border-bottom: 1px solid {{ color1 }}; }
+
+  /* ===================== OBSERVACIONES / TEXTOS ===================== */
+  .obs { margin-top: {{ (font_size * 1.5)|round }}px; font-size: {{ font_size }}px; color: {{ muted_color }}; line-height: 1.5; }
+  .obs .t { font-weight: 800; }
+  .end-text { margin-top: {{ (font_size * 1.3)|round }}px; font-size: {{ font_size - 1 }}px; color: {{ muted_color }}; }
+  .thanks { margin-top: {{ (font_size * 1.5)|round }}px; text-align: center; }
+  .thanks-title { font-size: {{ title_font_size }}px; font-weight: 800; color: {{ color1 }}; }
+  .thanks-text { font-size: {{ font_size }}px; color: {{ muted_color }}; margin-top: 3px; }
+</style>
+</head>
+<body>
+{% include '_draft-warning.html.twig' %}
+<div class="sheet">
+  {% set slot = slots.DOCUMENT_TITLE_BEFORE %}{% include '_slot.html.twig' %}
+
+  {# Sub-cabecera de continuación: aparece en el margen superior de las páginas 2+ (no en la 1ª) #}
+  <div class="cont-info"><b>{{ doc.title }}{% if doc.code %} {{ doc.code }}{% endif %}</b>{% if doc.date %} · {{ doc.date }}{% endif %}{% if customer.name %} · {{ customer.name }}{% endif %}</div>
+
+  <div class="top">
+
+    {# ---------- CABECERA: título doc + empresa izq · logo der ---------- #}
+    {% set logo_block %}{% if logo %}<img src="{{ logo }}" alt=""/>{% else %}<span class="logo-text">{{ company.name }}</span>{% endif %}{% endset %}
+
+    <table class="l-header"><tr>
+      <td style="width:62%; vertical-align:top;">
+        <div class="doc-title-top">{{ doc.title }}{% if doc.code %} {{ doc.code }}{% endif %}</div>
+        <div class="company-name">{{ company.name }}</div>
+        <div class="company-info">
+          {% if company.cifnif %}NIF: {{ company.cifnif }}<br/>{% endif %}
+          {% for l in company.lines %}{{ l }}{% if not loop.last %}<br/>{% endif %}{% endfor %}
+        </div>
+        {% if company.contact %}<div class="company-contact">{{ company.contact }}</div>{% endif %}
+        {% set slot = slots.PARTY_COMPANY_AFTER %}{% include '_slot.html.twig' %}
+      </td>
+      <td class="logo-cell" style="width:38%; text-align:right; vertical-align:top;">{{ logo_block }}</td>
+    </tr></table>
+
+    {# ---------- DOS CAJAS LADO A LADO: doc-meta + cliente (solo documentos) ---------- #}
+    {% if is_document %}
+    {% set party_extra_slot = slots.PARTY_CUSTOMER_AFTER %}
+    {% set party_extra_blocks = extension_blocks[party_extra_slot]|default([]) %}
+    {% set has_party_extra = party_extra_blocks is not empty %}
+    <div class="l-boxes">
+      <table style="table-layout:fixed; width:100%; border-collapse:separate; border-spacing:0;">
+        <tr>
+          {# CAJA IZQUIERDA: datos del documento #}
+          <td class="box-cell" style="width:{% if has_party_extra %}32%{% else %}49%{% endif %};">
+            <div class="box-header">{{ doc.title }}{% if doc.code %} {{ doc.code }}{% endif %}</div>
+            {% set slot = slots.DOCUMENT_TITLE_AFTER %}{% include '_slot.html.twig' %}
+            <div class="box-body">
+              <table class="box-rows">
+                {% set slot = slots.DOCUMENT_META_BEFORE %}{% include '_slot.html.twig' %}
+                {% if doc.date %}<tr><td class="bl">{{ 'date'|trans }}:</td><td class="br">{{ doc.date }}</td></tr>{% endif %}
+                {% if doc.numero %}<tr><td class="bl">{{ 'number'|trans }}:</td><td class="br">{{ doc.numero }}</td></tr>{% endif %}
+                {% if doc.supplier_number %}<tr><td class="bl">{{ 'numsupplier'|trans }}:</td><td class="br">{{ doc.supplier_number }}</td></tr>{% endif %}
+                {% if doc.serie %}<tr><td class="bl">{{ 'serie'|trans }}:</td><td class="br">{{ doc.serie }}</td></tr>{% endif %}
+                {% if doc.numero2 %}<tr><td class="bl">Nº 2:</td><td class="br">{{ doc.numero2 }}</td></tr>{% endif %}
+                {% if doc.payment_date %}<tr><td class="bl">{{ 'payment-date'|trans }}:</td><td class="br">{{ doc.payment_date }}</td></tr>{% endif %}
+                {% for parent in doc.parent_docs %}<tr><td class="bl">{{ 'document'|trans }}:</td><td class="br">{{ parent }}</td></tr>{% endfor %}
+                {% set slot = slots.DOCUMENT_META_AFTER %}{% include '_slot.html.twig' %}
+              </table>
+            </div>
+          </td>
+          {# separador #}
+          <td class="box-separator"></td>
+          {# CAJA DERECHA: datos del cliente #}
+          <td class="box-cell" style="width:{% if has_party_extra %}32%{% else %}49%{% endif %};">
+            {% set slot = slots.PARTY_CUSTOMER_BEFORE %}{% include '_slot.html.twig' %}
+            <div class="box-header">{{ customer.label }}{% if customer.code %} {{ customer.code }}{% endif %}</div>
+            <div class="box-content">
+              {% if customer.name %}<strong>{{ customer.name }}</strong><br/>{% endif %}
+              {% if customer.cifnif %}NIF: {{ customer.cifnif }}<br/>{% endif %}
+              {% for l in customer.lines %}{{ l }}<br/>{% endfor %}
+              {% include '_shipping-address.html.twig' %}
+              {% set slot = slots.PARTY_SHIPPING_AFTER %}{% include '_slot.html.twig' %}
+              {% if customer.agent %}{{ customer.agent }}<br/>{% endif %}
+              {% if customer.phones %}Tel: {{ customer.phones }}<br/>{% endif %}
+              {% if customer.email %}{{ customer.email }}{% endif %}
+            </div>
+          </td>
+          {% if has_party_extra %}
+          <td class="box-separator"></td>
+          <td class="party-extra-box" style="width:32%;">
+            {% set slot = party_extra_slot %}{% include '_slot.html.twig' %}
+          </td>
+          {% endif %}
+        </tr>
+      </table>
+    </div>
+    {% endif %}
+
+    {# ---------- TABLA DE LÍNEAS con marco rojo ---------- #}
+    {% set slot = slots.LINES_BEFORE %}{% include '_slot.html.twig' %}
+    <div class="l-items">
+      <table class="desc-table">
+        <thead>
+          <tr>{% for c in columns %}<th style="text-align:{{ c.align }};{% if not is_document %}width:{{ c.width }}%;white-space:normal;{% endif %}">{{ c.label }}</th>{% endfor %}</tr>
+        </thead>
+        <tbody>
+          {% for row in lines %}
+          <tr>{% for cell in row %}<td style="text-align:{{ cell.align }};{% if not is_document %}white-space:normal;{% endif %}">{{ cell.value }}</td>{% endfor %}</tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% set slot = slots.LINES_AFTER %}{% include '_slot.html.twig' %}
+
+  </div>
+
+  <div class="bottom">
+
+    {# ---------- DIVISA | TOTAL (solo documentos) ---------- #}
+    {% if is_document %}
+    <div class="l-bottom-table">
+      <table class="box-table">
+        <thead>
+          <tr>
+            <th style="text-align:center; width:40%;">{{ 'currency'|trans }}</th>
+            <th style="text-align:center; width:60%;">{{ 'total'|trans }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td style="text-align:center;">EUR</td>
+            {% set slot = slots.TOTALS_BEFORE %}{% include '_slot.html.twig' %}
+            <td style="text-align:center; font-weight:800; color:{{ text_color }};">{{ totals.total }}</td>
+            {% set slot = slots.TOTALS_AFTER %}{% include '_slot.html.twig' %}
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    {# ---------- IMPUESTO | BASE IMPONIBLE | PORCENTAJE | IMPORTE ---------- #}
+    {% set slot = slots.TAXES_BEFORE %}{% include '_slot.html.twig' %}
+    <div class="l-bottom-table">
+      <table class="box-table">
+        <thead>
+          <tr>
+            <th style="text-align:left; width:25%;">{{ 'tax'|trans }}</th>
+            <th style="text-align:right; width:25%;">{{ 'tax-base'|trans }}</th>
+            <th style="text-align:right; width:25%;">{{ 'percentage'|trans }}</th>
+            <th style="text-align:right; width:25%;">{{ 'amount'|trans }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for t in taxes %}
+          <tr>
+            <td style="text-align:left;">{{ 'vat'|trans }} {{ t.pct }}</td>
+            <td style="text-align:right;">{{ t.base }}</td>
+            <td style="text-align:right;">{{ t.pct }}</td>
+            <td style="text-align:right;">{{ t.cuota }}</td>
+          </tr>
+          {% if t.re_pct %}
+          <tr>
+            <td style="text-align:left;">RE {{ t.re_pct }}</td>
+            <td style="text-align:right;">{{ t.base }}</td>
+            <td style="text-align:right;">{{ t.re_pct }}</td>
+            <td style="text-align:right;">{{ t.re_cuota }}</td>
+          </tr>
+          {% endif %}
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% set slot = slots.TAXES_AFTER %}{% include '_slot.html.twig' %}
+    {% endif %}
+
+    {# ---------- RECIBO | FORMA DE PAGO | IMPORTE | VENCIMIENTO ---------- #}
+    {% set slot = slots.RECEIPTS_BEFORE %}{% include '_slot.html.twig' %}
+    {% if receipts %}
+    <div class="l-bottom-table">
+      <table class="box-table">
+        <thead>
+          <tr>
+            <th style="text-align:center; width:15%;">{{ 'receipt'|trans }}</th>
+            {% if not hide_payment_methods %}<th style="text-align:center; width:35%;">{{ 'payment-method'|trans }}</th>{% endif %}
+            <th style="text-align:right; width:{% if hide_payment_methods %}42{% else %}25{% endif %}%;">{{ 'amount'|trans }}</th>
+            <th style="text-align:right; width:{% if hide_payment_methods %}43{% else %}25{% endif %}%;">{{ 'expiration'|trans }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in receipts %}
+          <tr>
+            <td style="text-align:center;">{{ r.numero }}</td>
+            {% if not hide_payment_methods %}<td style="text-align:center;">{{ r.forma }}</td>{% endif %}
+            <td style="text-align:right;">{{ r.importe }}</td>
+            <td style="text-align:right;">{{ r.vencimiento }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+    {% set slot = slots.RECEIPTS_AFTER %}{% include '_slot.html.twig' %}
+
+    {% set slot = slots.OBSERVATIONS_BEFORE %}{% include '_slot.html.twig' %}
+    {% if observations %}
+    <div class="obs"><span class="t">{{ 'observations'|trans }}</span><br/>{{ observations|nl2br }}</div>
+    {% endif %}
+    {% set slot = slots.OBSERVATIONS_AFTER %}{% include '_slot.html.twig' %}
+
+    {% set slot = slots.FOOTER_BEFORE %}{% include '_slot.html.twig' %}
+    {% if is_document and footer_text %}<div class="end-text">{{ footer_text|nl2br }}</div>{% endif %}
+    {% include '_footer-image.html.twig' %}
+    {% if is_document and (thanks_title or thanks_text) %}
+    <div class="thanks">
+      {% if thanks_title %}<div class="thanks-title">{{ thanks_title }}</div>{% endif %}
+      {% if thanks_text %}<div class="thanks-text">{{ thanks_text }}</div>{% endif %}
+    </div>
+    {% endif %}
+    {% set slot = slots.FOOTER_AFTER %}{% include '_slot.html.twig' %}
+
+  </div>
+
+</div>
+</body>
+</html>

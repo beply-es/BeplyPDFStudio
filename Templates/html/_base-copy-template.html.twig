@@ -1,0 +1,271 @@
+{#
+  BeplyPDFStudio base copy template.
+
+  This file is intentionally NOT registered in BeplyHtmlRenderService::TEMPLATES.
+  Copy it to a new .html.twig file, add that file to the layout registry and then
+  replace only the visual CSS/markup. Keep every slot include and every conditional
+  block so format options and external module extensions keep working.
+#}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<style>
+  {{ font_faces|raw }}
+
+  @page {
+    size: {{ page_size }};
+    margin: {{ page_mt + 13 }}mm {{ page_mr }}mm {{ page_mb }}mm {{ page_ml }}mm;
+    {% if page_footer_content %}
+    @{{ page_footer_box }} {
+      content: {{ page_footer_content|raw }};
+      font-family: '{{ font_family }}', Arial, sans-serif;
+      font-size: {{ page_footer_size }}px;
+      color: {{ faint_color }};
+    }
+    {% endif %}
+    @top-left {
+      content: element(contInfo);
+      vertical-align: bottom;
+      width: 100%;
+    }
+  }
+  @page :first {
+    margin-top: {{ page_mt }}mm;
+    @top-left { content: none; }
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: '{{ font_family }}', Arial, sans-serif;
+    color: {{ text_color }};
+    font-size: {{ font_size }}px;
+  }
+  img { max-width: 100%; height: auto; }
+  table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+  th, td { vertical-align: top; overflow-wrap: break-word; word-break: break-word; }
+  thead { display: table-header-group; }
+  tr { break-inside: avoid; }
+
+  .cont-info {
+    position: running(contInfo);
+    display: block;
+    width: 100%;
+    padding-bottom: 5px;
+    margin-bottom: {{ page_mt }}mm;
+    border-bottom: 1px solid {{ color1 }};
+    color: {{ muted_color }};
+    font-size: {{ font_size - 1 }}px;
+  }
+  .sheet { width: 100%; }
+  .header, .document-title, .party, .bottom, .receipts, .footer { break-inside: avoid; }
+  .bottom { transform: translateY({{ bottom_anchor_gap }}px); transform-origin: top left; }
+  .header { margin-bottom: {{ font_size }}px; }
+  .logo img { width: {{ logo_size }}px; height: auto; }
+  .logo-text { font-size: {{ title_font_size }}px; font-weight: 800; color: {{ color1 }}; }
+  .company-name, .party-label, .section-title { font-weight: 800; color: {{ text_color }}; }
+  .muted { color: {{ muted_color }}; line-height: 1.35; }
+  .document-title {
+    margin: {{ font_size }}px 0;
+    padding-bottom: 6px;
+    border-bottom: 2px solid {{ color1 }};
+    color: {{ color1 }};
+    font-size: {{ title_font_size }}px;
+    font-weight: 800;
+  }
+  .party { margin-bottom: {{ font_size }}px; }
+  .meta-table { width: auto; margin-left: auto; table-layout: auto; }
+  .meta-table td { padding: 2px 0; white-space: nowrap; }
+  .meta-table td:first-child { padding-right: 14px; color: {{ text_color }}; font-weight: 800; }
+  .meta-table td:last-child { text-align: right; color: {{ muted_color }}; }
+  .lines-area { min-height: {{ lines_fill }}px; }
+  .lines-table th {
+    background: {{ color1 }};
+    color: {{ color2 }};
+    padding: 8px 10px;
+    font-weight: 800;
+    text-transform: uppercase;
+  }
+  .lines-table td { padding: 8px 10px; color: {{ muted_color }}; }
+  .lines-table tbody tr:nth-child(even) td { background: {{ color3 }}; }
+  .tax-table, .totals-table, .receipts-table { margin-top: {{ font_size }}px; }
+  .tax-table td, .totals-table td, .receipts-table td, .receipts-table th { padding: 6px 8px; }
+  .receipts-table th { background: {{ color1 }}; color: {{ color2 }}; text-align: left; }
+  .total-value { text-align: right; font-size: {{ title_font_size }}px; font-weight: 800; color: {{ text_color }}; }
+  .notes, .footer, .thanks { margin-top: {{ font_size }}px; color: {{ muted_color }}; line-height: 1.45; }
+  .thanks { text-align: center; }
+  .thanks-title { color: {{ color1 }}; font-size: {{ title_font_size }}px; font-weight: 800; }
+</style>
+</head>
+<body>
+{% include '_draft-warning.html.twig' %}
+<div class="sheet">
+  {% set slot = slots.DOCUMENT_TITLE_BEFORE %}{% include '_slot.html.twig' %}
+
+  <div class="cont-info">
+    <b>{{ doc.title }}{% if doc.code %} {{ doc.code }}{% endif %}</b>
+    {% if doc.date %} - {{ doc.date }}{% endif %}
+    {% if customer.name %} - {{ customer.name }}{% endif %}
+  </div>
+
+  <table class="header">
+    <tr>
+      {% if logo_position == 'left' %}
+      <td class="logo" style="width:35%; text-align:left;">{% if logo %}<img src="{{ logo }}" alt=""/>{% else %}<span class="logo-text">{{ company.name }}</span>{% endif %}</td>
+      <td style="width:65%; text-align:right;">
+      {% else %}
+      <td style="width:65%;">
+      {% endif %}
+        <div class="company-name">{{ company.name }}</div>
+        <div class="muted">
+          {% if company.cifnif %}NIF: {{ company.cifnif }}<br/>{% endif %}
+          {% for line in company.lines %}{{ line }}{% if not loop.last %}<br/>{% endif %}{% endfor %}
+          {% if company.contact %}<br/>{{ company.contact }}{% endif %}
+        </div>
+        {% set slot = slots.PARTY_COMPANY_AFTER %}{% include '_slot.html.twig' %}
+      </td>
+      {% if logo_position != 'left' %}
+      <td class="logo" style="width:35%; text-align:{{ logo_position }};">{% if logo %}<img src="{{ logo }}" alt=""/>{% else %}<span class="logo-text">{{ company.name }}</span>{% endif %}</td>
+      {% endif %}
+    </tr>
+  </table>
+
+  <div class="document-title">{{ doc.title }}{% if doc.code %} {{ doc.code }}{% endif %}</div>
+  {% set slot = slots.DOCUMENT_TITLE_AFTER %}{% include '_slot.html.twig' %}
+
+  {% if is_document %}
+  <table class="party">
+    <tr>
+      <td style="width:62%; padding-right:18px;">
+        {% set slot = slots.PARTY_CUSTOMER_BEFORE %}{% include '_slot.html.twig' %}
+        <div class="party-label">{{ customer.label }}{% if customer.code %} {{ customer.code }}{% endif %}</div>
+        <div class="muted">
+          {% if customer.name %}{{ customer.name }}<br/>{% endif %}
+          {% if customer.cifnif %}NIF: {{ customer.cifnif }}<br/>{% endif %}
+          {% for line in customer.lines %}{{ line }}<br/>{% endfor %}
+          {% include '_shipping-address.html.twig' %}
+          {% set slot = slots.PARTY_SHIPPING_AFTER %}{% include '_slot.html.twig' %}
+          {% if customer.agent %}{{ customer.agent }}<br/>{% endif %}
+          {% if customer.phones %}Tel: {{ customer.phones }}<br/>{% endif %}
+          {% if customer.email %}{{ customer.email }}{% endif %}
+        </div>
+        {% set slot = slots.PARTY_CUSTOMER_AFTER %}{% include '_slot.html.twig' %}
+      </td>
+      <td style="width:38%;">
+        {% set slot = slots.DOCUMENT_META_BEFORE %}{% include '_slot.html.twig' %}
+        <table class="meta-table">
+          {% if doc.date %}<tr><td>{{ 'date'|trans }}</td><td>{{ doc.date }}</td></tr>{% endif %}
+          {% if doc.numero %}<tr><td>{{ 'number'|trans }}</td><td>{{ doc.numero }}</td></tr>{% endif %}
+          {% if doc.supplier_number %}<tr><td>{{ 'numsupplier'|trans }}</td><td>{{ doc.supplier_number }}</td></tr>{% endif %}
+          {% if doc.serie %}<tr><td>{{ 'serie'|trans }}</td><td>{{ doc.serie }}</td></tr>{% endif %}
+          {% if doc.numero2 %}<tr><td>N. 2</td><td>{{ doc.numero2 }}</td></tr>{% endif %}
+          {% if doc.payment_date %}<tr><td>{{ 'payment-date'|trans }}</td><td>{{ doc.payment_date }}</td></tr>{% endif %}
+          {% for parent in doc.parent_docs %}<tr><td>{{ 'document'|trans }}</td><td>{{ parent }}</td></tr>{% endfor %}
+        </table>
+        {% set slot = slots.DOCUMENT_META_AFTER %}{% include '_slot.html.twig' %}
+      </td>
+    </tr>
+  </table>
+  {% endif %}
+
+  {% set slot = slots.LINES_BEFORE %}{% include '_slot.html.twig' %}
+  <div class="lines-area">
+    <table class="lines-table">
+      <thead>
+      <tr>
+        {% for col in columns %}
+        <th style="text-align:{{ col.align }}; width:{{ col.width }}%;">{{ col.label }}</th>
+        {% endfor %}
+      </tr>
+      </thead>
+      <tbody>
+      {% for row in lines %}
+      <tr>
+        {% for cell in row %}
+        <td style="text-align:{{ cell.align }};">{{ cell.value|raw }}</td>
+        {% endfor %}
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% set slot = slots.LINES_AFTER %}{% include '_slot.html.twig' %}
+
+  {% if is_document %}
+  <div class="bottom">
+    <table>
+      <tr>
+        <td style="width:60%; padding-right:18px;">
+          {% set slot = slots.TAXES_BEFORE %}{% include '_slot.html.twig' %}
+          {% if taxes %}
+          <table class="tax-table">
+            <tr>
+              <td><b>{{ 'net'|trans }}</b></td>
+              <td><b>{{ 'vat'|trans }}</b></td>
+              <td><b>{{ 'taxes'|trans }}</b></td>
+              <td><b>{{ 're'|trans }}</b></td>
+            </tr>
+            {% for tax in taxes %}
+            <tr>
+              <td>{{ tax.base }}</td>
+              <td>{{ tax.pct }}</td>
+              <td>{{ tax.cuota }}</td>
+              <td>{% if tax.re_pct %}{{ tax.re_pct }} {{ tax.re_cuota }}{% endif %}</td>
+            </tr>
+            {% endfor %}
+          </table>
+          {% endif %}
+          {% set slot = slots.TAXES_AFTER %}{% include '_slot.html.twig' %}
+        </td>
+        <td style="width:40%;">
+          {% set slot = slots.TOTALS_BEFORE %}{% include '_slot.html.twig' %}
+          <table class="totals-table">
+            {% for row in totals.rows %}
+            <tr><td>{{ row.label }}</td><td style="text-align:right;">{{ row.value }}</td></tr>
+            {% endfor %}
+            <tr><td colspan="2" class="total-value">{{ totals.total }}</td></tr>
+          </table>
+          {% set slot = slots.TOTALS_AFTER %}{% include '_slot.html.twig' %}
+        </td>
+      </tr>
+    </table>
+
+    {% set slot = slots.OBSERVATIONS_BEFORE %}{% include '_slot.html.twig' %}
+    {% if observations %}
+    <div class="notes"><span class="section-title">{{ 'observations'|trans }}:</span> {{ observations|raw }}</div>
+    {% endif %}
+    {% set slot = slots.OBSERVATIONS_AFTER %}{% include '_slot.html.twig' %}
+
+    {% set slot = slots.RECEIPTS_BEFORE %}{% include '_slot.html.twig' %}
+    {% if receipts %}
+    <table class="receipts-table">
+      <thead><tr><th>{{ 'receipt'|trans }}</th><th>{{ 'payment-method'|trans }}</th><th>{{ 'amount'|trans }}</th><th>{{ 'expiration'|trans }}</th></tr></thead>
+      <tbody>
+      {% for receipt in receipts %}
+      <tr>
+        <td>{{ receipt.numero }}</td>
+        <td>{{ receipt.forma|raw }}</td>
+        <td>{{ receipt.importe }}</td>
+        <td>{{ receipt.vencimiento }}</td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+    {% set slot = slots.RECEIPTS_AFTER %}{% include '_slot.html.twig' %}
+  </div>
+  {% endif %}
+
+  {% set slot = slots.FOOTER_BEFORE %}{% include '_slot.html.twig' %}
+  {% if footer_text %}<div class="footer">{{ footer_text|raw }}</div>{% endif %}
+  {% include '_footer-image.html.twig' %}
+  {% if thanks_title or thanks_text %}
+  <div class="thanks">
+    {% if thanks_title %}<div class="thanks-title">{{ thanks_title }}</div>{% endif %}
+    {% if thanks_text %}<div>{{ thanks_text }}</div>{% endif %}
+  </div>
+  {% endif %}
+  {% set slot = slots.FOOTER_AFTER %}{% include '_slot.html.twig' %}
+</div>
+</body>
+</html>

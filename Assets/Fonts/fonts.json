@@ -1,0 +1,768 @@
+[
+  {
+    "family": "Roboto",
+    "category": "sans",
+    "variable": true,
+    "files": {
+      "regular": "/usr/local/share/fonts/beplypdf/Roboto-Regular.ttf",
+      "bold": "/usr/local/share/fonts/beplypdf/Roboto-Regular.ttf",
+      "italic": "/usr/local/share/fonts/beplypdf/Roboto-Italic.ttf",
+      "bolditalic": "/usr/local/share/fonts/beplypdf/Roboto-Italic.ttf"
+    }
+  },
+  {
+    "family": "Open Sans",
+    "category": "sans",
+    "variable": true,
+    "files": {
+      "regular": "/usr/local/share/fonts/beplypdf/OpenSans-Regular.ttf",
+      "bold": "/usr/local/share/fonts/beplypdf/OpenSans-Regular.ttf",
+      "italic": "/usr/local/share/fonts/beplypdf/OpenSans-Italic.ttf",
+      "bolditalic": "/usr/local/share/fonts/beplypdf/OpenSans-Italic.ttf"
+    }
+  },
+  {
+    "family": "Lato",
+    "category": "sans",
+    "variable": false,
+    "files": {
+      "regular": "/usr/local/share/fonts/beplypdf/Lato-Regular.ttf",
+      "bold": "/usr/local/share/fonts/beplypdf/Lato-Bold.ttf",
+      "italic": "/usr/local/share/fonts/beplypdf/Lato-Italic.ttf",
+      "bolditalic": "/usr/local/share/fonts/beplypdf/Lato-BoldItalic.ttf"
+    }
+  },
+  {
+    "family": "Montserrat",
+    "category": "sans",
+    "variable": true,
+    "files": {
+      "regular": "/usr/local/share/fonts/beplypdf/Montserrat-Regular.ttf",
+      "bold": "/usr/local/share/fonts/beplypdf/Montserrat-Regular.ttf",
+      "italic": "/usr/local/share/fonts/beplypdf/Montserrat-Italic.ttf",
+      "bolditalic": "/usr/local/share/fonts/beplypdf/Montserrat-Italic.ttf"
+    }
+  },
+  {
+    "family": "Poppins",
+    "category": "sans",
+    "variable": false,
+    "files": {
+      "regular": "/usr/local/share/fonts/beplypdf/Poppins-Regular.ttf",
+      "bold": "/usr/local/share/fonts/beplypdf/Poppins-Bold.ttf",
+      "italic": "/usr/local/share/fonts/beplypdf/Poppins-Italic.ttf",
+      "bolditalic": "/usr/local/share/fonts/beplypdf/Poppins-BoldItalic.ttf"
+    }
+  },
+  {
+    "family": "Inter",
+    "category": "sans",
+    "variable": true,
+    "files": {
+      "regular": "/usr/local/share/fonts/beplypdf/Inter-Regular.ttf",
+      "bold": "/usr/local/share/fonts/beplypdf/Inter-Regular.ttf",
+      "italic": "/usr/local/share/fonts/beplypdf/Inter-Italic.ttf",
+      "bolditalic": "/usr/local/share/fonts/beplypdf/Inter-Italic.ttf"
+    }
+  },
+  {
+    "family": "Nunito",
+    "category": "sans",
+    "variable": true,
+    "files": {
+      "regular": "/usr/local/share/fonts/beplypdf/Nunito-Regular.ttf",
+      "bold": "/usr/local/share/fonts/beplypdf/Nunito-Regular.ttf",
+      "italic": "/usr/local/share/fonts/beplypdf/Nunito-Italic.ttf",
+      "bolditalic": "/usr/local/share/fonts/beplypdf/Nunito-Italic.ttf"
+    }
+  },
+  {
+    "family": "Nunito Sans",
+    "category": "sans",
+    "variable": true,
+    "files": {
+      "regular": "/usr/local/share/fonts/beplypdf/NunitoSans-Regular.ttf",
+      "bold": "/usr/local/share/fonts/beplypdf/NunitoSans-Regular.ttf",
+      "italic": "/usr/local/share/fonts/beplypdf/NunitoSans-Italic.ttf",
+      "bolditalic": "/usr/local/share/fonts/beplypdf/NunitoSans-Italic.ttf"
+    }
+  },
+  {
+    "family": "Work Sans",
+    "category": "sans",
+    "variable": true,
+    "files": {
+      "regular": "/usr/local/share/fonts/beplypdf/WorkSans-Regular.ttf",
+      "bold": "/usr/local/share/fonts/beplypdf/WorkSans-Regular.ttf",
+      "italic": "/usr/local/share/fonts/beplypdf/WorkSans-Italic.ttf",
+      "bolditalic": "/usr/local/share/fonts/beplypdf/WorkSans-Italic.ttf"
+    }
+  },
+  {
+    "family": "Source Sans 3",
+    "category": "sans",
+    "variable": true,
+    "files": {
+      "regular": "/usr/local/share/fonts/beplypdf/SourceSans3-Regular.ttf",
+      "bold": "/usr/local/share/fonts/beplypdf/SourceSans3-Regular.ttf",
+      "italic": "/usr/local/share/fonts/beplypdf/SourceSans3-Italic.ttf",
+      "bolditalic": "/usr/local/share/fonts/beplypdf/SourceSans3-Italic.ttf"
+    }
+  },
+  {
+    "family": "Raleway",
+    "category": "sans",
+    "variable": true,
+    "files": {
+      "regular": "/usr/local/share/fonts/beplypdf/Raleway-Regular.ttf",
+      "bold": "/usr/local/share/fonts/beplypdf/Raleway-Bold.ttf",
+      "italic": "/usr/local/share/fonts/beplypdf/Raleway-Italic.ttf",
+      "bolditalic": "/usr/local/share/fonts/beplypdf/Raleway-Italic.ttf"
+    }
+  },
+  {
+    "family": "Mulish",
+    "category": "sans",
+    "variable": true,
+    "files": {
+      "regular": "/usr/local/share/fonts/beplypdf/Mulish-Regular.ttf",
+      "bold": "/usr/local/share/fonts/beplypdf/Mulish-Regular.ttf",
+      "italic": "/usr/local/share/fonts/beplypdf/Mulish-Italic.ttf",
+      "bolditalic": "/usr/local/share/fonts/beplypdf/Mulish-Italic.ttf"
+    }
+  },
+  {
+    "family": "Rubik",
+    "category": "sans",
+    "variable": true,
+    "files": {
+      "regular": "/usr/local/share/fonts/beplypdf/Rubik-Regular.ttf",
+      "bold": "/usr/local/share/fonts/beplypdf/Rubik-Regular.ttf",
+      "italic": "/usr/local/share/fonts/beplypdf/Rubik-Italic.ttf",
+      "bolditalic": "/usr/local/share/fonts/beplypdf/Rubik-Italic.ttf"
+    }
+  },
+  {
+    "family": "Karla",
+    "category": "sans",
+    "variable": true,
+    "files": {
+      "regular": "/usr/local/share/fonts/beplypdf/Karla-Regular.ttf",
+      "bold": "/usr/local/share/fonts/beplypdf/Karla-Regular.ttf",
+      "italic": "/usr/local/share/fonts/beplypdf/Karla-Italic.ttf",
+      "bolditalic": "/usr/local/share/fonts/beplypdf/Karla-Italic.ttf"
+    }
+  },
+  {
+    "family": "Manrope",
+    "category": "sans",
+    "variable": true,
+    "files": {
+      "regular": "/usr/local/share/fonts/beplypdf/Manrope-Regular.ttf",
+      "bold": "/usr/local/share/fonts/beplypdf/Manrope-Regular.ttf"
+    }
+  },
+  {
+    "family": "Jost",
+    "category": "sans",
+    "variable": true,
+    "files": {
+      "regular": "/usr/local/share/fonts/beplypdf/Jost-Regular.ttf",
+      "bold": "/usr/local/share/fonts/beplypdf/Jost-Regular.ttf",
+      "italic": "/usr/local/share/fonts/beplypdf/Jost-Italic.ttf",
+      "bolditalic": "/usr/local/share/fonts/beplypdf/Jost-Italic.ttf"
+    }
+  },
+  {
+    "family": "Barlow",
+    "category": "sans",
+    "variable": false,
+    "files": {
+      "regular": "/usr/local/share/fonts/beplypdf/Barlow-Regular.ttf",
+      "bold": "/usr/local/share/fonts/beplypdf/Barlow-Bold.ttf",
+      "italic": "/usr/local/share/fonts/beplypdf/Barlow-Italic.ttf",
+      "bolditalic": "/usr/local/share/fonts/beplypdf/Barlow-BoldItalic.ttf"
+    }
+  },
+  {
+    "family": "Hind",
+    "category": "sans",
+    "variable": false,
+    "files": {
+      "regular": "/usr/local/share/fonts/beplypdf/Hind-Regular.ttf",
+      "bold": "/usr/local/share/fonts/beplypdf/Hind-Bold.ttf"
+    }
+  },
+  {
+    "family": "Titillium Web",
+    "category": "sans",
+    "variable": false,
+    "files": {
+      "regular": "/usr/local/share/fonts/beplypdf/TitilliumWeb-Regular.ttf",
+      "bold": "/usr/local/share/fonts/beplypdf/TitilliumWeb-Bold.ttf",
+      "italic": "/usr/local/share/fonts/beplypdf/TitilliumWeb-Italic.ttf",
+      "bolditalic": "/usr/local/share/fonts/beplypdf/TitilliumWeb-BoldItalic.ttf"
+    }
+  },
+  {
+    "family": "Cabin",
+    "category": "sans",
+    "variable": true,
+    "files": {
+      "regular": "/usr/local/share/fonts/beplypdf/Cabin-Regular.ttf",
+      "bold": "/usr/local/share/fonts/beplypdf/Cabin-Regular.ttf",
+      "italic": "/usr/local/share/fonts/beplypdf/Cabin-Italic.ttf",
+      "bolditalic": "/usr/local/share/fonts/beplypdf/Cabin-Italic.ttf"
+    }
+  },
+  {
+    "family": "Fira Sans",
+    "category": "sans",
+    "variable": false,
+    "files": {
+      "regular": "/usr/local/share/fonts/beplypdf/FiraSans-Regular.ttf",
+      "bold": "/usr/local/share/fonts/beplypdf/FiraSans-Bold.ttf",
+      "italic": "/usr/local/share/fonts/beplypdf/FiraSans-Italic.ttf",
+      "bolditalic": "/usr/local/share/fonts/beplypdf/FiraSans-BoldItalic.ttf"
+    }
+  },
+  {
+    "family": "PT Sans",
+    "category": "sans",
+    "variable": false,
+    "files": {
+      "regular": "/usr/local/share/fonts/beplypdf/PTSans-Regular.ttf",
+      "bold": "/usr/local/share/fonts/beplypdf/PTSans-Bold.ttf",
+      "italic": "/usr/local/share/fonts/beplypdf/PTSans-Italic.ttf",
+      "bolditalic": "/usr/local/share/fonts/beplypdf/PTSans-BoldItalic.ttf"
+    }
+  },
+  {
+    "family": "Noto Sans",
+    "category": "sans",
+    "variable": true,
+    "files": {
+      "regular": "/usr/local/share/fonts/beplypdf/NotoSans-Regular.ttf",
+      "bold": "/usr/local/share/fonts/beplypdf/NotoSans-Regular.ttf",
+      "italic": "/usr/local/share/fonts/beplypdf/NotoSans-Italic.ttf",
+      "bolditalic": "/usr/local/share/fonts/beplypdf/NotoSans-Italic.ttf"
+    }
+  },
+  {
+    "family": "DM Sans",
+    "category": "sans",
+    "variable": true,
+    "files": {
+      "regular": "/usr/local/share/fonts/beplypdf/DMSans-Regular.ttf",
+      "bold": "/usr/local/share/fonts/beplypdf/DMSans-Regular.ttf",
+      "italic": "/usr/local/share/fonts/beplypdf/DMSans-Italic.ttf",
+      "bolditalic": "/usr/local/share/fonts/beplypdf/DMSans-Italic.ttf"
+    }
+  },
+  {
+    "family": "Archivo",
+    "category": "sans",
+    "variable": true,
+    "files": {
+      "regular": "/usr/local/share/fonts/beplypdf/Archivo-Regular.ttf",
+      "bold": "/usr/local/share/fonts/beplypdf/Archivo-Regular.ttf",
+      "italic": "/usr/local/share/fonts/beplypdf/Archivo-Italic.ttf",
+      "bolditalic": "/usr/local/share/fonts/beplypdf/Archivo-Italic.ttf"
+    }
+  },
+  {
+    "family": "Public Sans",
+    "category": "sans",
+    "variable": true,
+    "files": {
+      "regular": "/usr/local/share/fonts/beplypdf/PublicSans-Regular.ttf",
+      "bold": "/usr/local/share/fonts/beplypdf/PublicSans-Regular.ttf",
+      "italic": "/usr/local/share/fonts/beplypdf/PublicSans-Italic.ttf",
+      "bolditalic": "/usr/local/share/fonts/beplypdf/PublicSans-Italic.ttf"
+    }
+  },
+  {
+    "family": "Figtree",
+    "category": "sans",
+    "variable": true,
+    "files": {
+      "regular": "/usr/local/share/fonts/beplypdf/Figtree-Regular.ttf",
+      "bold": "/usr/local/share/fonts/beplypdf/Figtree-Regular.ttf",
+      "italic": "/usr/local/share/fonts/beplypdf/Figtree-Italic.ttf",
+      "bolditalic": "/usr/local/share/fonts/beplypdf/Figtree-Italic.ttf"
+    }
+  },
+  {
+    "family": "Libre Franklin",
+    "category": "sans",
+    "variable": true,
+    "files": {
+      "regular": "/usr/local/share/fonts/beplypdf/LibreFranklin-Regular.ttf",
+      "bold": "/usr/local/share/fonts/beplypdf/LibreFranklin-Regular.ttf",
+      "italic": "/usr/local/share/fonts/beplypdf/LibreFranklin-Italic.ttf",
+      "bolditalic": "/usr/local/share/fonts/beplypdf/LibreFranklin-Italic.ttf"
+    }
+  },
+  {
+    "family": "IBM Plex Sans",
+    "category": "sans",
+    "variable": true,
+    "files": {
+      "regular": "/usr/local/share/fonts/beplypdf/IBMPlexSans-Regular.ttf",
+      "bold": "/usr/local/share/fonts/beplypdf/IBMPlexSans-Regular.ttf",
+      "italic": "/usr/local/share/fonts/beplypdf/IBMPlexSans-Italic.ttf",
+      "bolditalic": "/usr/local/share/fonts/beplypdf/IBMPlexSans-Italic.ttf"
+    }
+  },
+  {
+    "family": "Heebo",
+    "category": "sans",
+    "variable": true,
+    "files": {
+      "regular": "/usr/local/share/fonts/beplypdf/Heebo-Regular.ttf",
+      "bold": "/usr/local/share/fonts/beplypdf/Heebo-Regular.ttf"
+    }
+  },
+  {
+    "family": "Assistant",
+    "category": "sans",
+    "variable": true,
+    "files": {
+      "regular": "/usr/local/share/fonts/beplypdf/Assistant-Regular.ttf",
+      "bold": "/usr/local/share/fonts/beplypdf/Assistant-Regular.ttf"
+    }
+  },
+  {
+    "family": "Quicksand",
+    "category": "sans",
+    "variable": true,
+    "files": {
+      "regular": "/usr/local/share/fonts/beplypdf/Quicksand-Regular.ttf",
+      "bold": "/usr/local/share/fonts/beplypdf/Quicksand-Regular.ttf"
+    }
+  },
+  {
+    "family": "Comfortaa",
+    "category": "sans",
+    "variable": true,
+    "files": {
+      "regular": "/usr/local/share/fonts/beplypdf/Comfortaa-Regular.ttf",
+      "bold": "/usr/local/share/fonts/beplypdf/Comfortaa-Regular.ttf"
+    }
+  },
+  {
+    "family": "Merriweather",
+    "category": "serif",
+    "variable": true,
+    "files": {
+      "regular": "/usr/local/share/fonts/beplypdf/Merriweather-Regular.ttf",
+      "bold": "/usr/local/share/fonts/beplypdf/Merriweather-Regular.ttf",
+      "italic": "/usr/local/share/fonts/beplypdf/Merriweather-Italic.ttf",
+      "bolditalic": "/usr/local/share/fonts/beplypdf/Merriweather-Italic.ttf"
+    }
+  },
+  {
+    "family": "Playfair Display",
+    "category": "serif",
+    "variable": true,
+    "files": {
+      "regular": "/usr/local/share/fonts/beplypdf/PlayfairDisplay-Regular.ttf",
+      "bold": "/usr/local/share/fonts/beplypdf/PlayfairDisplay-Regular.ttf",
+      "italic": "/usr/local/share/fonts/beplypdf/PlayfairDisplay-Italic.ttf",
+      "bolditalic": "/usr/local/share/fonts/beplypdf/PlayfairDisplay-Italic.ttf"
+    }
+  },
+  {
+    "family": "Lora",
+    "category": "serif",
+    "variable": true,
+    "files": {
+      "regular": "/usr/local/share/fonts/beplypdf/Lora-Regular.ttf",
+      "bold": "/usr/local/share/fonts/beplypdf/Lora-Regular.ttf",
+      "italic": "/usr/local/share/fonts/beplypdf/Lora-Italic.ttf",
+      "bolditalic": "/usr/local/share/fonts/beplypdf/Lora-Italic.ttf"
+    }
+  },
+  {
+    "family": "PT Serif",
+    "category": "serif",
+    "variable": false,
+    "files": {
+      "regular": "/usr/local/share/fonts/beplypdf/PTSerif-Regular.ttf",
+      "bold": "/usr/local/share/fonts/beplypdf/PTSerif-Bold.ttf",
+      "italic": "/usr/local/share/fonts/beplypdf/PTSerif-Italic.ttf",
+      "bolditalic": "/usr/local/share/fonts/beplypdf/PTSerif-BoldItalic.ttf"
+    }
+  },
+  {
+    "family": "Roboto Slab",
+    "category": "serif",
+    "variable": true,
+    "files": {
+      "regular": "/usr/local/share/fonts/beplypdf/RobotoSlab-Regular.ttf",
+      "bold": "/usr/local/share/fonts/beplypdf/RobotoSlab-Regular.ttf"
+    }
+  },
+  {
+    "family": "Source Serif 4",
+    "category": "serif",
+    "variable": true,
+    "files": {
+      "regular": "/usr/local/share/fonts/beplypdf/SourceSerif4-Regular.ttf",
+      "bold": "/usr/local/share/fonts/beplypdf/SourceSerif4-Regular.ttf",
+      "italic": "/usr/local/share/fonts/beplypdf/SourceSerif4-Italic.ttf",
+      "bolditalic": "/usr/local/share/fonts/beplypdf/SourceSerif4-Italic.ttf"
+    }
+  },
+  {
+    "family": "EB Garamond",
+    "category": "serif",
+    "variable": true,
+    "files": {
+      "regular": "/usr/local/share/fonts/beplypdf/EBGaramond-Regular.ttf",
+      "bold": "/usr/local/share/fonts/beplypdf/EBGaramond-Regular.ttf",
+      "italic": "/usr/local/share/fonts/beplypdf/EBGaramond-Italic.ttf",
+      "bolditalic": "/usr/local/share/fonts/beplypdf/EBGaramond-Italic.ttf"
+    }
+  },
+  {
+    "family": "Libre Baskerville",
+    "category": "serif",
+    "variable": true,
+    "files": {
+      "regular": "/usr/local/share/fonts/beplypdf/LibreBaskerville-Regular.ttf",
+      "bold": "/usr/local/share/fonts/beplypdf/LibreBaskerville-Regular.ttf",
+      "italic": "/usr/local/share/fonts/beplypdf/LibreBaskerville-Italic.ttf",
+      "bolditalic": "/usr/local/share/fonts/beplypdf/LibreBaskerville-Italic.ttf"
+    }
+  },
+  {
+    "family": "Cormorant Garamond",
+    "category": "serif",
+    "variable": true,
+    "files": {
+      "regular": "/usr/local/share/fonts/beplypdf/CormorantGaramond-Regular.ttf",
+      "bold": "/usr/local/share/fonts/beplypdf/CormorantGaramond-Regular.ttf",
+      "italic": "/usr/local/share/fonts/beplypdf/CormorantGaramond-Italic.ttf",
+      "bolditalic": "/usr/local/share/fonts/beplypdf/CormorantGaramond-Italic.ttf"
+    }
+  },
+  {
+    "family": "Crimson Text",
+    "category": "serif",
+    "variable": false,
+    "files": {
+      "regular": "/usr/local/share/fonts/beplypdf/CrimsonText-Regular.ttf",
+      "bold": "/usr/local/share/fonts/beplypdf/CrimsonText-Bold.ttf",
+      "italic": "/usr/local/share/fonts/beplypdf/CrimsonText-Italic.ttf",
+      "bolditalic": "/usr/local/share/fonts/beplypdf/CrimsonText-BoldItalic.ttf"
+    }
+  },
+  {
+    "family": "Crimson Pro",
+    "category": "serif",
+    "variable": true,
+    "files": {
+      "regular": "/usr/local/share/fonts/beplypdf/CrimsonPro-Regular.ttf",
+      "bold": "/usr/local/share/fonts/beplypdf/CrimsonPro-Regular.ttf",
+      "italic": "/usr/local/share/fonts/beplypdf/CrimsonPro-Italic.ttf",
+      "bolditalic": "/usr/local/share/fonts/beplypdf/CrimsonPro-Italic.ttf"
+    }
+  },
+  {
+    "family": "Spectral",
+    "category": "serif",
+    "variable": false,
+    "files": {
+      "regular": "/usr/local/share/fonts/beplypdf/Spectral-Regular.ttf",
+      "bold": "/usr/local/share/fonts/beplypdf/Spectral-Bold.ttf",
+      "italic": "/usr/local/share/fonts/beplypdf/Spectral-Italic.ttf",
+      "bolditalic": "/usr/local/share/fonts/beplypdf/Spectral-BoldItalic.ttf"
+    }
+  },
+  {
+    "family": "Bitter",
+    "category": "serif",
+    "variable": true,
+    "files": {
+      "regular": "/usr/local/share/fonts/beplypdf/Bitter-Regular.ttf",
+      "bold": "/usr/local/share/fonts/beplypdf/Bitter-Regular.ttf",
+      "italic": "/usr/local/share/fonts/beplypdf/Bitter-Italic.ttf",
+      "bolditalic": "/usr/local/share/fonts/beplypdf/Bitter-Italic.ttf"
+    }
+  },
+  {
+    "family": "Cardo",
+    "category": "serif",
+    "variable": false,
+    "files": {
+      "regular": "/usr/local/share/fonts/beplypdf/Cardo-Regular.ttf",
+      "bold": "/usr/local/share/fonts/beplypdf/Cardo-Bold.ttf",
+      "italic": "/usr/local/share/fonts/beplypdf/Cardo-Italic.ttf"
+    }
+  },
+  {
+    "family": "Alegreya",
+    "category": "serif",
+    "variable": true,
+    "files": {
+      "regular": "/usr/local/share/fonts/beplypdf/Alegreya-Regular.ttf",
+      "bold": "/usr/local/share/fonts/beplypdf/Alegreya-Regular.ttf",
+      "italic": "/usr/local/share/fonts/beplypdf/Alegreya-Italic.ttf",
+      "bolditalic": "/usr/local/share/fonts/beplypdf/Alegreya-Italic.ttf"
+    }
+  },
+  {
+    "family": "Noto Serif",
+    "category": "serif",
+    "variable": true,
+    "files": {
+      "regular": "/usr/local/share/fonts/beplypdf/NotoSerif-Regular.ttf",
+      "bold": "/usr/local/share/fonts/beplypdf/NotoSerif-Regular.ttf",
+      "italic": "/usr/local/share/fonts/beplypdf/NotoSerif-Italic.ttf",
+      "bolditalic": "/usr/local/share/fonts/beplypdf/NotoSerif-Italic.ttf"
+    }
+  },
+  {
+    "family": "Domine",
+    "category": "serif",
+    "variable": true,
+    "files": {
+      "regular": "/usr/local/share/fonts/beplypdf/Domine-Regular.ttf",
+      "bold": "/usr/local/share/fonts/beplypdf/Domine-Regular.ttf"
+    }
+  },
+  {
+    "family": "Zilla Slab",
+    "category": "serif",
+    "variable": false,
+    "files": {
+      "regular": "/usr/local/share/fonts/beplypdf/ZillaSlab-Regular.ttf",
+      "bold": "/usr/local/share/fonts/beplypdf/ZillaSlab-Bold.ttf",
+      "italic": "/usr/local/share/fonts/beplypdf/ZillaSlab-Italic.ttf",
+      "bolditalic": "/usr/local/share/fonts/beplypdf/ZillaSlab-BoldItalic.ttf"
+    }
+  },
+  {
+    "family": "IBM Plex Serif",
+    "category": "serif",
+    "variable": false,
+    "files": {
+      "regular": "/usr/local/share/fonts/beplypdf/IBMPlexSerif-Regular.ttf",
+      "bold": "/usr/local/share/fonts/beplypdf/IBMPlexSerif-Bold.ttf",
+      "italic": "/usr/local/share/fonts/beplypdf/IBMPlexSerif-Italic.ttf",
+      "bolditalic": "/usr/local/share/fonts/beplypdf/IBMPlexSerif-BoldItalic.ttf"
+    }
+  },
+  {
+    "family": "Roboto Mono",
+    "category": "mono",
+    "variable": true,
+    "files": {
+      "regular": "/usr/local/share/fonts/beplypdf/RobotoMono-Regular.ttf",
+      "bold": "/usr/local/share/fonts/beplypdf/RobotoMono-Regular.ttf",
+      "italic": "/usr/local/share/fonts/beplypdf/RobotoMono-Italic.ttf",
+      "bolditalic": "/usr/local/share/fonts/beplypdf/RobotoMono-Italic.ttf"
+    }
+  },
+  {
+    "family": "JetBrains Mono",
+    "category": "mono",
+    "variable": true,
+    "files": {
+      "regular": "/usr/local/share/fonts/beplypdf/JetBrainsMono-Regular.ttf",
+      "bold": "/usr/local/share/fonts/beplypdf/JetBrainsMono-Regular.ttf",
+      "italic": "/usr/local/share/fonts/beplypdf/JetBrainsMono-Italic.ttf",
+      "bolditalic": "/usr/local/share/fonts/beplypdf/JetBrainsMono-Italic.ttf"
+    }
+  },
+  {
+    "family": "Source Code Pro",
+    "category": "mono",
+    "variable": true,
+    "files": {
+      "regular": "/usr/local/share/fonts/beplypdf/SourceCodePro-Regular.ttf",
+      "bold": "/usr/local/share/fonts/beplypdf/SourceCodePro-Regular.ttf",
+      "italic": "/usr/local/share/fonts/beplypdf/SourceCodePro-Italic.ttf",
+      "bolditalic": "/usr/local/share/fonts/beplypdf/SourceCodePro-Italic.ttf"
+    }
+  },
+  {
+    "family": "IBM Plex Mono",
+    "category": "mono",
+    "variable": false,
+    "files": {
+      "regular": "/usr/local/share/fonts/beplypdf/IBMPlexMono-Regular.ttf",
+      "bold": "/usr/local/share/fonts/beplypdf/IBMPlexMono-Bold.ttf",
+      "italic": "/usr/local/share/fonts/beplypdf/IBMPlexMono-Italic.ttf",
+      "bolditalic": "/usr/local/share/fonts/beplypdf/IBMPlexMono-BoldItalic.ttf"
+    }
+  },
+  {
+    "family": "Fira Code",
+    "category": "mono",
+    "variable": true,
+    "files": {
+      "regular": "/usr/local/share/fonts/beplypdf/FiraCode-Regular.ttf",
+      "bold": "/usr/local/share/fonts/beplypdf/FiraCode-Regular.ttf"
+    }
+  },
+  {
+    "family": "Space Mono",
+    "category": "mono",
+    "variable": false,
+    "files": {
+      "regular": "/usr/local/share/fonts/beplypdf/SpaceMono-Regular.ttf",
+      "bold": "/usr/local/share/fonts/beplypdf/SpaceMono-Bold.ttf",
+      "italic": "/usr/local/share/fonts/beplypdf/SpaceMono-Italic.ttf",
+      "bolditalic": "/usr/local/share/fonts/beplypdf/SpaceMono-BoldItalic.ttf"
+    }
+  },
+  {
+    "family": "Inconsolata",
+    "category": "mono",
+    "variable": true,
+    "files": {
+      "regular": "/usr/local/share/fonts/beplypdf/Inconsolata-Regular.ttf",
+      "bold": "/usr/local/share/fonts/beplypdf/Inconsolata-Bold.ttf"
+    }
+  },
+  {
+    "family": "Oswald",
+    "category": "display",
+    "variable": true,
+    "files": {
+      "regular": "/usr/local/share/fonts/beplypdf/Oswald-Regular.ttf",
+      "bold": "/usr/local/share/fonts/beplypdf/Oswald-Regular.ttf"
+    }
+  },
+  {
+    "family": "Bebas Neue",
+    "category": "display",
+    "variable": false,
+    "files": {
+      "regular": "/usr/local/share/fonts/beplypdf/BebasNeue-Regular.ttf"
+    }
+  },
+  {
+    "family": "Anton",
+    "category": "display",
+    "variable": false,
+    "files": {
+      "regular": "/usr/local/share/fonts/beplypdf/Anton-Regular.ttf"
+    }
+  },
+  {
+    "family": "Archivo Black",
+    "category": "display",
+    "variable": false,
+    "files": {
+      "regular": "/usr/local/share/fonts/beplypdf/ArchivoBlack-Regular.ttf"
+    }
+  },
+  {
+    "family": "Abril Fatface",
+    "category": "display",
+    "variable": false,
+    "files": {
+      "regular": "/usr/local/share/fonts/beplypdf/AbrilFatface-Regular.ttf"
+    }
+  },
+  {
+    "family": "Pacifico",
+    "category": "display",
+    "variable": false,
+    "files": {
+      "regular": "/usr/local/share/fonts/beplypdf/Pacifico-Regular.ttf"
+    }
+  },
+  {
+    "family": "Lobster",
+    "category": "display",
+    "variable": false,
+    "files": {
+      "regular": "/usr/local/share/fonts/beplypdf/Lobster-Regular.ttf"
+    }
+  },
+  {
+    "family": "Righteous",
+    "category": "display",
+    "variable": false,
+    "files": {
+      "regular": "/usr/local/share/fonts/beplypdf/Righteous-Regular.ttf"
+    }
+  },
+  {
+    "family": "Teko",
+    "category": "display",
+    "variable": true,
+    "files": {
+      "regular": "/usr/local/share/fonts/beplypdf/Teko-Regular.ttf",
+      "bold": "/usr/local/share/fonts/beplypdf/Teko-Regular.ttf"
+    }
+  },
+  {
+    "family": "Josefin Sans",
+    "category": "display",
+    "variable": true,
+    "files": {
+      "regular": "/usr/local/share/fonts/beplypdf/JosefinSans-Regular.ttf",
+      "bold": "/usr/local/share/fonts/beplypdf/JosefinSans-Regular.ttf",
+      "italic": "/usr/local/share/fonts/beplypdf/JosefinSans-Italic.ttf",
+      "bolditalic": "/usr/local/share/fonts/beplypdf/JosefinSans-Italic.ttf"
+    }
+  },
+  {
+    "family": "Cinzel",
+    "category": "display",
+    "variable": true,
+    "files": {
+      "regular": "/usr/local/share/fonts/beplypdf/Cinzel-Regular.ttf",
+      "bold": "/usr/local/share/fonts/beplypdf/Cinzel-Regular.ttf"
+    }
+  },
+  {
+    "family": "Yeseva One",
+    "category": "display",
+    "variable": false,
+    "files": {
+      "regular": "/usr/local/share/fonts/beplypdf/YesevaOne-Regular.ttf"
+    }
+  },
+  {
+    "family": "DejaVu Sans",
+    "category": "sans",
+    "variable": false,
+    "files": {
+      "regular": "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+      "bold": "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+      "italic": "/usr/share/fonts/truetype/dejavu/DejaVuSans-Oblique.ttf",
+      "bolditalic": "/usr/share/fonts/truetype/dejavu/DejaVuSans-BoldOblique.ttf"
+    },
+    "fallback": true
+  },
+  {
+    "family": "DejaVu Serif",
+    "category": "serif",
+    "variable": false,
+    "files": {
+      "regular": "/usr/share/fonts/truetype/dejavu/DejaVuSerif.ttf",
+      "bold": "/usr/share/fonts/truetype/dejavu/DejaVuSerif-Bold.ttf",
+      "italic": "/usr/share/fonts/truetype/dejavu/DejaVuSerif-Italic.ttf",
+      "bolditalic": "/usr/share/fonts/truetype/dejavu/DejaVuSerif-BoldItalic.ttf"
+    },
+    "fallback": true
+  },
+  {
+    "family": "DejaVu Sans Mono",
+    "category": "mono",
+    "variable": false,
+    "files": {
+      "regular": "/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf",
+      "bold": "/usr/share/fonts/truetype/dejavu/DejaVuSansMono-Bold.ttf",
+      "italic": "/usr/share/fonts/truetype/dejavu/DejaVuSansMono-Oblique.ttf",
+      "bolditalic": "/usr/share/fonts/truetype/dejavu/DejaVuSansMono-BoldOblique.ttf"
+    },
+    "fallback": true
+  }
+]
