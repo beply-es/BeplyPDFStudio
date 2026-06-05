@@ -47,9 +47,38 @@ final class BeplyPdfXmlTranslationTest extends TestCase
     public function testLineEditorLabelsHaveTranslations(): void
     {
         $translations = $this->translations();
-        foreach (['order', 'field', 'alignment', 'type', 'width'] as $slug) {
+        foreach (['order', 'field', 'alignment', 'type', 'width', 'apply-customer-language'] as $slug) {
             $this->assertTrue(isset($translations['es'][$slug]), "falta traducción ES para {$slug}");
             $this->assertTrue(isset($translations['en'][$slug]), "falta traducción EN para {$slug}");
+        }
+    }
+
+    public function testPluginTranslationsExistForAllCoreLanguages(): void
+    {
+        $required = [
+            'apply-customer-language',
+            'beplypdf-grand-total',
+            'beplypdf-quantity-short',
+            'beplypdf-draft-suffix',
+            'beplypdf-draft-title-FacturaCliente',
+            'beplypdf-draft-title-FacturaProveedor',
+            'beplypdf-draft-title-PresupuestoCliente',
+            'beplypdf-draft-title-PresupuestoProveedor',
+            'beplypdf-draft-title-PedidoCliente',
+            'beplypdf-draft-title-PedidoProveedor',
+            'beplypdf-draft-title-AlbaranCliente',
+            'beplypdf-draft-title-AlbaranProveedor',
+        ];
+
+        foreach ($this->coreLanguages() as $lang) {
+            $file = dirname(__DIR__) . '/Translation/' . $lang . '.json';
+            $this->assertTrue(is_file($file), "falta fichero Translation/{$lang}.json");
+            $data = json_decode(file_get_contents($file), true);
+            $this->assertTrue(is_array($data), "Translation/{$lang}.json debe ser JSON válido");
+            foreach ($required as $slug) {
+                $this->assertTrue(isset($data[$slug]), "falta traducción {$lang} para {$slug}");
+                $this->assertTrue(trim((string) $data[$slug]) !== '', "traducción vacía {$lang} para {$slug}");
+            }
         }
     }
 
@@ -68,5 +97,15 @@ final class BeplyPdfXmlTranslationTest extends TestCase
             'es' => json_decode(file_get_contents($base . 'es_ES.json'), true),
             'en' => json_decode(file_get_contents($base . 'en_EN.json'), true),
         ];
+    }
+
+    private function coreLanguages(): array
+    {
+        $languages = [];
+        foreach (glob(dirname(__DIR__, 3) . '/Core/Translation/*.json') ?: [] as $file) {
+            $languages[] = basename($file, '.json');
+        }
+        sort($languages, SORT_STRING);
+        return $languages;
     }
 }

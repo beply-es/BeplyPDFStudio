@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="{{ html_lang|default('es') }}">
 <head>
 <meta charset="UTF-8">
 <style>
@@ -269,7 +269,7 @@
               {% if company.cifnif or company.lines|length > 2 %}
               <td>
                 <div class="hdr-contact-label">{{ 'address'|trans }}</div>
-                <div>{% if company.cifnif %}NIF: {{ company.cifnif }}<br/>{% endif %}{% for l in company.lines %}{% if loop.index > 2 %}{{ l }}<br/>{% endif %}{% endfor %}</div>
+                <div>{% if company.cifnif %}{{ 'cifnif'|trans }}: {{ company.cifnif }}<br/>{% endif %}{% for l in company.lines %}{% if loop.index > 2 %}{{ l }}<br/>{% endif %}{% endfor %}</div>
               </td>
               {% endif %}
             </tr>
@@ -295,10 +295,10 @@
           <div class="client-label">{{ customer.label }}{% if customer.code %} {{ customer.code }}{% endif %}:</div>
           <div class="client-name">{{ customer.name }}</div>
           <div class="client-info">
-            {% if customer.cifnif %}NIF: {{ customer.cifnif }}<br/>{% endif %}
+            {% if customer.cifnif %}{{ 'cifnif'|trans }}: {{ customer.cifnif }}<br/>{% endif %}
             {% for l in customer.lines %}{{ l }}<br/>{% endfor %}
             {% include '_shipping-address.html.twig' %}
-            {% if customer.phones %}Tel: {{ customer.phones }}<br/>{% endif %}
+            {% if customer.phones %}{{ 'phone'|trans }}: {{ customer.phones }}<br/>{% endif %}
             {% if customer.email %}{{ customer.email }}<br/>{% endif %}
             {% if customer.agent %}{{ customer.agent }}{% endif %}
           </div>
@@ -314,12 +314,12 @@
           <div class="total-due-amount">{{ totals.total }}</div>
           <div style="margin-top:10px;">
             <table class="meta-table">
-              {% if doc.code %}<tr><td class="ml">{{ 'invoice'|trans }} Nº</td><td class="mr">{{ doc.code }}</td></tr>{% endif %}
+              {% if doc.code %}<tr><td class="ml">{{ 'invoice-number'|trans }}</td><td class="mr">{{ doc.code }}</td></tr>{% endif %}
               {% if doc.date %}<tr><td class="ml">{{ 'date'|trans }}</td><td class="mr">{{ doc.date }}</td></tr>{% endif %}
               {% if doc.numero %}<tr><td class="ml">{{ 'number'|trans }}</td><td class="mr">{{ doc.numero }}</td></tr>{% endif %}
               {% if doc.supplier_number %}<tr><td class="ml">{{ 'numsupplier'|trans }}</td><td class="mr">{{ doc.supplier_number }}</td></tr>{% endif %}
               {% if doc.serie %}<tr><td class="ml">{{ 'serie'|trans }}</td><td class="mr">{{ doc.serie }}</td></tr>{% endif %}
-              {% if doc.numero2 %}<tr><td class="ml">Nº 2</td><td class="mr">{{ doc.numero2 }}</td></tr>{% endif %}
+              {% if doc.numero2 %}<tr><td class="ml">{{ 'number2'|trans }}</td><td class="mr">{{ doc.numero2 }}</td></tr>{% endif %}
               {% if doc.payment_date %}<tr><td class="ml">{{ 'payment-date'|trans }}</td><td class="mr">{{ doc.payment_date }}</td></tr>{% endif %}
               {% for parent in doc.parent_docs %}<tr><td class="ml">{{ 'document'|trans }}</td><td class="mr">{{ parent }}</td></tr>{% endfor %}
             </table>
@@ -363,7 +363,7 @@
               {% for t in taxes %}
               {% if not sub_shown %}
               <tr>
-                <td class="sub-label" style="font-weight:800; color:{{ text_color }};">Sub {{ 'total'|trans }}</td>
+                <td class="sub-label" style="font-weight:800; color:{{ text_color }};">{{ 'subtotal'|trans }}</td>
                 <td class="sub-value" style="font-weight:800; color:{{ text_color }};">{{ t.base }}</td>
               </tr>
               {% set sub_shown = true %}
@@ -380,7 +380,7 @@
               {% endif %}
               {% endfor %}
             </table>
-            <div class="grand-total-box">GRAND {{ 'total'|trans|upper }}: {{ totals.total }}</div>
+            <div class="grand-total-box">{{ 'beplypdf-grand-total'|trans|upper }}: {{ totals.total }}</div>
           </div>
         </td>
       </tr>

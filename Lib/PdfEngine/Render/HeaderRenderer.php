@@ -461,7 +461,7 @@ class HeaderRenderer
             $rows[] = [Tools::lang()->trans('serie'), (string) $model->codserie];
         }
         if ($cfg->showNumber2 && !empty($model->numero2)) {
-            $rows[] = ['Nº 2', (string) $model->numero2];
+            $rows[] = [Tools::lang()->trans('number2'), (string) $model->numero2];
         }
         return $rows;
     }
@@ -506,7 +506,7 @@ class HeaderRenderer
         $cifnif = Tools::lang()->trans('cifnif');
         foreach ([$cifnif, 'CIF/NIF'] as $prefix) {
             if ($prefix !== '' && strncmp($line, $prefix . ':', strlen($prefix) + 1) === 0) {
-                return 'NIF:' . substr($line, strlen($prefix) + 1);
+                return $cifnif . ':' . substr($line, strlen($prefix) + 1);
             }
         }
 

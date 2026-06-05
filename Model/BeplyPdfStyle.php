@@ -121,6 +121,8 @@ class BeplyPdfStyle extends ModelClass
     /** @var bool */
     public $show_customer_email;
     /** @var bool */
+    public $apply_customer_language;
+    /** @var bool */
     public $show_number2;
     /** @var bool */
     public $show_supplier_number;
@@ -228,6 +230,7 @@ class BeplyPdfStyle extends ModelClass
             'show_customer_code' => $this->show_customer_code,
             'show_customer_phones' => $this->show_customer_phones,
             'show_customer_email' => $this->show_customer_email,
+            'apply_customer_language' => $this->apply_customer_language,
             'show_number2' => $this->show_number2,
             'show_supplier_number' => $this->show_supplier_number,
             'show_payment_date' => $this->show_payment_date,

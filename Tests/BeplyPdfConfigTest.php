@@ -26,6 +26,7 @@ final class BeplyPdfConfigTest extends TestCase
         $c->lineColumns = ['descripcion', 'pvptotal'];
         $c->showAgent = true;
         $c->showWithoutVat = true;
+        $c->applyCustomerLanguage = true;
         $c->footerImageAsset = 'beplypdf/footer-test.png';
         $c->footerImageWidth = 321;
         $c->footerImageAlign = 'right';
@@ -35,6 +36,7 @@ final class BeplyPdfConfigTest extends TestCase
         $this->assertSame(['descripcion', 'pvptotal'], $restored->lineColumns);
         $this->assertTrue($restored->showAgent);
         $this->assertTrue($restored->showWithoutVat);
+        $this->assertTrue($restored->applyCustomerLanguage);
         $this->assertSame('beplypdf/footer-test.png', $restored->footerImageAsset);
         $this->assertSame(321, $restored->footerImageWidth);
         $this->assertSame('right', $restored->footerImageAlign);

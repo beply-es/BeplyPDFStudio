@@ -37,21 +37,6 @@ use FacturaScripts\Plugins\BeplyPDFStudio\Lib\PdfEngine\BeplyPdfDraw;
  */
 class LinesTableRenderer
 {
-    /** Etiquetas legibles (español) por clave de columna. */
-    private const LABELS = [
-        'numlinea' => '#',
-        'referencia' => 'Referencia',
-        'descripcion' => 'Descripción',
-        'cantidad' => 'Cant.',
-        'pvpunitario' => 'Precio',
-        'dtopor' => 'Dto %',
-        'pvptotal' => 'Importe',
-        'iva' => 'IVA',
-        'recargo' => 'R.E.',
-        'irpf' => 'IRPF',
-        'totaliva' => 'Total',
-    ];
-
     /**
      * Dibuja la tabla de líneas con ezTable (paginación automática), según las columnas
      * configuradas. Deja $pdf->y debajo de la tabla.
@@ -163,12 +148,6 @@ class LinesTableRenderer
         $pdf->ezTable($tableData, $headers, '', $options);
     }
 
-    /** Etiquetas del estilo Summary (documento limpio): la última columna es "Neto". */
-    private const SUMMARY_LABELS = [
-        'descripcion' => 'Descripción', 'cantidad' => 'Cant.', 'pvpunitario' => 'Precio',
-        'pvptotal' => 'Neto', 'referencia' => 'Ref.', 'iva' => 'IVA', 'dtopor' => 'Dto %',
-    ];
-
     /**
      * Tabla de líneas del estilo Summary dibujada a mano: barra de cabecera roja con texto
      * blanco en NEGRITA, filas con mucho aire y un filete fino bajo cada una. Pagina de forma
@@ -218,7 +197,7 @@ class LinesTableRenderer
             BeplyPdfDraw::box($pdf, $contentX, $top - $headH, $tableW, $headH, $red);
             $hy = $top - $headH + ($headH - $fs) / 2.0 + 1.0;
             foreach ($columns as $k) {
-                $lbl = self::SUMMARY_LABELS[$k] ?? $this->label($k);
+                $lbl = $this->summaryLabel($k);
                 BeplyPdfDraw::text($pdf, $colX[$k] + $pad, $hy, $fs, $lbl, '#FFFFFF', $align[$k], $colW[$k] - $pad * 2, true);
             }
         };
@@ -912,7 +891,34 @@ class LinesTableRenderer
     /** Etiqueta legible de la columna. */
     private function label(string $key): string
     {
-        return self::LABELS[$key] ?? ucfirst($key);
+        $labels = [
+            'numlinea' => '#',
+            'referencia' => Tools::lang()->trans('reference'),
+            'descripcion' => Tools::lang()->trans('description'),
+            'cantidad' => Tools::lang()->trans('beplypdf-quantity-short'),
+            'pvpunitario' => Tools::lang()->trans('price'),
+            'dtopor' => Tools::lang()->trans('dto') . ' %',
+            'pvptotal' => Tools::lang()->trans('amount'),
+            'iva' => Tools::lang()->trans('vat'),
+            'recargo' => Tools::lang()->trans('re'),
+            'irpf' => Tools::lang()->trans('irpf'),
+            'totaliva' => Tools::lang()->trans('total'),
+        ];
+        return $labels[$key] ?? ucfirst($key);
+    }
+
+    private function summaryLabel(string $key): string
+    {
+        $labels = [
+            'descripcion' => Tools::lang()->trans('description'),
+            'cantidad' => Tools::lang()->trans('beplypdf-quantity-short'),
+            'pvpunitario' => Tools::lang()->trans('price'),
+            'pvptotal' => Tools::lang()->trans('net'),
+            'referencia' => Tools::lang()->trans('reference'),
+            'iva' => Tools::lang()->trans('vat'),
+            'dtopor' => Tools::lang()->trans('dto') . ' %',
+        ];
+        return $labels[$key] ?? $this->label($key);
     }
 
     /** Alineación por defecto razonable cuando no está configurada. */

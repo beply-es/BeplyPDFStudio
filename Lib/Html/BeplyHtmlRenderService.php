@@ -373,6 +373,7 @@ class BeplyHtmlRenderService
             'font_faces' => $font['css'],
             'page_size' => $this->pageSize($cfg),
             'page_margin' => $this->pageMargin($cfg),
+            'html_lang' => str_replace('_', '-', Tools::lang()->getLang()),
             // Márgenes individuales (mm): para bandas a sangre (ancho 100% con márgenes negativos).
             'page_mt' => max(0, (int) $cfg->marginTop),
             'page_mr' => max(0, (int) $cfg->marginRight),
@@ -438,6 +439,7 @@ class BeplyHtmlRenderService
             'font_faces' => $font['css'],
             'page_size' => $this->pageSize($cfg),
             'page_margin' => $this->genericTablePageMargin($cfg),
+            'html_lang' => str_replace('_', '-', Tools::lang()->getLang()),
             'logo' => $this->logoDataUri($cfg),
             'footer_image' => $this->footerImageDataUri($cfg),
             'title' => mb_strtoupper(trim((string) ($payload['title'] ?? ''))),
@@ -739,7 +741,7 @@ class BeplyHtmlRenderService
     {
         $labels = [
             'numlinea' => '#', 'referencia' => Tools::lang()->trans('reference'),
-            'descripcion' => Tools::lang()->trans('description'), 'cantidad' => 'Cant.',
+            'descripcion' => Tools::lang()->trans('description'), 'cantidad' => Tools::lang()->trans('beplypdf-quantity-short'),
             'pvpunitario' => Tools::lang()->trans('price'), 'dtopor' => '% ' . Tools::lang()->trans('dto'),
             'pvptotal' => Tools::lang()->trans('net'), 'iva' => Tools::lang()->trans('vat'),
             'recargo' => Tools::lang()->trans('re'), 'irpf' => Tools::lang()->trans('irpf'),

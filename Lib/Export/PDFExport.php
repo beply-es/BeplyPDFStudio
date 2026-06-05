@@ -24,6 +24,7 @@ use FacturaScripts\Core\Base\DataBase\DataBaseWhere;
 use FacturaScripts\Core\Lib\Export\PDFExport as CorePDFExport;
 use FacturaScripts\Core\Model\FormatoDocumento as CoreFormatoDocumento;
 use FacturaScripts\Core\Tools;
+use FacturaScripts\Core\Translator;
 use FacturaScripts\Dinamic\Model\FormatoDocumento;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\BeplyPdfConfig;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\BeplyPdfRenderService;
@@ -107,42 +108,115 @@ class PDFExport extends CorePDFExport
     public function addBusinessDocPage($model): bool
     {
         $this->ensureCacheDir();
+        $restoreLang = null;
 
         try {
-            $format = $this->getDocumentFormat($model);
-            $this->format = $format;
-            $idformato = !empty($format->id) ? (int) $format->id : null;
-            $idempresa = isset($model->idempresa) ? (int) $model->idempresa : null;
+            try {
+                $format = $this->getDocumentFormat($model);
+                $this->format = $format;
+                $idformato = !empty($format->id) ? (int) $format->id : null;
+                $idempresa = isset($model->idempresa) ? (int) $model->idempresa : null;
 
-            $config = (new BeplyPdfRenderService())->resolveConfig($idformato, $idempresa);
-            if ($config !== null) {
-                $this->beplyConfig = $config;
+                $config = (new BeplyPdfRenderService())->resolveConfig($idformato, $idempresa);
+                if ($config !== null) {
+                    $restoreLang = $this->applyCustomerLanguage($config, $model);
+                    $this->beplyConfig = $config;
 
-                // Motor HTML (Twig + WeasyPrint) para los diseños soportados.
-                if (!$this->useCezpdfDocumentDesign($config) && BeplyHtmlRenderService::handles($config->diseno)) {
-                    $bytes = (new BeplyHtmlRenderService())->render($config, $model, $format);
-                    if ($bytes !== '') {
-                        $this->beplyHtmlPdfs[] = $bytes;
-                        return false; // el documento se sirve vía getDoc()
+                    // Motor HTML (Twig + WeasyPrint) para los diseños soportados.
+                    if (!$this->useCezpdfDocumentDesign($config) && BeplyHtmlRenderService::handles($config->diseno)) {
+                        $bytes = (new BeplyHtmlRenderService())->render($config, $model, $format);
+                        if ($bytes !== '') {
+                            $this->beplyHtmlPdfs[] = $bytes;
+                            return false; // el documento se sirve vía getDoc()
+                        }
                     }
-                }
 
-                // si el motor de dibujo propio está disponible, renderizamos con él
-                if ($this->renderBeplyDoc($model, $config)) {
-                    $this->stampBeplyMarker();
-                    return false; // el documento queda construido en $this->pdf
+                    // si el motor de dibujo propio está disponible, renderizamos con él
+                    if ($this->renderBeplyDoc($model, $config)) {
+                        $this->stampBeplyMarker();
+                        return false; // el documento queda construido en $this->pdf
+                    }
+                    // si no, al menos aplicamos lo soportado por el core (orientación)
+                    $this->applyBeplyConfig();
                 }
-                // si no, al menos aplicamos lo soportado por el core (orientación)
-                $this->applyBeplyConfig();
+            } catch (\Throwable $e) {
+                Tools::log()->warning('beplypdf-render-fallback: ' . $e->getMessage());
+                $this->beplyConfig = null;
             }
-        } catch (\Throwable $e) {
-            Tools::log()->warning('beplypdf-render-fallback: ' . $e->getMessage());
-            $this->beplyConfig = null;
+
+            $result = parent::addBusinessDocPage($model);
+            $this->stampBeplyMarker();
+            return $result;
+        } finally {
+            $this->restoreLanguage($restoreLang);
+        }
+    }
+
+    private function applyCustomerLanguage(BeplyPdfConfig $config, $model): ?string
+    {
+        if (!$config->applyCustomerLanguage || !is_object($model) || empty($model->codcliente)) {
+            return null;
         }
 
-        $result = parent::addBusinessDocPage($model);
-        $this->stampBeplyMarker();
-        return $result;
+        $lang = $this->customerLanguage($model);
+        if ($lang === null) {
+            return null;
+        }
+
+        $previous = Tools::lang()->getLang();
+        if ($previous === $lang) {
+            return null;
+        }
+
+        Translator::setDefaultLang($lang);
+        return $previous;
+    }
+
+    private function customerLanguage($model): ?string
+    {
+        $subject = null;
+        if (method_exists($model, 'getSubject')) {
+            try {
+                $subject = $model->getSubject();
+            } catch (\Throwable $e) {
+                $subject = null;
+            }
+        }
+
+        $lang = trim((string) ($subject->langcode ?? ''));
+        if ($lang === '') {
+            try {
+                $customer = new \FacturaScripts\Dinamic\Model\Cliente();
+                if ($customer->load($model->codcliente ?? '')) {
+                    $lang = trim((string) ($customer->langcode ?? ''));
+                }
+            } catch (\Throwable $e) {
+                $lang = '';
+            }
+        }
+
+        if ($lang === '' || !preg_match('/^[a-z]{2}_[A-Z]{2}$/', $lang)) {
+            return null;
+        }
+
+        return $this->languageExists($lang) ? $lang : null;
+    }
+
+    private function languageExists(string $lang): bool
+    {
+        $file = $lang . '.json';
+        if (is_file(FS_FOLDER . '/Core/Translation/' . $file) || is_file(FS_FOLDER . '/Dinamic/Translation/' . $file)) {
+            return true;
+        }
+
+        return array_key_exists($lang, Tools::lang()->getAvailableLanguages());
+    }
+
+    private function restoreLanguage(?string $lang): void
+    {
+        if ($lang !== null) {
+            Translator::setDefaultLang($lang);
+        }
     }
 
     /**
@@ -825,7 +899,7 @@ class PDFExport extends CorePDFExport
 
         $body = [];
         if ($full && trim((string) ($company['cifnif'] ?? '')) !== '') {
-            $body[] = 'NIF: ' . trim((string) $company['cifnif']);
+            $body[] = Tools::lang()->trans('cifnif') . ': ' . trim((string) $company['cifnif']);
         }
         if ($full && trim((string) ($company['address'] ?? '')) !== '') {
             $body[] = trim((string) $company['address']);

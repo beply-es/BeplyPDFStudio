@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="{{ html_lang|default('es') }}">
 <head>
 <meta charset="UTF-8">
 <style>
@@ -154,7 +154,7 @@
     {% set company_block %}
         <div class="company-name">{{ company.name }}</div>
         <div class="company-info">
-          {% if company.cifnif %}NIF: {{ company.cifnif }}<br/>{% endif %}
+          {% if company.cifnif %}{{ 'cifnif'|trans }}: {{ company.cifnif }}<br/>{% endif %}
           {% for l in company.lines %}{{ l }}{% if not loop.last %}<br/>{% endif %}{% endfor %}
         </div>
         {% if company.contact %}<div class="company-contact">{{ company.contact }}</div>{% endif %}
@@ -194,12 +194,12 @@
             <div class="client-label">{{ customer.label }}{% if customer.code %} {{ customer.code }}{% endif %}</div>
             <div class="client-info">
               {% if customer.name %}{{ customer.name }}<br/>{% endif %}
-              {% if customer.cifnif %}NIF: {{ customer.cifnif }}<br/>{% endif %}
+              {% if customer.cifnif %}{{ 'cifnif'|trans }}: {{ customer.cifnif }}<br/>{% endif %}
               {% for l in customer.lines %}{{ l }}<br/>{% endfor %}
               {% include '_shipping-address.html.twig' %}
               {% set slot = slots.PARTY_SHIPPING_AFTER %}{% include '_slot.html.twig' %}
               {% if customer.agent %}{{ customer.agent }}<br/>{% endif %}
-              {% if customer.phones %}Tel: {{ customer.phones }}<br/>{% endif %}
+              {% if customer.phones %}{{ 'phone'|trans }}: {{ customer.phones }}<br/>{% endif %}
               {% if customer.email %}{{ customer.email }}{% endif %}
             </div>
           </td>
@@ -217,7 +217,7 @@
           {% if doc.numero %}<tr><td class="ml"><b>{{ 'number'|trans }}</b></td><td class="mr">{{ doc.numero }}</td></tr>{% endif %}
           {% if doc.supplier_number %}<tr><td class="ml"><b>{{ 'numsupplier'|trans }}</b></td><td class="mr">{{ doc.supplier_number }}</td></tr>{% endif %}
           {% if doc.serie %}<tr><td class="ml"><b>{{ 'serie'|trans }}</b></td><td class="mr">{{ doc.serie }}</td></tr>{% endif %}
-          {% if doc.numero2 %}<tr><td class="ml"><b>Nº 2</b></td><td class="mr">{{ doc.numero2 }}</td></tr>{% endif %}
+          {% if doc.numero2 %}<tr><td class="ml"><b>{{ 'number2'|trans }}</b></td><td class="mr">{{ doc.numero2 }}</td></tr>{% endif %}
           {% if doc.payment_date %}<tr><td class="ml"><b>{{ 'payment-date'|trans }}</b></td><td class="mr">{{ doc.payment_date }}</td></tr>{% endif %}
           {% for parent in doc.parent_docs %}<tr><td class="ml"><b>{{ 'document'|trans }}</b></td><td class="mr">{{ parent }}</td></tr>{% endfor %}
           {% set slot = slots.DOCUMENT_META_AFTER %}{% include '_slot.html.twig' %}

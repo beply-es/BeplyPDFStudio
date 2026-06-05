@@ -7,7 +7,7 @@
   block so format options and external module extensions keep working.
 #}
 <!DOCTYPE html>
-<html lang="es">
+<html lang="{{ html_lang|default('es') }}">
 <head>
 <meta charset="UTF-8">
 <style>
@@ -118,7 +118,7 @@
       {% endif %}
         <div class="company-name">{{ company.name }}</div>
         <div class="muted">
-          {% if company.cifnif %}NIF: {{ company.cifnif }}<br/>{% endif %}
+          {% if company.cifnif %}{{ 'cifnif'|trans }}: {{ company.cifnif }}<br/>{% endif %}
           {% for line in company.lines %}{{ line }}{% if not loop.last %}<br/>{% endif %}{% endfor %}
           {% if company.contact %}<br/>{{ company.contact }}{% endif %}
         </div>
@@ -141,12 +141,12 @@
         <div class="party-label">{{ customer.label }}{% if customer.code %} {{ customer.code }}{% endif %}</div>
         <div class="muted">
           {% if customer.name %}{{ customer.name }}<br/>{% endif %}
-          {% if customer.cifnif %}NIF: {{ customer.cifnif }}<br/>{% endif %}
+          {% if customer.cifnif %}{{ 'cifnif'|trans }}: {{ customer.cifnif }}<br/>{% endif %}
           {% for line in customer.lines %}{{ line }}<br/>{% endfor %}
           {% include '_shipping-address.html.twig' %}
           {% set slot = slots.PARTY_SHIPPING_AFTER %}{% include '_slot.html.twig' %}
           {% if customer.agent %}{{ customer.agent }}<br/>{% endif %}
-          {% if customer.phones %}Tel: {{ customer.phones }}<br/>{% endif %}
+          {% if customer.phones %}{{ 'phone'|trans }}: {{ customer.phones }}<br/>{% endif %}
           {% if customer.email %}{{ customer.email }}{% endif %}
         </div>
         {% set slot = slots.PARTY_CUSTOMER_AFTER %}{% include '_slot.html.twig' %}

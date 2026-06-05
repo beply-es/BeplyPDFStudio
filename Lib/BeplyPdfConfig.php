@@ -76,6 +76,7 @@ class BeplyPdfConfig
     public bool $showCustomerCode = false;
     public bool $showCustomerPhones = false;
     public bool $showCustomerEmail = false;
+    public bool $applyCustomerLanguage = false;
     public bool $showNumber2 = false;
     public bool $showSupplierNumber = false;
     public bool $showPaymentDate = false;
@@ -164,6 +165,7 @@ class BeplyPdfConfig
             'show_customer_code' => $this->showCustomerCode,
             'show_customer_phones' => $this->showCustomerPhones,
             'show_customer_email' => $this->showCustomerEmail,
+            'apply_customer_language' => $this->applyCustomerLanguage,
             'show_number2' => $this->showNumber2,
             'show_supplier_number' => $this->showSupplierNumber,
             'show_payment_date' => $this->showPaymentDate,

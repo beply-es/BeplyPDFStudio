@@ -42,6 +42,24 @@ final class BeplyFormatTemplateQuoteDoc extends BeplyPdfSampleDoc
     }
 }
 
+final class BeplyFormatTemplateLangDoc extends BeplyPdfSampleDoc
+{
+    private string $langcode;
+
+    public function __construct(?int $idempresa, string $langcode)
+    {
+        parent::__construct($idempresa);
+        $this->langcode = $langcode;
+    }
+
+    public function getSubject()
+    {
+        $subject = parent::getSubject();
+        $subject->langcode = $this->langcode;
+        return $subject;
+    }
+}
+
 final class BeplyFormatTemplateSuite
 {
     private const FORMAT_NAME = '__BPF_FMT_MATRIX__';
@@ -130,6 +148,7 @@ final class BeplyFormatTemplateSuite
             $c->footerImageAsset = $this->footerImageAsset();
             $c->footerImageAlign = 'right';
         }, 'text-align: right');
+        $this->customerLanguageFromFormat();
         $this->withoutVatFromFormat();
         $this->columns();
     }
@@ -242,6 +261,38 @@ final class BeplyFormatTemplateSuite
         $this->assert('showWithoutVat hides IRPF header', stripos($body, Tools::lang()->trans('irpf')) === false, 'IRPF header still visible');
         $this->assert('showWithoutVat uses net total', strpos($body, Tools::money((float) $quote->neto, $quote->coddivisa)) !== false, 'net total missing');
         $this->assert('showWithoutVat hides gross total', strpos($body, Tools::money((float) $quote->total, $quote->coddivisa)) === false, 'gross total still visible');
+    }
+
+    private function customerLanguageFromFormat(): void
+    {
+        $cfg = $this->resolvedConfigFor(function (BeplyPdfConfig $c): void {
+            $c->applyCustomerLanguage = true;
+            $c->showDraftWarning = true;
+        });
+        if ($cfg === null) {
+            $this->assert('applyCustomerLanguage resolves config', false, 'config is null');
+            return;
+        }
+
+        $doc = new BeplyFormatTemplateLangDoc($this->idempresa, 'en_EN');
+        $export = new PDFExport();
+        $ref = new ReflectionClass(PDFExport::class);
+        $apply = $ref->getMethod('applyCustomerLanguage');
+        $apply->setAccessible(true);
+        $restore = $ref->getMethod('restoreLanguage');
+        $restore->setAccessible(true);
+
+        $previous = Tools::lang()->getLang();
+        $restoreLang = $apply->invoke($export, $cfg, $doc);
+        try {
+            $this->assert('applyCustomerLanguage switches default language', Tools::lang()->getLang() === 'en_EN', 'language was not changed');
+            $body = $this->bodyOf((new BeplyHtmlRenderService())->buildHtml($cfg, $doc, null, $this->format));
+            $this->assert('applyCustomerLanguage renders translated draft suffix', strpos($body, 'E2E_FORMAT_MATRIX DRAFT') !== false, 'draft suffix not translated');
+        } finally {
+            $restore->invoke($export, $restoreLang);
+        }
+
+        $this->assert('applyCustomerLanguage restores default language', Tools::lang()->getLang() === $previous, 'language was not restored');
     }
 
     private function bodyHasTagText(string $body, string $text): bool

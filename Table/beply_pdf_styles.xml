@@ -41,6 +41,7 @@
     <column><name>show_customer_code</name><type>boolean</type><default>false</default></column>
     <column><name>show_customer_phones</name><type>boolean</type><default>false</default></column>
     <column><name>show_customer_email</name><type>boolean</type><default>false</default></column>
+    <column><name>apply_customer_language</name><type>boolean</type><default>false</default></column>
     <column><name>show_number2</name><type>boolean</type><default>false</default></column>
     <column><name>show_supplier_number</name><type>boolean</type><default>false</default></column>
     <column><name>show_payment_date</name><type>boolean</type><default>false</default></column>

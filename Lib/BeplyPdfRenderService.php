@@ -123,6 +123,7 @@ class BeplyPdfRenderService
         $config->showCustomerCode = $overlay->showCustomerCode;
         $config->showCustomerPhones = $overlay->showCustomerPhones;
         $config->showCustomerEmail = $overlay->showCustomerEmail;
+        $config->applyCustomerLanguage = $overlay->applyCustomerLanguage;
         $config->showNumber2 = $overlay->showNumber2;
         $config->showSupplierNumber = $overlay->showSupplierNumber;
         $config->showPaymentDate = $overlay->showPaymentDate;
