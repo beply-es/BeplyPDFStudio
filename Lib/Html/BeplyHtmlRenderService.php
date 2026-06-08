@@ -394,6 +394,7 @@ class BeplyHtmlRenderService
             'lines_fill' => $isDoc ? $this->estimateLinesFill($cfg, $company, $customer, $lines, $taxes, $receipts, $observations) : 0,
             // Anclaje estricto del bloque inferior: totales/recibos/textos al fondo de la última página.
             'bottom_anchor_gap' => $isDoc ? $this->estimateBottomAnchorGap($cfg, $company, $customer, $lines, $taxes, $receipts, $observations) : 0,
+            'bottom_anchor_transform' => $isDoc && $this->preciseBottomAnchorEnabled(),
             'logo' => $this->logoDataUri($cfg),
             'footer_image' => $this->footerImageDataUri($cfg),
             // Logo en blanco para bandas oscuras (contraste); cae al normal si no hay.
@@ -523,7 +524,7 @@ class BeplyHtmlRenderService
         $bottomH = max(0, $b['bottomH']);
         if ($bottomH >= $pageH) {
             $estimate = max(0, (int) round(max(8, (int) $cfg->fontSize) * 2));
-            return $this->measuredSpacer === null ? $estimate : max(0, $estimate + (int) $this->measuredSpacer);
+            return $this->bottomAnchorGap($cfg, $estimate);
         }
 
         $lastPageUsed = $usedBeforeBottom % $pageH;
@@ -536,16 +537,32 @@ class BeplyHtmlRenderService
         $samePageSpacer = $pageH - $lastPageUsed - $bottomH - $safety;
         if ($samePageSpacer > 0) {
             $estimate = max(0, $samePageSpacer);
-            return $this->measuredSpacer === null ? $estimate : max(0, $estimate + (int) $this->measuredSpacer);
+            return $this->bottomAnchorGap($cfg, $estimate);
         }
 
         if ($usedBeforeBottom < $pageH) {
             $estimate = 0;
-            return $this->measuredSpacer === null ? $estimate : max(0, $estimate + (int) $this->measuredSpacer);
+            return $this->bottomAnchorGap($cfg, $estimate);
         }
 
         $estimate = max(0, ($pageH - $lastPageUsed) + ($pageH - $bottomH - $safety));
+        return $this->bottomAnchorGap($cfg, $estimate);
+    }
+
+    private function bottomAnchorGap(BeplyPdfConfig $cfg, int $estimate): int
+    {
+        $estimate = max(0, $estimate - $this->bottomAnchorFlowReserve($cfg));
         return $this->measuredSpacer === null ? $estimate : max(0, $estimate + (int) $this->measuredSpacer);
+    }
+
+    private function bottomAnchorFlowReserve(BeplyPdfConfig $cfg): int
+    {
+        $scale = $this->paperScale($cfg);
+        return match ($cfg->diseno) {
+            'corporate' => (int) round(170 * $scale),
+            'azure' => (int) round(90 * $scale),
+            default => 0,
+        };
     }
 
     private function docData(BeplyPdfConfig $cfg, $model, string $coddivisa, ?FormatoDocumento $format = null): array
@@ -821,7 +838,12 @@ class BeplyHtmlRenderService
                 } else {
                     $value = $this->cell($c['key'], $types[$c['key']] ?? 'text', $line, $n, $coddivisa);
                 }
-                $cells[] = ['align' => $c['align'], 'value' => $value];
+                $cells[] = [
+                    'align' => $c['align'],
+                    'key' => $c['key'],
+                    'value' => $value,
+                    'width' => $c['width'],
+                ];
             }
             $out[] = $cells;
         }

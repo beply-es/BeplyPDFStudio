@@ -30,6 +30,9 @@ docker exec -u www-data "$CONTAINER" php "$PLUGIN/Tests/run-a5.php"
 echo "== Bottom anchor (totales/recibos pegados al pie sin páginas extra) =="
 docker exec -u www-data "$CONTAINER" php "$PLUGIN/Tests/run-bottom-anchor.php"
 
+echo "== Document layout smoke (documentos reales sin cortes ni overflow) =="
+docker exec -u www-data "$CONTAINER" php "$PLUGIN/Tests/run-document-layout.php"
+
 echo "== Generic core prints (misma plantilla para listados/fichas: is_document) =="
 docker exec -u www-data "$CONTAINER" php "$PLUGIN/Tests/run-generic.php"
 

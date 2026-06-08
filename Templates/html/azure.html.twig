@@ -51,7 +51,7 @@
   .cont-info { position: running(contInfo); display: block; width: 100%; font-size: {{ font_size - 1 }}px; color: {{ muted_color }}; border-bottom: 1.5px solid {{ color1 }}; padding-bottom: 5px; margin-bottom: {{ page_mt }}mm; }
   .cont-info b { color: {{ color1 }}; font-weight: 800; }
   /* Totales + observaciones + recibos en PACK: separación mínima de las líneas y sin partirse al paginar */
-  .bottom { break-inside: avoid; transform: translateY({{ paper_scale < 0.8 ? 0 : bottom_anchor_gap }}px); transform-origin: top left; }
+  .bottom { break-inside: avoid; {% if bottom_anchor_transform %}transform: translateY({{ paper_scale < 0.8 ? 0 : bottom_anchor_gap }}px); transform-origin: top left;{% else %}padding-top: {{ paper_scale < 0.8 ? 0 : bottom_anchor_gap }}px;{% endif %} }
 
   /* ===================== BARRAS DE ACENTO SUPERIOR / INFERIOR ===================== */
   .az-bar-top {
@@ -147,9 +147,9 @@
   .party-extra-box .beply-slot-body { font-size: {{ font_size }}px; line-height: 1.3; color: {{ muted_color }}; }
 
   /* ===================== TABLA DE LÍNEAS ===================== */
-  .desc-table { table-layout: auto; margin-bottom: {{ (font_size * 1.5)|round }}px; }
+  .desc-table { table-layout: fixed; margin-bottom: {{ (font_size * 1.5)|round }}px; }
   .desc-table th, .desc-table td { white-space: nowrap; }
-  .desc-table th:first-child, .desc-table td:first-child { width: 100%; white-space: normal; word-break: break-word; }
+  .desc-table th:first-child, .desc-table td:first-child { white-space: normal; overflow-wrap: anywhere; word-break: break-word; }
   .desc-table thead th { background: {{ color1 }}; color: {{ color2 }}; font-weight: 800; font-size: {{ font_size }}px; padding: 9px 12px; text-transform: uppercase; }
   .desc-table tbody td { font-size: {{ font_size }}px; padding: 9px 12px; color: {{ muted_color }}; }
   .desc-table tbody tr:nth-child(even) td { background: {{ color3 }}; }
@@ -297,11 +297,11 @@
     {% set slot = slots.LINES_BEFORE %}{% include '_slot.html.twig' %}
     <table class="desc-table">
       <thead>
-        <tr>{% for c in columns %}<th style="text-align:{{ c.align }};{% if not is_document %}width:{{ c.width }}%;white-space:normal;{% endif %}">{{ c.label }}</th>{% endfor %}</tr>
+        <tr>{% for c in columns %}<th style="text-align:{{ c.align }};width:{{ c.width }}%;{% if c.key == 'descripcion' or not is_document %}white-space:normal;overflow-wrap:anywhere;word-break:break-word;{% endif %}">{{ c.label }}</th>{% endfor %}</tr>
       </thead>
       <tbody>
         {% for row in lines %}
-        <tr>{% for cell in row %}<td style="text-align:{{ cell.align }};{% if not is_document %}white-space:normal;{% endif %}">{{ cell.value }}</td>{% endfor %}</tr>
+        <tr>{% for cell in row %}{% set c = columns[loop.index0]|default({}) %}<td style="text-align:{{ cell.align }};width:{{ c.width|default(0) }}%;{% if c.key|default('') == 'descripcion' or not is_document %}white-space:normal;overflow-wrap:anywhere;word-break:break-word;{% endif %}">{{ cell.value }}</td>{% endfor %}</tr>
         {% endfor %}
       </tbody>
     </table>

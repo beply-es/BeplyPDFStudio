@@ -293,8 +293,12 @@ final class BeplyTemplateSuite
         );
         $this->assert(
             'totales/recibos anclados al pie',
-            (bool) preg_match('/\.bottom\s*\{[^}]*transform:\s*translateY\(\s*[1-9]\d*px\)/s', $this->styleOf($html))
+            (bool) preg_match('/\.bottom\s*\{[^}]*padding-top:\s*[1-9]\d*px/s', $this->styleOf($html))
             || (bool) preg_match('/totals-divider" style="margin-top:\s*[1-9]\d*px/s', $this->bodyOf($html))
+        );
+        $this->assert(
+            'anclaje inferior no usa transform visual',
+            (bool) preg_match('/\.bottom\s*\{[^}]*transform:\s*translateY/s', $this->styleOf($html)) === false
         );
     }
 
@@ -369,6 +373,8 @@ final class BeplyTemplateSuite
         // cabecera con Referencia y SIN "Cant." ni "Precio"
         $this->assert('lineColumns (cabeceras)', stripos($body, 'Referencia') !== false && stripos($body, 'Cant.') === false);
         $this->assert('lineColumns (datos referencia)', strpos($body, 'REF-001') !== false);
+        $this->assert('lineColumns aplica ancho en documentos', strpos($body, 'width:20%;') !== false && strpos($body, 'width:60%;') !== false);
+        $this->assert('lineColumns descripción corta palabras largas', strpos($body, 'overflow-wrap:anywhere;word-break:break-word;') !== false);
         $this->assert('lineColumns extension header', strpos($body, 'E2E EXT') !== false);
         $this->assert('lineColumns extension data', strpos($body, 'E2E_LINE_VALUE_1') !== false);
     }
