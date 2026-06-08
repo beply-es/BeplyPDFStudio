@@ -44,7 +44,7 @@
   th, td { vertical-align: top; overflow-wrap: break-word; word-break: break-word; }
   thead { display: table-header-group; }   /* la cabecera de tabla se repite al paginar */
   tr { break-inside: avoid; }               /* las filas no se parten entre páginas */
-  .l-banner, .l-meta, .l-parties, .l-lines-wrap, .l-totals-wrap, .l-footer-band, .bottom { break-inside: avoid; }
+  .l-banner, .l-meta, .l-parties, .l-lines-wrap, .l-totals-wrap, .l-footer-band { break-inside: avoid; }
   .bottom { {% if bottom_anchor_transform %}transform: translateY({{ bottom_anchor_gap }}px); transform-origin: top left;{% else %}padding-top: {{ bottom_anchor_gap }}px;{% endif %} }
 
   /* Sub-cabecera de continuación (running element en el margen superior, solo páginas 2+) */

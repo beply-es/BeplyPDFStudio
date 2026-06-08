@@ -27,8 +27,8 @@ docker exec -u www-data "$CONTAINER" php "$PLUGIN/Tests/run-format-template.php"
 echo "== A5 responsive (escala por papel: muestra corta = 1 página) =="
 docker exec -u www-data "$CONTAINER" php "$PLUGIN/Tests/run-a5.php"
 
-echo "== Bottom anchor (totales/recibos pegados al pie sin páginas extra) =="
-docker exec -u www-data "$CONTAINER" php "$PLUGIN/Tests/run-bottom-anchor.php"
+echo "== Performance (render PDF real < 1s y sin página extra) =="
+docker exec -u www-data "$CONTAINER" php "$PLUGIN/Tests/run-performance.php"
 
 echo "== Document layout smoke (documentos reales sin cortes ni overflow) =="
 docker exec -u www-data "$CONTAINER" php "$PLUGIN/Tests/run-document-layout.php"

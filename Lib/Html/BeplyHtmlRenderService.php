@@ -391,9 +391,9 @@ class BeplyHtmlRenderService
             'draft_warning' => $this->draftWarning($cfg, $model, $isDoc, $format),
             // is_document = false para listados/fichas del core: la plantilla oculta cliente/impuestos/totales.
             'is_document' => $isDoc,
-            // Alto mínimo del área de líneas: los totales quedan SIEMPRE al fondo de la página.
+            // Alto mínimo del área de líneas: se conserva a 0 para no fabricar páginas casi vacías.
             'lines_fill' => $isDoc ? $this->estimateLinesFill($cfg, $company, $customer, $lines, $taxes, $receipts, $observations) : 0,
-            // Anclaje estricto del bloque inferior: totales/recibos/textos al fondo de la última página.
+            // En modo normal no se fuerza hueco antes de totales; el modo preciso es opt-in.
             'bottom_anchor_gap' => $isDoc ? $this->estimateBottomAnchorGap($cfg, $company, $customer, $lines, $taxes, $receipts, $observations) : 0,
             'bottom_anchor_transform' => $isDoc && $this->preciseBottomAnchorEnabled(),
             'logo' => $this->logoDataUri($cfg),
@@ -564,11 +564,7 @@ class BeplyHtmlRenderService
 
     private function defaultBottomAnchorGapLimit(BeplyPdfConfig $cfg): int
     {
-        $scale = $this->paperScale($cfg);
-        return match ($cfg->diseno) {
-            'corporate', 'azure', 'prisma' => (int) round(56 * $scale),
-            default => (int) round(32 * $scale),
-        };
+        return 0;
     }
 
     private function bottomAnchorFlowReserve(BeplyPdfConfig $cfg): int

@@ -292,9 +292,8 @@ final class BeplyTemplateSuite
             (bool) preg_match('#<div style="height:\s*[1-9]\d*px;"></div>#s', $this->bodyOf($html)) === false
         );
         $this->assert(
-            'totales/recibos anclados al pie',
-            (bool) preg_match('/\.bottom\s*\{[^}]*padding-top:\s*[1-9]\d*px/s', $this->styleOf($html))
-            || (bool) preg_match('/totals-divider" style="margin-top:\s*[1-9]\d*px/s', $this->bodyOf($html))
+            'totales/recibos sin padding artificial por defecto',
+            (bool) preg_match('/\.bottom\s*\{[^}]*padding-top:\s*[1-9]\d*px/s', $this->styleOf($html)) === false
         );
         $this->assert(
             'anclaje inferior no usa transform visual',
@@ -303,6 +302,10 @@ final class BeplyTemplateSuite
         $this->assert(
             'anclaje inferior no fuerza página nueva',
             stripos($this->styleOf($html), 'break-before: page') === false
+        );
+        $this->assert(
+            'bottom no bloquea el flujo completo',
+            (bool) preg_match('/\.bottom\s*\{[^}]*break-inside:\s*avoid/s', $this->styleOf($html)) === false
         );
     }
 
