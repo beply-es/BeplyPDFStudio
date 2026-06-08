@@ -310,10 +310,10 @@ class BeplyHtmlRenderService
                 $contentH = max(1, $h - $skipTop);
                 $bbox = trim((string) @exec('convert ' . escapeshellarg($base . '.png')
                     . ' -crop ' . $w . 'x' . $contentH . '+0+' . $skipTop
-                    . ' +repage -fuzz 6% -format "%@" info: 2>/dev/null'));
+                    . ' +repage -fuzz 10% -format "%@" info: 2>/dev/null'));
                 if (preg_match('#(\d+)x(\d+)\+(\d+)\+(\d+)#', $bbox, $m)) {
                     $bodyTopCss = (int) round(($skipTop + (int) $m[4]) * 96 / $density);
-                    $tooLow = $bodyTopCss > (int) round($this->pageContentHeightPx($cfg) * 0.38);
+                    $tooLow = $bodyTopCss > (int) round($this->pageContentHeightPx($cfg) * 0.34);
                 }
             }
         }
