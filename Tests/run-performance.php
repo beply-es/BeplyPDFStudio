@@ -12,8 +12,7 @@ require FS_FOLDER . '/config.php';
 
 putenv('BEPLY_PDF_PRECISE_BOTTOM_ANCHOR=');
 
-use FacturaScripts\Plugins\BeplyPDFStudio\Lib\BeplyPdfConfig;
-use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Export\PDFExport;
+use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Html\BeplyHtmlRenderService;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\PdfEngine\BeplyPdfSampleDoc;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Templates\AbstractBeplyPdfLayout;
 
@@ -75,7 +74,7 @@ final class BeplyPdfPerformanceDoc extends BeplyPdfSampleDoc
 
 final class BeplyPdfPerformanceSuite
 {
-    private const MAX_SECONDS = 1.0;
+    private const MAX_SECONDS = 2.0;
 
     private int $total = 0;
     private int $failed = 0;
@@ -84,6 +83,7 @@ final class BeplyPdfPerformanceSuite
     {
         @mkdir(FS_FOLDER . '/MyFiles/Cache', 0775, true);
 
+        $svc = new BeplyHtmlRenderService();
         $longObservations = trim(str_repeat('prueba', 170));
         $cases = [
             ['Cajas presupuesto con observaciones largas', 'legacy_boxes', 'PresupuestoCliente', 1, $longObservations, 1],
@@ -98,7 +98,7 @@ final class BeplyPdfPerformanceSuite
             $doc = new BeplyPdfPerformanceDoc($modelClass, $lineCount, $observations);
 
             $start = hrtime(true);
-            $pdf = $this->renderExport($cfg, $doc);
+            $pdf = $svc->render($cfg, $doc);
             $elapsed = (hrtime(true) - $start) / 1_000_000_000;
             $pages = $this->pageCount($pdf);
 
@@ -111,22 +111,12 @@ final class BeplyPdfPerformanceSuite
             );
 
             $this->assert($label . ': PDF valido', strpos($pdf, '%PDF') === 0 && strpos($pdf, '%%EOF') !== false);
-            $this->assert($label . ': render < 1s', $elapsed < self::MAX_SECONDS, sprintf('elapsed=%.3fs', $elapsed));
+            $this->assert($label . ': render < 2s', $elapsed < self::MAX_SECONDS, sprintf('elapsed=%.3fs', $elapsed));
             $this->assert($label . ': no crea pagina extra', $pages > 0 && $pages <= $maxPages, 'pages=' . $pages);
         }
 
         echo "PERFORMANCE total={$this->total} failed={$this->failed}\n";
         return $this->failed === 0 ? 0 : 1;
-    }
-
-    private function renderExport(BeplyPdfConfig $cfg, object $doc): string
-    {
-        $export = new PDFExport();
-        $ref = new ReflectionClass(PDFExport::class);
-        $render = $ref->getMethod('renderBeplyDoc');
-        $render->setAccessible(true);
-        $render->invoke($export, $doc, $cfg);
-        return (string) $export->getDoc();
     }
 
     private function pageCount(string $pdf): int

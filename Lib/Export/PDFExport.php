@@ -47,11 +47,10 @@ class PDFExport extends CorePDFExport
     /**
      * Diseños de DOCUMENTO renderizados con Cezpdf.
      *
-     * El camino de impresión debe responder en menos de 1s también en tenants dev con CPU
-     * limitada. WeasyPrint se mantiene para previews/HTML, pero la exportación real usa el
-     * motor rápido del plugin.
+     * Vacío a propósito: facturas/pedidos/etc. usan HTML/WeasyPrint para respetar
+     * tipografía y diseño exactos. Cezpdf se mantiene para listados/informes rápidos.
      */
-    private const CEZPDF_DOCUMENT_DESIGNS = ['legacy_summary', 'legacy_standard', 'legacy_boxes', 'legacy_framed', 'legacy_banner', 'corporate', 'azure', 'prisma'];
+    private const CEZPDF_DOCUMENT_DESIGNS = [];
 
     private ?BeplyPdfConfig $beplyConfig = null;
     private bool $beplyPageNumbersStarted = false;
