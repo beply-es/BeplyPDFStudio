@@ -78,7 +78,11 @@ jobs:
           rsync -a \
             --exclude='.git' \
             --exclude='.github' \
+            --exclude='.venv' \
+            --exclude='.phpunit.result.cache' \
             --exclude='Tests' \
+            --exclude='scripts' \
+            --exclude='test-results' \
             --exclude='.gitignore' \
             ./ /tmp/build/"${NAME}"/
           VERSION="${{ steps.ini.outputs.version }}"
