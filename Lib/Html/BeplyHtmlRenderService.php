@@ -84,7 +84,7 @@ class BeplyHtmlRenderService
     {
         try {
             $this->forcedPages = null;
-            $this->measuredSpacer = 0;
+            $this->measuredSpacer = null;
             $html = $this->buildHtml($cfg, $model, null, $format);
             if ($html === '') {
                 return '';
