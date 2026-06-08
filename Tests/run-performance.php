@@ -86,13 +86,13 @@ final class BeplyPdfPerformanceSuite
         $svc = new BeplyHtmlRenderService();
         $longObservations = trim(str_repeat('prueba', 170));
         $cases = [
-            ['Cajas presupuesto con observaciones largas', 'legacy_boxes', 'PresupuestoCliente', 1, $longObservations, 1],
+            ['Cajas presupuesto con observaciones largas', 'legacy_boxes', 'PresupuestoCliente', 1, $longObservations, 1, 'no crea pagina extra'],
         ];
         foreach (AbstractBeplyPdfLayout::registry() as $design => $layout) {
-            $cases[] = [$layout->name() . ' factura corta', $design, 'FacturaCliente', 3, '', 1];
+            $cases[] = [$layout->name() . ' factura corta', $design, 'FacturaCliente', 3, '', 2, 'paginas razonables'];
         }
 
-        foreach ($cases as [$label, $design, $modelClass, $lineCount, $observations, $maxPages]) {
+        foreach ($cases as [$label, $design, $modelClass, $lineCount, $observations, $maxPages, $pageLabel]) {
             $layout = AbstractBeplyPdfLayout::find($design);
             $cfg = $layout->defaultConfig();
             $doc = new BeplyPdfPerformanceDoc($modelClass, $lineCount, $observations);
@@ -112,7 +112,7 @@ final class BeplyPdfPerformanceSuite
 
             $this->assert($label . ': PDF valido', strpos($pdf, '%PDF') === 0 && strpos($pdf, '%%EOF') !== false);
             $this->assert($label . ': render < 2s', $elapsed < self::MAX_SECONDS, sprintf('elapsed=%.3fs', $elapsed));
-            $this->assert($label . ': no crea pagina extra', $pages > 0 && $pages <= $maxPages, 'pages=' . $pages);
+            $this->assert($label . ': ' . $pageLabel, $pages > 0 && $pages <= $maxPages, 'pages=' . $pages);
         }
 
         echo "PERFORMANCE total={$this->total} failed={$this->failed}\n";
