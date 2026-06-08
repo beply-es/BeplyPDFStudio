@@ -274,7 +274,6 @@ final class BeplyFormatTemplateSuite
             return;
         }
 
-        $doc = new BeplyFormatTemplateLangDoc($this->idempresa, 'en_EN');
         $export = new PDFExport();
         $ref = new ReflectionClass(PDFExport::class);
         $apply = $ref->getMethod('applyCustomerLanguage');
@@ -283,16 +282,28 @@ final class BeplyFormatTemplateSuite
         $restore->setAccessible(true);
 
         $previous = Tools::lang()->getLang();
-        $restoreLang = $apply->invoke($export, $cfg, $doc);
-        try {
-            $this->assert('applyCustomerLanguage switches default language', Tools::lang()->getLang() === 'en_EN', 'language was not changed');
-            $body = $this->bodyOf((new BeplyHtmlRenderService())->buildHtml($cfg, $doc, null, $this->format));
-            $this->assert('applyCustomerLanguage renders translated draft suffix', strpos($body, 'E2E_FORMAT_MATRIX DRAFT') !== false, 'draft suffix not translated');
-        } finally {
-            $restore->invoke($export, $restoreLang);
-        }
+        $cases = [
+            'es_ES' => ['quantity' => 'Cant.', 'price' => 'Precio', 'draft' => 'BOCETO'],
+            'en_EN' => ['quantity' => 'Qty.', 'price' => 'Price', 'draft' => 'DRAFT'],
+            'fr_FR' => ['quantity' => 'Qté', 'price' => 'Prix', 'draft' => 'BROUILLON'],
+        ];
 
-        $this->assert('applyCustomerLanguage restores default language', Tools::lang()->getLang() === $previous, 'language was not restored');
+        foreach ($cases as $lang => $expected) {
+            $doc = new BeplyFormatTemplateLangDoc($this->idempresa, $lang);
+            $restoreLang = $apply->invoke($export, $cfg, $doc);
+            try {
+                $this->assert("applyCustomerLanguage {$lang} switches default language", Tools::lang()->getLang() === $lang, 'language was not changed');
+                $body = $this->bodyOf((new BeplyHtmlRenderService())->buildHtml($cfg, $doc, null, $this->format));
+                $this->assert("applyCustomerLanguage {$lang} renders quantity header", strpos($body, $expected['quantity']) !== false, 'quantity header not translated');
+                $this->assert("applyCustomerLanguage {$lang} renders price header", strpos($body, $expected['price']) !== false, 'price header not translated');
+                $this->assert("applyCustomerLanguage {$lang} renders translated draft suffix", strpos($body, 'E2E_FORMAT_MATRIX ' . $expected['draft']) !== false, 'draft suffix not translated');
+                $this->assert("applyCustomerLanguage {$lang} hides raw quantity slug", stripos($body, 'beplypdf-quantity-short') === false, 'raw quantity slug rendered');
+            } finally {
+                $restore->invoke($export, $restoreLang);
+            }
+
+            $this->assert("applyCustomerLanguage {$lang} restores default language", Tools::lang()->getLang() === $previous, 'language was not restored');
+        }
     }
 
     private function bodyHasTagText(string $body, string $text): bool
