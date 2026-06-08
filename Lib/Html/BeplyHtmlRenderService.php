@@ -93,7 +93,9 @@ class BeplyHtmlRenderService
             if ($pdf === '') {
                 return '';
             }
-            $pdf = $this->anchorBottomPrecisely($cfg, $model, $format, $pdf);
+            if ($this->preciseBottomAnchorEnabled()) {
+                $pdf = $this->anchorBottomPrecisely($cfg, $model, $format, $pdf);
+            }
             if (trim((string) $cfg->pdfPassword) !== '') {
                 $pdf = $this->encrypt($pdf, trim((string) $cfg->pdfPassword));
             }
@@ -244,6 +246,11 @@ class BeplyHtmlRenderService
         }
 
         return $best;
+    }
+
+    private function preciseBottomAnchorEnabled(): bool
+    {
+        return in_array(strtolower((string) getenv('BEPLY_PDF_PRECISE_BOTTOM_ANCHOR')), ['1', 'true', 'yes', 'on'], true);
     }
 
     private function renderWithBottomAnchorGap(BeplyPdfConfig $cfg, $model, ?FormatoDocumento $format, int $gap): string
