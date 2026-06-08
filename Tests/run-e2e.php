@@ -149,8 +149,8 @@ final class BeplyPdfE2E
             $this->assertTrue(filesize($path) > 10000, "preview {$key} size");
             $info = @getimagesize($path);
             $this->assertTrue(is_array($info), "preview {$key} image readable");
-            $this->assertSame(600, (int) $info[0], "preview {$key} width");
-            $this->assertTrue((int) $info[1] >= 840, "preview {$key} height");
+            $this->assertSame(1200, (int) $info[0], "preview {$key} width");
+            $this->assertTrue((int) $info[1] >= 1680, "preview {$key} height");
             $this->assertHttpOk($url, "preview {$key} http");
         }
 

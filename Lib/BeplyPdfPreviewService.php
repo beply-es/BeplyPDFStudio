@@ -36,7 +36,12 @@ class BeplyPdfPreviewService
     private const SUBDIR = 'beplypdf';
 
     /** Se incrementa cuando cambia la lógica de generación, para invalidar cachés antiguas. */
-    private const VERSION = '52';
+    private const VERSION = '53';
+
+    /** Resolución de las miniaturas WebP usadas en galerías y listados. */
+    private const THUMBNAIL_DENSITY = 160;
+    private const THUMBNAIL_QUALITY = 92;
+    private const THUMBNAIL_WIDTH = 1200;
 
     /** @var bool evita repetir la limpieza de previews obsoletas en la misma petición. */
     private static $designCleanupDone = false;
@@ -394,9 +399,11 @@ class BeplyPdfPreviewService
             file_put_contents($pdfFile, $pdf);
 
             @exec(
-                'convert -density 95 '
+                'convert -density ' . self::THUMBNAIL_DENSITY . ' '
                 . escapeshellarg($pdfFile . '[0]')
-                . ' -background white -alpha remove -resize 600x -quality 82 '
+                . ' -background white -alpha remove -strip -colorspace sRGB'
+                . ' -resize ' . self::THUMBNAIL_WIDTH . 'x'
+                . ' -quality ' . self::THUMBNAIL_QUALITY . ' '
                 . escapeshellarg($abs)
                 . ' 2>/dev/null'
             );
@@ -415,9 +422,9 @@ class BeplyPdfPreviewService
         $pngFile = $base . '/tmp_' . $tag . '.png';
         file_put_contents($svgFile, $svg);
 
-        @exec('rsvg-convert -w 600 ' . escapeshellarg($svgFile) . ' -o ' . escapeshellarg($pngFile) . ' 2>/dev/null');
+        @exec('rsvg-convert -w ' . self::THUMBNAIL_WIDTH . ' ' . escapeshellarg($svgFile) . ' -o ' . escapeshellarg($pngFile) . ' 2>/dev/null');
         if (is_file($pngFile)) {
-            @exec('cwebp -quiet -q 82 ' . escapeshellarg($pngFile) . ' -o ' . escapeshellarg($abs) . ' 2>/dev/null');
+            @exec('cwebp -quiet -q ' . self::THUMBNAIL_QUALITY . ' ' . escapeshellarg($pngFile) . ' -o ' . escapeshellarg($abs) . ' 2>/dev/null');
         }
         @unlink($svgFile);
         @unlink($pngFile);

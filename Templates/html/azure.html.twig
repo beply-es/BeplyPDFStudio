@@ -51,7 +51,7 @@
   .cont-info { position: running(contInfo); display: block; width: 100%; font-size: {{ font_size - 1 }}px; color: {{ muted_color }}; border-bottom: 1.5px solid {{ color1 }}; padding-bottom: 5px; margin-bottom: {{ page_mt }}mm; }
   .cont-info b { color: {{ color1 }}; font-weight: 800; }
   /* Totales + observaciones + recibos en PACK: separación mínima de las líneas y sin partirse al paginar */
-  .bottom { break-inside: avoid; transform: translateY({{ bottom_anchor_gap }}px); transform-origin: top left; }
+  .bottom { break-inside: avoid; transform: translateY({{ paper_scale < 0.8 ? 0 : bottom_anchor_gap }}px); transform-origin: top left; }
 
   /* ===================== BARRAS DE ACENTO SUPERIOR / INFERIOR ===================== */
   .az-bar-top {
@@ -62,9 +62,9 @@
   }
   .az-bar-bottom {
     width: 100%;
-    height: 5px;
+    height: {{ paper_scale < 0.8 ? 3 : 5 }}px;
     background: {{ color1 }};
-    margin-top: {{ (font_size * 1.8)|round }}px;
+    margin-top: {{ paper_scale < 0.8 ? 0 : (font_size * 1.8)|round }}px;
   }
 
   /* ===================== CABECERA: logo izq · empresa/contacto der ===================== */
