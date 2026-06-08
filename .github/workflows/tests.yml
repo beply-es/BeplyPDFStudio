@@ -1,0 +1,58 @@
+name: Tests
+
+on:
+  push:
+    branches:
+      - '**'
+    tags:
+      - 'v*'
+  pull_request:
+  workflow_dispatch:
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+concurrency:
+  group: beplypdfstudio-tests-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  php84_compat:
+    name: PHP 8.4 Compatibility
+    timeout-minutes: 10
+    runs-on: ${{ vars.BEPLY_GHA_RUNNER || 'arc-runner-set' }}
+
+    steps:
+      - name: Checkout Plugin
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@accd6127cb78bee3e8082180cb391013d204ef9f # 2.37.0
+        with:
+          php-version: '8.4'
+          coverage: none
+
+      - name: Run PHP 8.4 compatibility scan
+        run: php scripts/ci/php84-compat-scan.php "$PWD"
+
+  lint:
+    name: PHP Lint
+    timeout-minutes: 10
+    runs-on: ${{ vars.BEPLY_GHA_RUNNER || 'arc-runner-set' }}
+
+    steps:
+      - name: Checkout Plugin
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@accd6127cb78bee3e8082180cb391013d204ef9f # 2.37.0
+        with:
+          php-version: '8.4'
+          coverage: none
+
+      - name: Lint PHP sources
+        run: |
+          find . \( -path './.git' -o -path './vendor' \) -prune -o -name '*.php' -print0 | xargs -0 -n1 php -l
