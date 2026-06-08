@@ -79,9 +79,6 @@ class BeplyHtmlRenderService
     /** Hueco (px) medido para el modo exacto legacy de totales al fondo. */
     private ?int $measuredSpacer = null;
 
-    /** Compensa la ultima pagina cuando WeasyPrint desplaza solo los totales demasiado abajo. */
-    private bool $forceBottomPagePullup = false;
-
     /** Genera los bytes del PDF para el documento con la configuración dada (o '' si falla). */
     public function render(BeplyPdfConfig $cfg, $model, ?FormatoDocumento $format = null): string
     {
@@ -96,9 +93,6 @@ class BeplyHtmlRenderService
             if ($pdf === '') {
                 return '';
             }
-            if (!$this->preciseBottomAnchorEnabled()) {
-                $pdf = $this->pullUpSparseBottomPage($cfg, $model, $format, $pdf);
-            }
             if ($this->preciseBottomAnchorEnabled()) {
                 $pdf = $this->anchorBottomPrecisely($cfg, $model, $format, $pdf);
             }
@@ -112,7 +106,6 @@ class BeplyHtmlRenderService
         } finally {
             $this->forcedPages = null;
             $this->measuredSpacer = null;
-            $this->forceBottomPagePullup = false;
         }
     }
 
@@ -267,67 +260,6 @@ class BeplyHtmlRenderService
         return $html === '' ? '' : $this->htmlToPdf($html);
     }
 
-    private function pullUpSparseBottomPage(BeplyPdfConfig $cfg, $model, ?FormatoDocumento $format, string $pdf): string
-    {
-        $pages = $this->countPdfPages($pdf);
-        if ($pages < 2 || !$this->lastPageBodyStartsTooLow($pdf, $pages, $cfg)) {
-            return $pdf;
-        }
-
-        $previous = $this->forceBottomPagePullup;
-        $this->forceBottomPagePullup = true;
-        try {
-            $html = $this->buildHtml($cfg, $model, null, $format);
-            $candidate = $html === '' ? '' : $this->htmlToPdf($html);
-            if ($candidate === '' || $this->countPdfPages($candidate) > $pages) {
-                return $pdf;
-            }
-            return $candidate;
-        } finally {
-            $this->forceBottomPagePullup = $previous;
-        }
-    }
-
-    private function lastPageBodyStartsTooLow(string $pdf, int $page, BeplyPdfConfig $cfg): bool
-    {
-        $cache = FS_FOLDER . '/MyFiles/Cache';
-        if (false === is_dir($cache)) {
-            @mkdir($cache, 0775, true);
-        }
-        $base = $cache . '/lpt_' . bin2hex(random_bytes(6));
-        file_put_contents($base . '.pdf', $pdf);
-        $density = 72;
-        @exec('convert -density ' . $density . ' ' . escapeshellarg($base . '.pdf[' . ($page - 1) . ']')
-            . ' -background white -alpha remove ' . escapeshellarg($base . '.png') . ' 2>/dev/null');
-
-        $tooLow = false;
-        if (is_file($base . '.png')) {
-            $parts = explode(' ', trim((string) @exec('identify -format "%w %h" ' . escapeshellarg($base . '.png'))));
-            $w = (int) ($parts[0] ?? 0);
-            $h = (int) ($parts[1] ?? 0);
-            if ($w > 0 && $h > 0) {
-                $skipTop = (int) round(115 * $density / 96);
-                $contentH = max(1, $h - $skipTop);
-                $bbox = trim((string) @exec('convert ' . escapeshellarg($base . '.png')
-                    . ' -crop ' . $w . 'x' . $contentH . '+0+' . $skipTop
-                    . ' +repage -fuzz 10% -format "%@" info: 2>/dev/null'));
-                if (preg_match('#(\d+)x(\d+)\+(\d+)\+(\d+)#', $bbox, $m)) {
-                    $bodyTopCss = (int) round(($skipTop + (int) $m[4]) * 96 / $density);
-                    $tooLow = $bodyTopCss > (int) round($this->pageContentHeightPx($cfg) * 0.34);
-                }
-            }
-        }
-
-        @unlink($base . '.pdf');
-        @unlink($base . '.png');
-        return $tooLow;
-    }
-
-    private function bottomPagePullup(BeplyPdfConfig $cfg): int
-    {
-        return max(180, (int) round($this->pageContentHeightPx($cfg) * 0.52));
-    }
-
     /** Renderiza solo el HTML (para depurar/preview). $generic != null => contenido genérico (listado/ficha del core). */
     public function buildHtml(BeplyPdfConfig $cfg, $model, ?array $generic = null, ?FormatoDocumento $format = null): string
     {
@@ -464,7 +396,6 @@ class BeplyHtmlRenderService
             // Anclaje estricto del bloque inferior: totales/recibos/textos al fondo de la última página.
             'bottom_anchor_gap' => $isDoc ? $this->estimateBottomAnchorGap($cfg, $company, $customer, $lines, $taxes, $receipts, $observations) : 0,
             'bottom_anchor_transform' => $isDoc && $this->preciseBottomAnchorEnabled(),
-            'bottom_page_pullup' => $isDoc && $this->forceBottomPagePullup ? $this->bottomPagePullup($cfg) : 0,
             'logo' => $this->logoDataUri($cfg),
             'footer_image' => $this->footerImageDataUri($cfg),
             // Logo en blanco para bandas oscuras (contraste); cae al normal si no hay.

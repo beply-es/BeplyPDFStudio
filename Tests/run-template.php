@@ -300,6 +300,10 @@ final class BeplyTemplateSuite
             'anclaje inferior no usa transform visual',
             (bool) preg_match('/\.bottom\s*\{[^}]*transform:\s*translateY/s', $this->styleOf($html)) === false
         );
+        $this->assert(
+            'anclaje inferior no fuerza página nueva',
+            stripos($this->styleOf($html), 'break-before: page') === false
+        );
     }
 
     private function draftWarningDocuments(): void

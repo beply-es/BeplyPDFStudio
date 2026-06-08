@@ -51,7 +51,7 @@
   .cont-info { position: running(contInfo); display: block; width: 100%; font-size: {{ font_size - 1 }}px; color: {{ muted_color }}; border-bottom: 1.5px solid {{ color1 }}; padding-bottom: 5px; margin-bottom: {{ page_mt }}mm; }
   .cont-info b { color: {{ color1 }}; font-weight: 800; }
   /* Totales + observaciones + recibos en PACK: separación mínima de las líneas y sin partirse al paginar */
-  .bottom { break-inside: avoid; {% if bottom_page_pullup > 0 %}break-before: page; margin-top: -{{ bottom_page_pullup }}px;{% endif %} {% if bottom_anchor_transform %}transform: translateY({{ bottom_anchor_gap }}px); transform-origin: top left;{% else %}padding-top: {{ bottom_anchor_gap }}px;{% endif %} }
+  .bottom { break-inside: avoid; {% if bottom_anchor_transform %}transform: translateY({{ bottom_anchor_gap }}px); transform-origin: top left;{% else %}padding-top: {{ bottom_anchor_gap }}px;{% endif %} }
 
   /* ===================== CABECERA FRAMED: título izq · empresa + logo der ===================== */
   .l-header { margin-bottom: {{ (font_size * 1.5)|round }}px; }
