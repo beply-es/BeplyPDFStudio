@@ -179,10 +179,13 @@ final class BeplyFormatTemplateSuite
         }, 'E2E_PDF_NATIVE_FOOTER', true);
 
         $pdf = new PDFExport();
+        $start = hrtime(true);
         $pdf->addBusinessDocPage($this->doc());
         $bytes = (string) $pdf->getDoc();
+        $elapsed = (hrtime(true) - $start) / 1_000_000_000;
         $this->assert('print route produces PDF', strpos($bytes, '%PDF') === 0, 'not a PDF');
         $this->assert('print route PDF has content', strlen($bytes) > 8000, 'PDF too small');
+        $this->assert('print route render < 1s', $elapsed < 1.0, sprintf('elapsed %.3fs', $elapsed));
     }
 
     private function bodyPresent(string $name, callable $mut, string $needle, string $formatText = ''): void
