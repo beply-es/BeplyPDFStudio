@@ -510,16 +510,13 @@ class BeplyHtmlRenderService
      */
     private function estimateBottomAnchorGap(BeplyPdfConfig $cfg, array $company, array $customer, array $lines, array $taxes, array $receipts, string $obs): int
     {
-        if ($this->measuredSpacer !== null) {
-            return max(0, (int) $this->measuredSpacer);
-        }
-
         $b = $this->blockHeights($cfg, $company, $customer, $lines, $taxes, $receipts, $obs);
         $pageH = max(1, $b['pageH']);
         $usedBeforeBottom = max(0, $b['aboveLines'] + $b['tableH']);
         $bottomH = max(0, $b['bottomH']);
         if ($bottomH >= $pageH) {
-            return max(0, (int) round(max(8, (int) $cfg->fontSize) * 2));
+            $estimate = max(0, (int) round(max(8, (int) $cfg->fontSize) * 2));
+            return $this->measuredSpacer === null ? $estimate : max(0, $estimate + (int) $this->measuredSpacer);
         }
 
         $lastPageUsed = $usedBeforeBottom % $pageH;
@@ -531,10 +528,17 @@ class BeplyHtmlRenderService
         $safety = max(8, (int) round($fontSize * 1.2));
         $samePageSpacer = $pageH - $lastPageUsed - $bottomH - $safety;
         if ($samePageSpacer > 0) {
-            return max(0, $samePageSpacer);
+            $estimate = max(0, $samePageSpacer);
+            return $this->measuredSpacer === null ? $estimate : max(0, $estimate + (int) $this->measuredSpacer);
         }
 
-        return max(0, ($pageH - $lastPageUsed) + ($pageH - $bottomH - $safety));
+        if ($usedBeforeBottom < $pageH) {
+            $estimate = 0;
+            return $this->measuredSpacer === null ? $estimate : max(0, $estimate + (int) $this->measuredSpacer);
+        }
+
+        $estimate = max(0, ($pageH - $lastPageUsed) + ($pageH - $bottomH - $safety));
+        return $this->measuredSpacer === null ? $estimate : max(0, $estimate + (int) $this->measuredSpacer);
     }
 
     private function docData(BeplyPdfConfig $cfg, $model, string $coddivisa, ?FormatoDocumento $format = null): array
