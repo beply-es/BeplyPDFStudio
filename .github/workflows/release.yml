@@ -6,6 +6,8 @@ env:
 on:
   push:
     branches: [main]
+    tags:
+      - 'v*'
 
 permissions:
   contents: write
@@ -45,7 +47,14 @@ jobs:
         id: check
         run: |
           TAG="v${{ steps.ini.outputs.version }}"
-          if git rev-parse "$TAG" >/dev/null 2>&1; then
+          if [ "${GITHUB_REF_TYPE:-}" = "tag" ]; then
+            if [ "${GITHUB_REF_NAME}" != "$TAG" ]; then
+              echo "::error::Tag ${GITHUB_REF_NAME} does not match facturascripts.ini version ${TAG}"
+              exit 1
+            fi
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Building release for tag $TAG."
+          elif git rev-parse "$TAG" >/dev/null 2>&1; then
             echo "skip=true" >> "$GITHUB_OUTPUT"
             echo "::notice::Tag $TAG already exists — skipping release."
           else
