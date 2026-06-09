@@ -27,6 +27,7 @@ final class BeplyPdfConfigTest extends TestCase
         $c->showAgent = true;
         $c->showWithoutVat = true;
         $c->applyCustomerLanguage = true;
+        $c->printAttachments = true;
         $c->footerImageAsset = 'beplypdf/footer-test.png';
         $c->footerImageWidth = 321;
         $c->footerImageAlign = 'right';
@@ -37,6 +38,7 @@ final class BeplyPdfConfigTest extends TestCase
         $this->assertTrue($restored->showAgent);
         $this->assertTrue($restored->showWithoutVat);
         $this->assertTrue($restored->applyCustomerLanguage);
+        $this->assertTrue($restored->printAttachments);
         $this->assertSame('beplypdf/footer-test.png', $restored->footerImageAsset);
         $this->assertSame(321, $restored->footerImageWidth);
         $this->assertSame('right', $restored->footerImageAlign);

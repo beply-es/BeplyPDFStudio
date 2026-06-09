@@ -25,6 +25,7 @@ use FacturaScripts\Core\Lib\Export\PDFExport as CorePDFExport;
 use FacturaScripts\Core\Model\FormatoDocumento as CoreFormatoDocumento;
 use FacturaScripts\Core\Tools;
 use FacturaScripts\Core\Translator;
+use FacturaScripts\Dinamic\Model\AttachedFileRelation;
 use FacturaScripts\Dinamic\Model\FormatoDocumento;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\BeplyPdfConfig;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\BeplyPdfRenderService;
@@ -51,6 +52,17 @@ class PDFExport extends CorePDFExport
      * tipografía y diseño exactos. Cezpdf se mantiene para listados/informes rápidos.
      */
     private const CEZPDF_DOCUMENT_DESIGNS = [];
+
+    private const ATTACHMENT_DOCUMENT_MODELS = [
+        'PresupuestoCliente',
+        'PedidoCliente',
+        'AlbaranCliente',
+        'FacturaCliente',
+        'PresupuestoProveedor',
+        'PedidoProveedor',
+        'AlbaranProveedor',
+        'FacturaProveedor',
+    ];
 
     private ?BeplyPdfConfig $beplyConfig = null;
     private bool $beplyPageNumbersStarted = false;
@@ -127,6 +139,7 @@ class PDFExport extends CorePDFExport
                         $bytes = (new BeplyHtmlRenderService())->render($config, $model, $format);
                         if ($bytes !== '') {
                             $this->beplyHtmlPdfs[] = $bytes;
+                            $this->appendPrintableAttachments($config, $model);
                             return false; // el documento se sirve vía getDoc()
                         }
                     }
@@ -1127,6 +1140,90 @@ class PDFExport extends CorePDFExport
             @unlink($f);
         }
         return $merged !== '' ? $merged : $pdfs[0];
+    }
+
+    private function appendPrintableAttachments(BeplyPdfConfig $config, $model): void
+    {
+        if (!is_object($model) || !method_exists($model, 'getAttachedFiles')) {
+            return;
+        }
+
+        $modelClass = method_exists($model, 'modelClassName') ? $model->modelClassName() : '';
+        if (!in_array($modelClass, self::ATTACHMENT_DOCUMENT_MODELS, true)) {
+            return;
+        }
+
+        foreach ($model->getAttachedFiles() as $relation) {
+            if (!$relation instanceof AttachedFileRelation || empty($relation->beply_pdf_print)) {
+                continue;
+            }
+
+            $bytes = $this->attachmentPdfBytes($relation);
+            if ($bytes !== '') {
+                $this->beplyHtmlPdfs[] = $bytes;
+            }
+        }
+    }
+
+    private function attachmentPdfBytes(AttachedFileRelation $relation): string
+    {
+        try {
+            $file = $relation->getFile();
+            $path = $file->getFullPath();
+            if (!is_file($path) || !is_readable($path)) {
+                return '';
+            }
+
+            if ($file->isPdf()) {
+                $bytes = (string) file_get_contents($path);
+                return strpos($bytes, '%PDF') === 0 ? $bytes : '';
+            }
+
+            if ($file->isImage()) {
+                return $this->imageAttachmentPdfBytes($path, (string) $file->mimetype);
+            }
+        } catch (\Throwable $e) {
+            Tools::log()->warning('beplypdf-attachment-render-error: ' . $e->getMessage());
+        }
+
+        return '';
+    }
+
+    private function imageAttachmentPdfBytes(string $path, string $mime): string
+    {
+        $data = (string) file_get_contents($path);
+        if ($data === '') {
+            return '';
+        }
+
+        $mime = in_array($mime, ['image/jpeg', 'image/png', 'image/gif', 'image/webp'], true) ? $mime : 'image/png';
+        $html = '<!doctype html><html><head><meta charset="utf-8"><style>'
+            . '@page{size:A4;margin:12mm;}html,body{margin:0;padding:0;height:100%;}'
+            . 'body{display:flex;align-items:center;justify-content:center;}'
+            . 'img{max-width:100%;max-height:273mm;object-fit:contain;}'
+            . '</style></head><body><img src="data:' . htmlspecialchars($mime, ENT_QUOTES, 'UTF-8')
+            . ';base64,' . base64_encode($data) . '" alt=""></body></html>';
+
+        return $this->htmlToPdfBytes($html);
+    }
+
+    private function htmlToPdfBytes(string $html): string
+    {
+        $this->ensureCacheDir();
+        $cache = FS_FOLDER . '/MyFiles/Cache';
+        $base = $cache . '/beplyattach_' . bin2hex(random_bytes(6));
+        $htmlFile = $base . '.html';
+        $pdfFile = $base . '.pdf';
+        file_put_contents($htmlFile, $html);
+
+        $python = FS_FOLDER . '/Plugins/BeplyPDFStudio/.venv/bin/python';
+        $bin = is_file($python) ? $python . ' -m weasyprint' : 'weasyprint';
+        @exec($bin . ' ' . escapeshellarg($htmlFile) . ' ' . escapeshellarg($pdfFile) . ' 2>/dev/null');
+
+        $pdf = is_file($pdfFile) ? (string) file_get_contents($pdfFile) : '';
+        @unlink($htmlFile);
+        @unlink($pdfFile);
+        return strpos($pdf, '%PDF') === 0 ? $pdf : '';
     }
 
     /**

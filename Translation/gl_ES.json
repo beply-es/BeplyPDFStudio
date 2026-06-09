@@ -63,6 +63,7 @@
     "hide-receipts": "Hide receipts",
     "hide-due-dates": "Hide due dates",
     "print-attachments": "Print attachments",
+    "beplypdf-print-in-document": "Imprimir no documento",
     "show-without-vat": "Hide VAT",
     "line-columns": "Line columns (comma separated)",
     "line-columns-align": "Column alignment",

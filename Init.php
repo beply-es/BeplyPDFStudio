@@ -27,7 +27,9 @@ use FacturaScripts\Core\Template\InitClass;
 use FacturaScripts\Core\Tools;
 use FacturaScripts\Dinamic\Model\BeplyPdfStyle;
 use FacturaScripts\Dinamic\Model\FormatoDocumento;
+use FacturaScripts\Plugins\BeplyPDFStudio\Extension\Controller\EditController;
 use FacturaScripts\Plugins\BeplyPDFStudio\Extension\Controller\EditSettings;
+use FacturaScripts\Plugins\BeplyPDFStudio\Extension\Model\AttachedFileRelation as AttachedFileRelationExtension;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\PdfEngine\BeplyPdfExport;
 
 /**
@@ -41,6 +43,10 @@ class Init extends InitClass
         'PresupuestoCliente',
         'PedidoCliente',
         'AlbaranCliente',
+        'FacturaProveedor',
+        'PresupuestoProveedor',
+        'PedidoProveedor',
+        'AlbaranProveedor',
     ];
 
     private const DEFAULT_FORMATS = [
@@ -48,10 +54,16 @@ class Init extends InitClass
         'PedidoCliente' => ['nombre' => 'Pedido cliente', 'titulo' => 'PEDIDO'],
         'AlbaranCliente' => ['nombre' => 'Albarán cliente', 'titulo' => 'ALBARÁN'],
         'FacturaCliente' => ['nombre' => 'Factura cliente', 'titulo' => 'FACTURA'],
+        'PresupuestoProveedor' => ['nombre' => 'Presupuesto proveedor', 'titulo' => 'PRESUPUESTO'],
+        'PedidoProveedor' => ['nombre' => 'Pedido proveedor', 'titulo' => 'PEDIDO'],
+        'AlbaranProveedor' => ['nombre' => 'Albarán proveedor', 'titulo' => 'ALBARÁN'],
+        'FacturaProveedor' => ['nombre' => 'Factura proveedor', 'titulo' => 'FACTURA'],
     ];
 
     public function init(): void
     {
+        $this->loadExtension(new AttachedFileRelationExtension());
+        $this->loadExtension(new EditController());
         $this->loadExtension(new EditSettings());
 
         foreach (self::DOC_MODELS as $modelName) {
@@ -69,6 +81,7 @@ class Init extends InitClass
     public function update(): void
     {
         $this->ensureStyleSchema();
+        $this->ensureAttachedFileRelationSchema();
         if (!$this->isBaseSchemaReady()) {
             return;
         }
@@ -95,6 +108,7 @@ class Init extends InitClass
         $newColumns = [
             'show_without_vat' => 'BOOLEAN DEFAULT false',
             'apply_customer_language' => 'BOOLEAN DEFAULT false',
+            'print_attachments' => 'BOOLEAN DEFAULT false',
             'id_footer_image' => 'INTEGER',
             'footer_image_asset' => 'VARCHAR(255)',
             'footer_image_width' => 'INTEGER DEFAULT 520',
@@ -107,6 +121,39 @@ class Init extends InitClass
             }
         }
         $this->clearStyleModelFieldsCache();
+    }
+
+    /** Añade el flag de impresión por adjunto en instalaciones ya inicializadas. */
+    private function ensureAttachedFileRelationSchema(): void
+    {
+        $db = new DataBase();
+        if (!$db->connect() || !$db->tableExists('attached_files_rel')) {
+            return;
+        }
+
+        $columns = $db->getColumns('attached_files_rel');
+        if (!isset($columns['beply_pdf_print'])) {
+            $db->exec('ALTER TABLE attached_files_rel ADD COLUMN beply_pdf_print BOOLEAN DEFAULT false');
+        }
+
+        Cache::delete('model-fields-AttachedFileRelation');
+        try {
+            $class = '\\FacturaScripts\\Dinamic\\Model\\AttachedFileRelation';
+            if (!class_exists($class)) {
+                return;
+            }
+
+            $ref = new \ReflectionClass($class);
+            if (!$ref->hasProperty('fields')) {
+                return;
+            }
+
+            $property = $ref->getProperty('fields');
+            $property->setAccessible(true);
+            $property->setValue(null, []);
+        } catch (\Throwable $e) {
+            Tools::log()->warning('beplypdf-attached-file-fields-cache-error: ' . $e->getMessage());
+        }
     }
 
     private function clearStyleModelFieldsCache(): void

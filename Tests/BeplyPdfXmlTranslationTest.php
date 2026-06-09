@@ -57,6 +57,7 @@ final class BeplyPdfXmlTranslationTest extends TestCase
     {
         $required = [
             'apply-customer-language',
+            'beplypdf-print-in-document',
             'beplypdf-grand-total',
             'beplypdf-quantity-short',
             'beplypdf-draft-suffix',

@@ -23,7 +23,8 @@
             <column name="hide-payment-methods" numcolumns="4" order="170"><widget type="checkbox" fieldname="hide_payment_methods"/></column>
             <column name="hide-receipts" numcolumns="4" order="175"><widget type="checkbox" fieldname="hide_receipts"/></column>
             <column name="hide-due-dates" numcolumns="4" order="180"><widget type="checkbox" fieldname="hide_due_dates"/></column>
-            <column name="show-without-vat" numcolumns="4" order="185"><widget type="checkbox" fieldname="show_without_vat"/></column>
+            <column name="print-attachments" numcolumns="4" order="185"><widget type="checkbox" fieldname="print_attachments"/></column>
+            <column name="show-without-vat" numcolumns="4" order="190"><widget type="checkbox" fieldname="show_without_vat"/></column>
         </group>
     </columns>
 </view>

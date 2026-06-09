@@ -1,0 +1,8 @@
+{% if doc.modelClassName() in ['PresupuestoCliente', 'PedidoCliente', 'AlbaranCliente', 'FacturaCliente', 'PresupuestoProveedor', 'PedidoProveedor', 'AlbaranProveedor', 'FacturaProveedor'] and (file.isPdf() or file.isImage()) %}
+    <div class="form-check mb-2">
+        <input class="form-check-input" type="checkbox" name="beply_pdf_print" value="1" id="beplyPdfPrintCheck{{ docfile.id }}" {{ docfile.beply_pdf_print ? 'checked' : '' }}>
+        <label class="form-check-label" for="beplyPdfPrintCheck{{ docfile.id }}">
+            {{ trans('beplypdf-print-in-document') }}
+        </label>
+    </div>
+{% endif %}

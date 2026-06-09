@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+ * This file is part of BeplyPDFStudio plugin for FacturaScripts
+ * Copyright (C) 2026 Beply Technologies S.L.
+-->
+<table>
+    <column>
+        <name>beply_pdf_print</name>
+        <type>boolean</type>
+        <default>false</default>
+    </column>
+</table>
