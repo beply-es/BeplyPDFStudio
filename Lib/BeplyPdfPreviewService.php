@@ -36,7 +36,7 @@ class BeplyPdfPreviewService
     private const SUBDIR = 'beplypdf';
 
     /** Se incrementa cuando cambia la lógica de generación, para invalidar cachés antiguas. */
-    private const VERSION = '53';
+    private const VERSION = '54';
 
     /** Resolución de las miniaturas WebP usadas en galerías y listados. */
     private const THUMBNAIL_DENSITY = 160;

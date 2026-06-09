@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.17 - 2026-06-09
+
+- Invalidates BeplyPDFStudio preview cache after switching previews to the real HTML/PDF renderer.
+- Restores the declared minimum PHP version to 8.1 so the plugin remains installable on current production runtimes.
+
 ## v1.16 - 2026-06-08
 
 - Adds a GitHub-hosted fallback for PHP 8.4 CI and release jobs when `BEPLY_GHA_RUNNER` is not available for the repository.
