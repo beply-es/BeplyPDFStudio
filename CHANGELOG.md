@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.18 - 2026-06-09
+
+- Replaces packaged design fallback thumbnails and legacy aliases with real renderer previews so the gallery remains styled even before dynamic previews are available.
+- Adds cache busting to static fallback thumbnail URLs used by the template gallery and side preview.
+
 ## v1.17 - 2026-06-09
 
 - Invalidates BeplyPDFStudio preview cache after switching previews to the real HTML/PDF renderer.

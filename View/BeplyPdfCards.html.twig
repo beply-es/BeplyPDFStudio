@@ -186,7 +186,7 @@
                                 {% elseif fsc.designPreviews[d.key] is defined and fsc.designPreviews[d.key] %}
                                     {% set imgsrc = asset(fsc.designPreviews[d.key]) %}
                                 {% else %}
-                                    {% set imgsrc = asset('Dinamic/Assets/Images/beplypdf_' ~ d.key ~ '.webp') %}
+                                    {% set imgsrc = asset('Dinamic/Assets/Images/beplypdf_' ~ d.key ~ '.webp') ~ '?v=1.18' %}
                                 {% endif %}
                                 <div class="bps-thumb">
                                     {% if imgsrc %}

@@ -95,7 +95,7 @@
                                         class="w-100 rounded border" style="height:78vh;" title="preview"
                                         loading="lazy"></iframe>
                             {% elseif fsc.previewDesign %}
-                                <img src="{{ asset('Dinamic/Assets/Images/beplypdf_' ~ fsc.previewDesign ~ '.webp') }}"
+                                <img src="{{ asset('Dinamic/Assets/Images/beplypdf_' ~ fsc.previewDesign ~ '.webp') ~ '?v=1.18' }}"
                                      alt="preview" class="img-fluid rounded border" style="width:100%;"/>
                             {% else %}
                                 <div class="bps-preview-mock">
