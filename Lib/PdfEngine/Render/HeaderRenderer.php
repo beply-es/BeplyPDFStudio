@@ -20,6 +20,7 @@
 namespace FacturaScripts\Plugins\BeplyPDFStudio\Lib\PdfEngine\Render;
 
 use FacturaScripts\Core\Tools;
+use FacturaScripts\Plugins\BeplyPDFStudio\Lib\BeplyPdfBrandingLogoService;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\BeplyPdfConfig;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\PdfEngine\BeplyPdfDraw;
 
@@ -824,8 +825,8 @@ class HeaderRenderer
     }
 
     /**
-     * Resuelve la ruta del logo a usar: primero el asset del usuario (MyFiles), si no, el
-     * logo por defecto de Beply (claro u oscuro/blanco). Devuelve null si no hay ninguno.
+     * Resuelve la ruta del logo a usar: primero el asset del usuario (MyFiles), luego
+     * la marca blanca del tenant y finalmente el logo por defecto de Beply.
      */
     private function logoPath(BeplyPdfConfig $cfg, bool $white): ?string
     {
@@ -834,6 +835,11 @@ class HeaderRenderer
             if (is_file($userPath)) {
                 return $userPath;
             }
+        }
+
+        $branding = (new BeplyPdfBrandingLogoService())->logoPath($white);
+        if ($branding !== null) {
+            return $branding;
         }
 
         $default = $white

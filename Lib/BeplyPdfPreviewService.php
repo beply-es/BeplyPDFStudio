@@ -36,7 +36,7 @@ class BeplyPdfPreviewService
     private const SUBDIR = 'beplypdf';
 
     /** Se incrementa cuando cambia la lógica de generación, para invalidar cachés antiguas. */
-    private const VERSION = '54';
+    private const VERSION = '55';
 
     /** Resolución de las miniaturas WebP usadas en galerías y listados. */
     private const THUMBNAIL_DENSITY = 160;
@@ -466,12 +466,15 @@ class BeplyPdfPreviewService
         $H = 848;
         $ff = "'" . \FacturaScripts\Plugins\BeplyPDFStudio\Lib\PdfEngine\BeplyPdfFonts::cssFamily($cfg->fontFamily) . "', sans-serif";
 
-        // logo por defecto (o el del usuario si lo ha subido a MyFiles), embebido como data-URI
+        // Logo por defecto: usuario -> marca blanca -> Beply, embebido como data-URI.
         $assets = FS_FOLDER . '/Dinamic/Assets/Images';
         $userLogo = (!empty($cfg->logoAsset) && is_file(FS_FOLDER . '/MyFiles/' . $cfg->logoAsset))
             ? FS_FOLDER . '/MyFiles/' . $cfg->logoAsset : null;
-        $logoMain = $this->dataUri($userLogo ?? ($assets . '/beplypdf_logo_main.png'));
-        $logoWhite = $this->dataUri($userLogo ?? ($assets . '/beplypdf_logo_white.png'));
+        $branding = new BeplyPdfBrandingLogoService();
+        $logoMainPath = $userLogo ?? $branding->logoPath(false) ?? ($assets . '/beplypdf_logo_main.png');
+        $logoWhitePath = $userLogo ?? $branding->logoPath(true) ?? ($assets . '/beplypdf_logo_white.png');
+        $logoMain = $this->dataUri($logoMainPath);
+        $logoWhite = $this->dataUri($logoWhitePath);
 
         // columnas según la config del estilo
         $nc = count($cfg->lineColumns);
@@ -764,7 +767,9 @@ class BeplyPdfPreviewService
             return '';
         }
         $ext = strtolower(pathinfo($path, PATHINFO_EXTENSION));
-        $mime = $ext === 'jpg' || $ext === 'jpeg' ? 'image/jpeg' : ($ext === 'webp' ? 'image/webp' : 'image/png');
+        $mime = $ext === 'jpg' || $ext === 'jpeg'
+            ? 'image/jpeg'
+            : ($ext === 'webp' ? 'image/webp' : ($ext === 'svg' ? 'image/svg+xml' : 'image/png'));
         return 'data:' . $mime . ';base64,' . base64_encode($data);
     }
 

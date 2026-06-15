@@ -164,7 +164,7 @@ class AdminBeplyPdf extends ListController
                 'name' => $layout->name(),
                 'layout' => $layoutDesc[$key] ?? '',
             ];
-            $this->designPreviews[$key] = $preview->cachedUrlForDesignKey($key) ?: $preview->urlForDesignKey($key);
+            $this->designPreviews[$key] = $preview->cachedUrlForDesignKey($key);
         }
 
         // estilo de la empresa seleccionada; si no tiene propio, hereda el por defecto
@@ -172,7 +172,7 @@ class AdminBeplyPdf extends ListController
         $shown = $own ?? ($this->selectedEmpresa !== null ? $this->styleForEmpresa(null) : null);
         if ($shown !== null) {
             $this->activeDesign = $shown->diseno;
-            $this->activePreviewUrl = $preview->isCustomized($shown) ? $preview->urlFor($shown) : '';
+            $this->activePreviewUrl = $preview->isCustomized($shown) ? $preview->cachedUrlFor($shown) : '';
             // solo permitimos "Configurar" si el estilo es realmente de esta empresa
             $this->activeStyleId = $own !== null ? (int) $own->id : null;
             $this->activeInherited = $own === null;

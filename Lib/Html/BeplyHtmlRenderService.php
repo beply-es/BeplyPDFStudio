@@ -13,6 +13,7 @@ namespace FacturaScripts\Plugins\BeplyPDFStudio\Lib\Html;
 
 use FacturaScripts\Core\Tools;
 use FacturaScripts\Core\Model\FormatoDocumento;
+use FacturaScripts\Plugins\BeplyPDFStudio\Lib\BeplyPdfBrandingLogoService;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\BeplyPdfConfig;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfDocumentContext;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfDocumentExtensionRegistry;
@@ -1185,13 +1186,17 @@ class BeplyHtmlRenderService
 
     /**
      * Ruta del fichero de logo. Prioridad: AttachedFile elegido en el selector (idlogo) →
-     * legacy logoAsset (ruta bajo MyFiles) → logo del plugin por defecto. null si no hay ninguno.
+     * legacy logoAsset (ruta bajo MyFiles) → logo de marca blanca → logo del plugin.
      */
     private function logoPath(BeplyPdfConfig $cfg): ?string
     {
         $path = $this->assetPath($cfg->idlogo, $cfg->logoAsset);
         if ($path !== null) {
             return $path;
+        }
+        $branding = (new BeplyPdfBrandingLogoService())->logoPath(false);
+        if ($branding !== null) {
+            return $branding;
         }
         if (is_file(FS_FOLDER . '/Dinamic/Assets/Images/beplypdf_logo_main.png')) {
             return FS_FOLDER . '/Dinamic/Assets/Images/beplypdf_logo_main.png';
@@ -1223,11 +1228,21 @@ class BeplyHtmlRenderService
     }
 
     /**
-     * Logo para fondos OSCUROS (bandas de color): versión en blanco. Si el plugin trae un logo
-     * blanco lo usa; si no, cae al logo normal (mejor que nada).
+     * Logo para fondos OSCUROS: asset de usuario/marca blanca si existe; si no, versión
+     * blanca del plugin; si no, cae al logo normal.
      */
     private function logoWhiteDataUri(BeplyPdfConfig $cfg): string
     {
+        $path = $this->assetPath($cfg->idlogo, $cfg->logoAsset);
+        if ($path !== null) {
+            return $this->imageDataUri($path);
+        }
+
+        $branding = (new BeplyPdfBrandingLogoService())->logoPath(true);
+        if ($branding !== null) {
+            return $this->imageDataUri($branding);
+        }
+
         $white = $this->pluginDir() . '/Assets/Images/logo-beply-white.png';
         if (is_file($white)) {
             $data = @file_get_contents($white);

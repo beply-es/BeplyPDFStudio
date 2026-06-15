@@ -27,6 +27,7 @@ use FacturaScripts\Core\Tools;
 use FacturaScripts\Core\Translator;
 use FacturaScripts\Dinamic\Model\AttachedFileRelation;
 use FacturaScripts\Dinamic\Model\FormatoDocumento;
+use FacturaScripts\Plugins\BeplyPDFStudio\Lib\BeplyPdfBrandingLogoService;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\BeplyPdfConfig;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\BeplyPdfRenderService;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Html\BeplyHtmlRenderService;
@@ -1017,6 +1018,11 @@ class PDFExport extends CorePDFExport
         }
         if (!empty($config->logoAsset) && is_file(FS_FOLDER . '/MyFiles/' . $config->logoAsset)) {
             return FS_FOLDER . '/MyFiles/' . $config->logoAsset;
+        }
+
+        $branding = (new BeplyPdfBrandingLogoService())->logoPath($white);
+        if ($branding !== null) {
+            return $branding;
         }
 
         $file = $white ? 'beplypdf_logo_white.png' : 'beplypdf_logo_main.png';

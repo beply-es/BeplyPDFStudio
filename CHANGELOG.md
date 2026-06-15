@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.20 - 2026-06-15
+
+- Adds tenant white-label logo fallback for previews, HTML rendering and PDF exports.
+- Keeps the admin template gallery on cached/static previews so opening `AdminBeplyPdf` does not render all previews synchronously.
+
 ## v1.18 - 2026-06-09
 
 - Replaces packaged design fallback thumbnails and legacy aliases with real renderer previews so the gallery remains styled even before dynamic previews are available.
