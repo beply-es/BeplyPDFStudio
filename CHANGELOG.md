@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.21 - 2026-06-22
+
+- Keeps PDFStudio line-column configuration authoritative over native `FormatoDocumento.linecols`, preventing unconfigured `RE`/`IRPF` columns from leaking into rendered documents.
+- Hides configured optional percentage columns (`% Dto.`, `IVA`, `RE`, `IRPF`) when every document line has a zero value for that column.
+- Adds default and content-based automatic line-column widths so description-heavy documents get more usable space when widths are left automatic.
+
 ## v1.20 - 2026-06-15
 
 - Adds tenant white-label logo fallback for previews, HTML rendering and PDF exports.

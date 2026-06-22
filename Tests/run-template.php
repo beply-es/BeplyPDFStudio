@@ -78,6 +78,43 @@ final class BeplyTemplateQuoteDoc extends BeplyPdfSampleDoc
     }
 }
 
+final class BeplyTemplateZeroOptionalColumnsDoc extends BeplyPdfSampleDoc
+{
+    public function __construct()
+    {
+        parent::__construct(null);
+        $this->neto = 900.0;
+        $this->netosindto = 900.0;
+        $this->totaliva = 0.0;
+        $this->totalrecargo = 0.0;
+        $this->totalirpf = 0.0;
+        $this->total = 900.0;
+    }
+
+    public function getLines(): array
+    {
+        return [
+            $this->line('ZERO-1', 'Servicio sin porcentajes opcionales A', 1.0, 450.0, 0.0, 450.0),
+            $this->line('ZERO-2', 'Servicio sin porcentajes opcionales B', 1.0, 450.0, 0.0, 450.0),
+        ];
+    }
+
+    private function line(string $ref, string $desc, float $cant, float $pvp, float $dto, float $pvptotal): object
+    {
+        $line = new \stdClass();
+        $line->referencia = $ref;
+        $line->descripcion = $desc;
+        $line->cantidad = $cant;
+        $line->pvpunitario = $pvp;
+        $line->dtopor = $dto;
+        $line->pvptotal = $pvptotal;
+        $line->iva = 0.0;
+        $line->recargo = 0.0;
+        $line->irpf = 0.0;
+        return $line;
+    }
+}
+
 final class BeplyTemplateSuite
 {
     private int $total = 0;
@@ -384,6 +421,44 @@ final class BeplyTemplateSuite
         $this->assert('lineColumns descripción corta palabras largas', strpos($body, 'overflow-wrap:anywhere;word-break:break-word;') !== false);
         $this->assert('lineColumns extension header', strpos($body, 'E2E EXT') !== false);
         $this->assert('lineColumns extension data', strpos($body, 'E2E_LINE_VALUE_1') !== false);
+
+        $auto = $this->cfg(function ($c) {
+            $c->lineColumns = ['referencia', 'descripcion', 'cantidad', 'pvpunitario', 'dtopor', 'iva', 'pvptotal'];
+            $c->lineColumnsAlign = ['left', 'left', 'right', 'right', 'right', 'right', 'right'];
+            $c->lineColumnsType = ['text', 'text', 'number', 'money', 'percentage', 'percentage', 'money'];
+            $c->lineColumnsWidth = [0, 0, 0, 0, 0, 0, 0];
+        });
+        $autoBody = $this->bodyOf($this->html($auto));
+        $descriptionWidth = $this->headerWidth($autoBody, Tools::lang()->trans('description'));
+        $priceWidth = $this->headerWidth($autoBody, Tools::lang()->trans('price'));
+        $dtoWidth = $this->headerWidth($autoBody, '% ' . Tools::lang()->trans('dto'));
+        $vatWidth = $this->headerWidth($autoBody, Tools::lang()->trans('vat'));
+        $this->assert('lineColumns auto ancho descripcion', $descriptionWidth > 35.0);
+        $this->assert('lineColumns auto ancho descripcion dominante', $descriptionWidth > $priceWidth * 2.5);
+        $this->assert('lineColumns auto ancho dto e iva', $dtoWidth > 0.0 && $dtoWidth < 10.0 && $vatWidth > 0.0 && $vatWidth < 10.0);
+
+        $optional = $this->cfg(function ($c) {
+            $c->lineColumns = ['descripcion', 'dtopor', 'iva', 'recargo', 'irpf', 'pvptotal'];
+            $c->lineColumnsAlign = ['left', 'right', 'right', 'right', 'right', 'right'];
+            $c->lineColumnsType = ['text', 'percentage', 'percentage', 'percentage', 'percentage', 'money'];
+            $c->lineColumnsWidth = [60, 8, 8, 8, 8, 16];
+        });
+        $zeroBody = $this->bodyOf($this->htmlForModel($optional, new BeplyTemplateZeroOptionalColumnsDoc()));
+        $this->assert('lineColumns oculta dto si todas las líneas son cero', $this->headerWidth($zeroBody, '% ' . Tools::lang()->trans('dto')) === 0.0);
+        $this->assert('lineColumns oculta iva si todas las líneas son cero', $this->headerWidth($zeroBody, Tools::lang()->trans('vat')) === 0.0);
+        $this->assert('lineColumns oculta re si todas las líneas son cero', $this->headerWidth($zeroBody, Tools::lang()->trans('re')) === 0.0);
+        $this->assert('lineColumns oculta irpf si todas las líneas son cero', $this->headerWidth($zeroBody, Tools::lang()->trans('irpf')) === 0.0);
+        $valueBody = $this->bodyOf($this->html($optional));
+        $this->assert('lineColumns mantiene dto configurado con valores', $this->headerWidth($valueBody, '% ' . Tools::lang()->trans('dto')) > 0.0);
+        $this->assert('lineColumns mantiene iva configurado con valores', $this->headerWidth($valueBody, Tools::lang()->trans('vat')) > 0.0);
+        $this->assert('lineColumns mantiene re configurado con valores', $this->headerWidth($valueBody, Tools::lang()->trans('re')) > 0.0);
+        $this->assert('lineColumns mantiene irpf configurado con valores', $this->headerWidth($valueBody, Tools::lang()->trans('irpf')) > 0.0);
+    }
+
+    private function headerWidth(string $body, string $label): float
+    {
+        $pattern = '#<th[^>]*style="[^"]*width:([0-9.]+)%;[^"]*"[^>]*>\s*' . preg_quote($label, '#') . '\s*</th>#u';
+        return preg_match($pattern, $body, $m) ? (float) $m[1] : 0.0;
     }
 
     private function password(): void

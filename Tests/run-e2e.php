@@ -58,6 +58,7 @@ final class BeplyPdfE2E
         $this->checkPasswordPdf();
         $this->checkPreviews();
         $this->checkFormatStyleOverlay();
+        $this->checkLegacyCsvColumnsBlockNativeFormatColumns();
         $this->checkPrintFormatsToolRoute();
         $this->checkFormatPreviewDocumentType();
         $this->checkAutoAppliedFormatPrintsDocument();
@@ -196,6 +197,13 @@ final class BeplyPdfE2E
 
         try {
             $this->assertTrue($format->save(), 'save temp print format');
+            $this->resetRenderServiceCache();
+            $nativeOnlyConfig = (new BeplyPdfRenderService())->resolveConfig((int) $format->id, !empty($format->idempresa) ? (int) $format->idempresa : null);
+            $this->assertTrue($nativeOnlyConfig !== null, 'native-only format render config resolved');
+            if ($nativeOnlyConfig !== null && isset($formatFields['linecols'])) {
+                $this->assertSame($baseConfig->lineColumns, $nativeOnlyConfig->lineColumns, 'native format line columns do not override configured Beply style');
+            }
+
             $style = $service->getOrCreateForFormat($format);
             $this->assertTrue($style instanceof BeplyPdfStyle, 'format style created');
             if (!$style instanceof BeplyPdfStyle) {
@@ -205,6 +213,7 @@ final class BeplyPdfE2E
             $this->assertSame((int) $format->id, (int) $style->idformato, 'format style linked to idformato');
             $this->assertSame([], $style->columnsConfig()['columns'], 'format style does not copy base columns');
 
+            $this->resetRenderServiceCache();
             $cfg = (new BeplyPdfRenderService())->resolveConfig((int) $format->id, !empty($format->idempresa) ? (int) $format->idempresa : null);
             $this->assertTrue($cfg !== null, 'format render config resolved');
             if ($cfg === null) {
@@ -235,6 +244,58 @@ final class BeplyPdfE2E
             $this->assertSame((int) $style->id, (int) ($again->id ?? 0), 'format style reused');
         } finally {
             $this->deleteTempFormats();
+        }
+    }
+
+    private function checkLegacyCsvColumnsBlockNativeFormatColumns(): void
+    {
+        $this->deleteTempFormats();
+        $this->deleteTempStyles();
+
+        $cfg = AbstractBeplyPdfLayout::find('legacy_summary')->defaultConfig();
+        $cfg->lineColumns = ['descripcion', 'cantidad', 'pvpunitario', 'pvptotal'];
+        $cfg->lineColumnsAlign = ['left', 'right', 'right', 'right'];
+        $cfg->lineColumnsType = ['text', 'number', 'money', 'money'];
+        $cfg->lineColumnsWidth = [0, 0, 0, 0];
+
+        $style = new BeplyPdfStyle();
+        $style->nombre = '__BeplyPDFStudioE2E__';
+        $style->idempresa = 987654;
+        $style->idformato = null;
+        $style->activo = true;
+        $style->setConfig($cfg);
+
+        $format = new FormatoDocumento();
+        $format->nombre = '__BeplyPDFStudioE2E_FORMAT__';
+        $format->titulo = 'E2E CSV';
+        $format->tipodoc = 'FacturaCliente';
+        $format->autoaplicar = false;
+        $formatFields = $format->getModelFields();
+        if (isset($formatFields['linecols'])) {
+            $format->linecols = 'descripcion,cantidad,pvpunitario,pvptotal,recargo,irpf';
+        }
+        if (isset($formatFields['linecolalignments'])) {
+            $format->linecolalignments = 'left,right,right,right,right,right';
+        }
+        if (isset($formatFields['linecoltypes'])) {
+            $format->linecoltypes = 'text,number,money,money,percentage,percentage';
+        }
+
+        try {
+            $this->assertTrue($style->save(), 'save temp csv-only company style');
+            $this->assertSame([], $style->columnsConfig()['columns'], 'temp style has no child columns');
+            $this->assertTrue($format->save(), 'save temp csv native print format');
+
+            $this->resetRenderServiceCache();
+            $resolved = (new BeplyPdfRenderService())->resolveConfig((int) $format->id, 987654);
+            $this->assertTrue($resolved !== null, 'csv-only company render config resolved');
+            if ($resolved !== null && isset($formatFields['linecols'])) {
+                $this->assertSame($cfg->lineColumns, $resolved->lineColumns, 'csv-only Beply columns block native recargo/irpf columns');
+                $this->assertSame([], $resolved->lineColumnsWidth, 'csv-only missing widths keep automatic sizing');
+            }
+        } finally {
+            $this->deleteTempFormats();
+            $this->deleteTempStyles();
         }
     }
 

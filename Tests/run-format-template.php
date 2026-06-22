@@ -165,6 +165,27 @@ final class BeplyFormatTemplateSuite
         $this->assert('lineColumns header reference', strpos($body, Tools::lang()->trans('reference')) !== false, 'missing reference header');
         $this->assert('lineColumns removes quantity', strpos($body, 'Cant.') === false, 'quantity column still rendered');
         $this->assert('lineColumns data reference', strpos($body, 'REF-001') !== false, 'missing REF-001');
+
+        $autoHtml = $this->htmlFor(function (BeplyPdfConfig $c): void {
+            $c->lineColumns = ['referencia', 'descripcion', 'cantidad', 'pvpunitario', 'dtopor', 'iva', 'pvptotal'];
+            $c->lineColumnsAlign = ['left', 'left', 'right', 'right', 'right', 'right', 'right'];
+            $c->lineColumnsType = ['text', 'text', 'number', 'money', 'percentage', 'percentage', 'money'];
+            $c->lineColumnsWidth = [0, 0, 0, 0, 0, 0, 0];
+        }, '', true);
+        $autoBody = $this->bodyOf($autoHtml);
+        $descriptionWidth = $this->headerWidth($autoBody, Tools::lang()->trans('description'));
+        $priceWidth = $this->headerWidth($autoBody, Tools::lang()->trans('price'));
+        $dtoWidth = $this->headerWidth($autoBody, '% ' . Tools::lang()->trans('dto'));
+        $vatWidth = $this->headerWidth($autoBody, Tools::lang()->trans('vat'));
+        $this->assert('lineColumns auto width description', $descriptionWidth > 35.0, 'description did not receive weighted width');
+        $this->assert('lineColumns auto width description dominant', $descriptionWidth > $priceWidth * 2.5, 'description did not dominate numeric columns');
+        $this->assert('lineColumns auto width dto vat', $dtoWidth > 0.0 && $dtoWidth < 10.0 && $vatWidth > 0.0 && $vatWidth < 10.0, 'discount/vat columns did not receive compact width');
+    }
+
+    private function headerWidth(string $body, string $label): float
+    {
+        $pattern = '#<th[^>]*style="[^"]*width:([0-9.]+)%;[^"]*"[^>]*>\s*' . preg_quote($label, '#') . '\s*</th>#u';
+        return preg_match($pattern, $body, $m) ? (float) $m[1] : 0.0;
     }
 
     private function printedPdf(): void

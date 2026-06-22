@@ -324,8 +324,9 @@ class BeplyHtmlRenderService
             // --- DOCUMENTO de venta/compra: datos completos del modelo ---
             $company = $this->companyData($model);
             $customer = $this->customerData($cfg, $model);
-            $columns = $this->columnsMeta($cfg, $docContext);
-            $lines = $this->linesData($cfg, $model, $coddivisa, $docContext);
+            $rawLines = $this->documentLines($model);
+            $columns = $this->columnsMeta($cfg, $docContext, $rawLines, $coddivisa);
+            $lines = $this->linesData($cfg, $model, $coddivisa, $docContext, $columns, $rawLines);
             $taxes = $this->taxData($cfg, $model, $coddivisa);
             $totals = $this->totalsData($cfg, $model, $coddivisa);
             $observations = $cfg->hideNotes ? '' : trim((string) ($model->observaciones ?? ''));
@@ -778,7 +779,7 @@ class BeplyHtmlRenderService
         return array_values(array_unique($lines));
     }
 
-    private function columnsMeta(BeplyPdfConfig $cfg, ?BeplyPdfDocumentContext $context = null): array
+    private function columnsMeta(BeplyPdfConfig $cfg, ?BeplyPdfDocumentContext $context = null, array $lines = [], string $coddivisa = ''): array
     {
         $labels = [
             'numlinea' => '#', 'referencia' => Tools::lang()->trans('reference'),
@@ -788,15 +789,36 @@ class BeplyHtmlRenderService
             'recargo' => Tools::lang()->trans('re'), 'irpf' => Tools::lang()->trans('irpf'),
             'totaliva' => Tools::lang()->trans('total'),
         ];
-        $configured = $this->effectiveLineColumns($cfg);
-        // anchos: si no hay configurados, reparto razonable (la descripción se lleva el resto)
+        $configured = $this->filterEmptyOptionalLineColumns($this->effectiveLineColumns($cfg), $lines);
+        $types = $this->lineColumnTypes($cfg);
+
+        // anchos: si no hay configurados, reparto automático por contenido real del documento
         $weights = [];
         $sum = 0;
+        $hasConfiguredWidths = false;
         foreach ($configured as $i => $key) {
             if (is_string($key)) {
                 $sourceIndex = array_search($key, $cfg->lineColumns, true);
-                $weights[$key] = max(0, (int) ($cfg->lineColumnsWidth[$sourceIndex === false ? $i : $sourceIndex] ?? 0));
-                $sum += $weights[$key];
+                $weight = max(0, (int) ($cfg->lineColumnsWidth[$sourceIndex === false ? $i : $sourceIndex] ?? 0));
+                $weights[$i] = $weight;
+                $sum += $weight;
+                $hasConfiguredWidths = $hasConfiguredWidths || $weight > 0;
+            }
+        }
+        if (!$hasConfiguredWidths) {
+            $weights = [];
+            $sum = 0;
+            foreach ($configured as $i => $key) {
+                if (is_string($key)) {
+                    $weights[$i] = $this->automaticLineColumnWeight(
+                        $key,
+                        $types[$key] ?? 'text',
+                        $labels[$key] ?? ucfirst($key),
+                        $lines,
+                        $coddivisa
+                    );
+                    $sum += $weights[$i];
+                }
             }
         }
         $out = [];
@@ -805,7 +827,7 @@ class BeplyHtmlRenderService
                 continue;
             }
             $sourceIndex = array_search($key, $cfg->lineColumns, true);
-            $w = $sum > 0 ? round($weights[$key] / $sum * 100, 2) : round(100 / max(1, count($configured)), 2);
+            $w = $sum > 0 ? round(($weights[$i] ?? 0) / $sum * 100, 2) : round(100 / max(1, count($configured)), 2);
             $out[] = [
                 'key' => $key,
                 'label' => $labels[$key] ?? ucfirst($key),
@@ -829,16 +851,117 @@ class BeplyHtmlRenderService
         return $out;
     }
 
-    private function linesData(BeplyPdfConfig $cfg, $model, string $coddivisa, ?BeplyPdfDocumentContext $context = null): array
+    private function filterEmptyOptionalLineColumns(array $columns, array $lines): array
     {
-        $lines = (is_object($model) && method_exists($model, 'getLines')) ? $model->getLines() : [];
-        $cols = $this->columnsMeta($cfg, $context);
+        if (empty($columns) || empty($lines)) {
+            return $columns;
+        }
+
+        return array_values(array_filter($columns, function ($column) use ($lines): bool {
+            if (!is_string($column) || !in_array($column, ['dtopor', 'iva', 'recargo', 'irpf'], true)) {
+                return true;
+            }
+
+            return $this->lineColumnHasNonZeroValue($column, $lines);
+        }));
+    }
+
+    private function lineColumnHasNonZeroValue(string $column, array $lines): bool
+    {
+        foreach ($lines as $line) {
+            if (is_object($line) && isset($line->{$column}) && abs((float) $line->{$column}) > 0.000001) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function automaticLineColumnWeight(string $key, string $type, string $label, array $lines, string $coddivisa): float
+    {
+        $base = (float) BeplyPdfConfig::defaultLineColumnWidth($key);
+        if (empty($lines)) {
+            return $base;
+        }
+
+        $max = $this->displayMetric($label);
+        $sum = $max;
+        $count = 1;
+        $n = 0;
+        foreach ($lines as $line) {
+            $n++;
+            if ($n > 50) {
+                break;
+            }
+            $metric = $this->displayMetric($this->cell($key, $type, $line, $n, $coddivisa));
+            $max = max($max, $metric);
+            $sum += $metric;
+            $count++;
+        }
+        $avg = $sum / max(1, $count);
+
+        if ($key === 'descripcion') {
+            return max($base, min(72.0, 8.0 + $max * 0.35 + $avg * 0.18));
+        }
+        if ($key === 'referencia') {
+            return max($base, min(24.0, 5.0 + $max * 0.42 + $avg * 0.18));
+        }
+
+        switch ($type) {
+            case 'money':
+                return max($base, min(18.0, 4.0 + $max * 0.95));
+            case 'percentage':
+                return max($base, min(9.0, 3.0 + $max * 0.6));
+            case 'number':
+                return max($base, min(16.0, 3.0 + $max * 0.9));
+            default:
+                return max($base, min(26.0, 5.0 + $max * 0.45 + $avg * 0.15));
+        }
+    }
+
+    private function displayMetric(string $value): float
+    {
+        $plain = html_entity_decode(strip_tags($value), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        $plain = trim(preg_replace('/\s+/u', ' ', $plain) ?? '');
+        if ($plain === '') {
+            return 0.0;
+        }
+
+        $len = (float) mb_strlen($plain);
+        preg_match_all('/[A-ZÁÉÍÓÚÀÈÒÜÑ0-9]/u', $plain, $wide);
+        return $len + count($wide[0] ?? []) * 0.08;
+    }
+
+    private function lineColumnTypes(BeplyPdfConfig $cfg): array
+    {
         $types = [];
         foreach ($cfg->lineColumns as $i => $key) {
             if (is_string($key)) {
                 $types[$key] = $cfg->lineColumnsType[$i] ?? 'text';
             }
         }
+
+        return $types;
+    }
+
+    private function documentLines($model): array
+    {
+        if (!is_object($model) || !method_exists($model, 'getLines')) {
+            return [];
+        }
+
+        try {
+            return (array) $model->getLines();
+        } catch (\Throwable $e) {
+            return [];
+        }
+    }
+
+    private function linesData(BeplyPdfConfig $cfg, $model, string $coddivisa, ?BeplyPdfDocumentContext $context = null, ?array $cols = null, ?array $lines = null): array
+    {
+        $lines = $lines ?? $this->documentLines($model);
+        $cols = $cols ?? $this->columnsMeta($cfg, $context, $lines, $coddivisa);
+        $types = $this->lineColumnTypes($cfg);
         $out = [];
         $n = 0;
         foreach ($lines as $line) {

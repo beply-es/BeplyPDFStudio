@@ -56,6 +56,7 @@ class LinesTableRenderer
             $cfg->lineColumns,
             static fn($k) => is_string($k) && in_array($k, BeplyPdfConfig::COLUMNAS, true)
         ));
+        $columns = $this->filterEmptyOptionalLineColumns($columns, $lines);
         if (empty($columns)) {
             return;
         }
@@ -183,6 +184,10 @@ class LinesTableRenderer
             $weight[$k] = max(0, (int) ($cfg->lineColumnsWidth[$i] ?? 0));
             $sumW += $weight[$k];
         }
+        if ($sumW <= 0) {
+            $weight = $this->summaryAutoWeights($columns, $type, $lines, $model);
+            $sumW = array_sum($weight);
+        }
         $colX = [];
         $colW = [];
         $x = $contentX;
@@ -223,6 +228,92 @@ class LinesTableRenderer
             $y = $rowBottom;
         }
         $pdf->ezSetY($y);
+    }
+
+    private function filterEmptyOptionalLineColumns(array $columns, array $lines): array
+    {
+        if (empty($columns) || empty($lines)) {
+            return $columns;
+        }
+
+        return array_values(array_filter($columns, function ($column) use ($lines): bool {
+            if (!is_string($column) || !in_array($column, ['dtopor', 'iva', 'recargo', 'irpf'], true)) {
+                return true;
+            }
+
+            return $this->lineColumnHasNonZeroValue($column, $lines);
+        }));
+    }
+
+    private function lineColumnHasNonZeroValue(string $column, array $lines): bool
+    {
+        foreach ($lines as $line) {
+            if (is_object($line) && abs((float) $this->numProp($line, $column)) > 0.000001) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function summaryAutoWeights(array $columns, array $type, array $lines, $model): array
+    {
+        $weights = [];
+        foreach ($columns as $key) {
+            $base = (float) BeplyPdfConfig::defaultLineColumnWidth($key);
+            $max = $this->displayMetric($this->summaryLabel($key));
+            $sum = $max;
+            $count = 1;
+            $num = 0;
+            foreach ($lines as $line) {
+                $num++;
+                if ($num > 50) {
+                    break;
+                }
+                $metric = $this->displayMetric($this->summaryCell($key, $type[$key] ?? $this->defaultType($key), $line, $num, $model));
+                $max = max($max, $metric);
+                $sum += $metric;
+                $count++;
+            }
+            $avg = $sum / max(1, $count);
+            $weights[$key] = $this->contentWeight($key, $type[$key] ?? $this->defaultType($key), $base, $max, $avg);
+        }
+
+        return $weights;
+    }
+
+    private function contentWeight(string $key, string $type, float $base, float $max, float $avg): float
+    {
+        if ($key === 'descripcion') {
+            return max($base, min(72.0, 8.0 + $max * 0.35 + $avg * 0.18));
+        }
+        if ($key === 'referencia') {
+            return max($base, min(24.0, 5.0 + $max * 0.42 + $avg * 0.18));
+        }
+
+        switch ($type) {
+            case 'money':
+                return max($base, min(18.0, 4.0 + $max * 0.95));
+            case 'percentage':
+                return max($base, min(9.0, 3.0 + $max * 0.6));
+            case 'number':
+                return max($base, min(16.0, 3.0 + $max * 0.9));
+            default:
+                return max($base, min(26.0, 5.0 + $max * 0.45 + $avg * 0.15));
+        }
+    }
+
+    private function displayMetric(string $value): float
+    {
+        $plain = html_entity_decode(strip_tags($value), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        $plain = trim(preg_replace('/\s+/u', ' ', $plain) ?? '');
+        if ($plain === '') {
+            return 0.0;
+        }
+
+        $len = (float) mb_strlen($plain);
+        preg_match_all('/[A-ZÁÉÍÓÚÀÈÒÜÑ0-9]/u', $plain, $wide);
+        return $len + count($wide[0] ?? []) * 0.08;
     }
 
     private function renderCorporateTable($pdf, BeplyPdfConfig $cfg, array $ctx, array $columns, array $headers, array $tableData, array $alignByKey, float $fontSize, float $tableWidth): void

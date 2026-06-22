@@ -46,7 +46,7 @@ class BeplyPdfColumn extends ModelClass
     /** @var string */
     public $coltype;
 
-    /** @var int ancho relativo (0 = automático/reparto) */
+    /** @var int ancho relativo (0 = automático por contenido) */
     public $width;
 
     /** @var int */
@@ -58,7 +58,7 @@ class BeplyPdfColumn extends ModelClass
         $this->fieldname = 'descripcion';
         $this->align = 'left';
         $this->coltype = 'text';
-        $this->width = 0;
+        $this->width = BeplyPdfConfig::defaultLineColumnWidth($this->fieldname);
         $this->orden = 100;
     }
 
@@ -96,7 +96,7 @@ class BeplyPdfColumn extends ModelClass
             $this->coltype = 'text';
         }
         if (!is_numeric($this->width) || $this->width < 0) {
-            $this->width = 0;
+            $this->width = BeplyPdfConfig::defaultLineColumnWidth((string) $this->fieldname);
         }
         return parent::test();
     }

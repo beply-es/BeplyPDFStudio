@@ -100,8 +100,8 @@ class BeplyPdfConfig
     public array $lineColumnsAlign = ['left', 'right', 'right', 'right', 'right', 'right'];
     /** @var string[] */
     public array $lineColumnsType = ['text', 'number', 'money', 'percentage', 'money', 'percentage'];
-    /** @var int[] ancho relativo por columna (0 = automático/reparto) */
-    public array $lineColumnsWidth = [0, 0, 0, 0, 0, 0];
+    /** @var int[] ancho relativo por columna (0 = automático por contenido) */
+    public array $lineColumnsWidth = [48, 8, 13, 7, 14, 7];
 
     // Texto final
     public string $footerText = '';
@@ -121,6 +121,29 @@ class BeplyPdfConfig
     public string $pdfPassword = '';
     public int $productImageWidth = 50;
     public int $productImageHeight = 50;
+
+    public static function defaultLineColumnWidth(string $key): int
+    {
+        return [
+            'numlinea' => 5,
+            'referencia' => 12,
+            'descripcion' => 48,
+            'cantidad' => 8,
+            'pvpunitario' => 13,
+            'dtopor' => 7,
+            'pvptotal' => 14,
+            'iva' => 7,
+            'recargo' => 7,
+            'irpf' => 7,
+            'totaliva' => 12,
+        ][$key] ?? 10;
+    }
+
+    /** @param string[] $columns */
+    public static function defaultLineColumnWidths(array $columns): array
+    {
+        return array_map(static fn($key): int => self::defaultLineColumnWidth((string) $key), $columns);
+    }
 
     public static function fromArray(array $data): self
     {

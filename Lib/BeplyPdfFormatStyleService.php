@@ -66,7 +66,7 @@ class BeplyPdfFormatStyleService
         return $style;
     }
 
-    public function applyNativeFormatDefaults(BeplyPdfConfig $config, FormatoDocumento $format): void
+    public function applyNativeFormatDefaults(BeplyPdfConfig $config, FormatoDocumento $format, bool $includeLineColumns = true): void
     {
         if (!empty($format->idlogo)) {
             $config->idlogo = (int) $format->idlogo;
@@ -101,6 +101,10 @@ class BeplyPdfFormatStyleService
             $config->pageFooterText = (string) $format->footertext;
         }
 
+        if (false === $includeLineColumns) {
+            return;
+        }
+
         $columns = $this->hasField($format, 'linecols') ? $this->csv((string) $format->linecols) : [];
         $align = $this->hasField($format, 'linecolalignments') ? $this->csv((string) $format->linecolalignments) : [];
         $types = $this->hasField($format, 'linecoltypes') ? $this->csv((string) $format->linecoltypes) : [];
@@ -114,7 +118,7 @@ class BeplyPdfFormatStyleService
             $config->lineColumns = $validColumns;
             $config->lineColumnsAlign = $this->normalizedMeta($align, count($config->lineColumns), ['left', 'center', 'right'], 'left');
             $config->lineColumnsType = $this->normalizedMeta($types, count($config->lineColumns), BeplyPdfConfig::COLUMN_TYPES, 'text');
-            $config->lineColumnsWidth = array_fill(0, count($config->lineColumns), 0);
+            $config->lineColumnsWidth = BeplyPdfConfig::defaultLineColumnWidths($config->lineColumns);
         }
     }
 

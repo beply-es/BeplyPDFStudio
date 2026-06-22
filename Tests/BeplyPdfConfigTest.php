@@ -49,6 +49,14 @@ final class BeplyPdfConfigTest extends TestCase
         $this->assertSame('legacy_summary', BeplyPdfConfig::fromJson('not-json')->diseno);
     }
 
+    public function testDefaultLineColumnsHaveUsefulWidths(): void
+    {
+        $cfg = new BeplyPdfConfig();
+        $this->assertSame(BeplyPdfConfig::defaultLineColumnWidths($cfg->lineColumns), $cfg->lineColumnsWidth);
+        $this->assertSame([48, 8, 13, 7, 14, 7], $cfg->lineColumnsWidth);
+        $this->assertSame([12, 48, 14], BeplyPdfConfig::defaultLineColumnWidths(['referencia', 'descripcion', 'pvptotal']));
+    }
+
     public function testOwnDesignsAllValid(): void
     {
         $v = new BeplyPdfConfigValidator();

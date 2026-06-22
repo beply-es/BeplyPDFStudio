@@ -68,10 +68,11 @@ class BeplyPdfRenderService
             }
 
             $config = $baseStyle->buildConfig();
+            $baseHasLineColumns = $this->styleHasConfiguredLineColumns($baseStyle);
             if ($idformato !== null) {
                 $format = new FormatoDocumento();
                 if ($format->loadFromCode($idformato)) {
-                    (new BeplyPdfFormatStyleService())->applyNativeFormatDefaults($config, $format);
+                    (new BeplyPdfFormatStyleService())->applyNativeFormatDefaults($config, $format, !$baseHasLineColumns);
                 }
 
                 $formatStyle = $this->resolveFormatStyle($idformato);
@@ -154,7 +155,24 @@ class BeplyPdfRenderService
             $config->lineColumnsAlign = $columns['align'];
             $config->lineColumnsType = $columns['type'];
             $config->lineColumnsWidth = $columns['width'];
+            return;
         }
+
+        if (!empty($overlay->lineColumns)) {
+            $config->lineColumns = $overlay->lineColumns;
+            $config->lineColumnsAlign = $overlay->lineColumnsAlign;
+            $config->lineColumnsType = $overlay->lineColumnsType;
+            $config->lineColumnsWidth = $overlay->lineColumnsWidth;
+        }
+    }
+
+    private function styleHasConfiguredLineColumns(BeplyPdfStyle $style): bool
+    {
+        if (!empty($style->columnsConfig()['columns'])) {
+            return true;
+        }
+
+        return trim((string) $style->line_columns) !== '';
     }
 
     private function cacheKey(?int $idformato, ?int $idempresa): string
