@@ -1023,10 +1023,10 @@ class HeaderRenderer
         }
 
         if (!empty($company->nombre)) {
-            $lines[] = (string) $company->nombre;
+            $lines[] = $this->plain($company->nombre);
         }
         if (!empty($company->cifnif)) {
-            $lines[] = Tools::lang()->trans('cifnif') . ': ' . $company->cifnif;
+            $lines[] = Tools::lang()->trans('cifnif') . ': ' . $this->plain($company->cifnif);
         }
         foreach ($this->addressLines($company) as $l) {
             $lines[] = $l;
@@ -1046,7 +1046,7 @@ class HeaderRenderer
             $contact[] = $company->web;
         }
         if (!empty($contact)) {
-            $lines[] = implode(' - ', $contact);
+            $lines[] = $this->plain(implode(' - ', $contact));
         }
 
         return $lines;
@@ -1070,7 +1070,7 @@ class HeaderRenderer
             ? ($model->nombre ?? '')
             : ($model->nombrecliente ?? '');
         if (!empty($name)) {
-            $lines[] = (string) $name;
+            $lines[] = $this->plain($name);
         }
 
         // Sujeto (Cliente/Proveedor) para datos fiscales y de contacto
@@ -1086,7 +1086,7 @@ class HeaderRenderer
         // CIF/NIF (preferimos el del documento, si no el del sujeto)
         $cifnif = !empty($model->cifnif) ? $model->cifnif : ($subject->cifnif ?? '');
         if (!empty($cifnif)) {
-            $lines[] = Tools::lang()->trans('cifnif') . ': ' . $cifnif;
+            $lines[] = Tools::lang()->trans('cifnif') . ': ' . $this->plain($cifnif);
         }
 
         // Codigo de cliente/proveedor (opcional)
@@ -1126,13 +1126,13 @@ class HeaderRenderer
                 }
             }
             if (!empty($phones)) {
-                $lines[] = implode(' - ', $phones);
+                $lines[] = $this->plain(implode(' - ', $phones));
             }
         }
 
         // Email del sujeto (opcional)
         if ($cfg->showCustomerEmail && $subject !== null && !empty($subject->email)) {
-            $lines[] = $subject->email;
+            $lines[] = $this->plain($subject->email);
         }
 
         return $lines;
@@ -1234,23 +1234,28 @@ class HeaderRenderer
     {
         $lines = [];
         if (!empty($obj->direccion)) {
-            $lines[] = (string) $obj->direccion;
+            $lines[] = $this->plain($obj->direccion);
         }
         $cityParts = [];
         if (!empty($obj->codpostal)) {
-            $cityParts[] = (string) $obj->codpostal;
+            $cityParts[] = $this->plain($obj->codpostal);
         }
         if (!empty($obj->ciudad)) {
-            $cityParts[] = (string) $obj->ciudad;
+            $cityParts[] = $this->plain($obj->ciudad);
         }
         $cityLine = implode(' ', $cityParts);
         if (!empty($obj->provincia)) {
-            $cityLine .= ($cityLine === '' ? '' : ' ') . '(' . $obj->provincia . ')';
+            $cityLine .= ($cityLine === '' ? '' : ' ') . '(' . $this->plain($obj->provincia) . ')';
         }
         if (trim($cityLine) !== '') {
             $lines[] = trim($cityLine);
         }
         return $lines;
+    }
+
+    private function plain($value): string
+    {
+        return (string) (Tools::fixHtml((string) ($value ?? '')) ?? '');
     }
 
     /**

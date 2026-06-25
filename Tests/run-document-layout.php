@@ -34,6 +34,8 @@ final class BeplyDocumentLayoutDoc extends BeplyPdfSampleDoc
     {
         parent::__construct(null, $modelClassName);
         $this->observaciones = '';
+        $this->nombrecliente = 'INSTITUT D&#39;EDUCACIÓ SECUNDÀRIA L&#39;ESTACIÓ';
+        $this->direccion = 'Carrer d&#39;Exemple, 1';
 
         $neto = 0.0;
         $long = 'DESCRIPCION-LARGA-SIN-ESPACIOS-' . str_repeat('NAUROM8434344486657', 3);
@@ -112,6 +114,8 @@ final class BeplyDocumentLayoutSuite
                 $this->assert('columnas con ancho fijo', strpos($body, 'width:42%;') !== false && strpos($body, 'width:14%;') !== false, 'column widths missing');
                 $this->assert('descripcion larga parte palabra', strpos($body, 'overflow-wrap:anywhere;word-break:break-word;') !== false, 'wrap CSS missing');
                 $this->assert('total visible en HTML', strpos($body, Tools::money((float) $doc->total, $doc->coddivisa)) !== false, 'total missing');
+                $this->assert('entidades HTML de cliente decodificadas', strpos($body, '&amp;#39;') === false
+                    && strpos($body, 'INSTITUT D&#039;EDUCACIÓ SECUNDÀRIA L&#039;ESTACIÓ') !== false, 'customer entity escaped');
 
                 $pdf = $svc->render($cfg, $doc);
                 $pages = $this->pageCount($pdf);

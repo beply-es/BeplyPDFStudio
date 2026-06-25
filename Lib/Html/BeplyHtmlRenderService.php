@@ -329,7 +329,7 @@ class BeplyHtmlRenderService
             $lines = $this->linesData($cfg, $model, $coddivisa, $docContext, $columns, $rawLines);
             $taxes = $this->taxData($cfg, $model, $coddivisa);
             $totals = $this->totalsData($cfg, $model, $coddivisa);
-            $observations = $cfg->hideNotes ? '' : trim((string) ($model->observaciones ?? ''));
+            $observations = $cfg->hideNotes ? '' : $this->plain($model->observaciones ?? '');
             $receipts = $this->receiptsData($cfg, $model, $coddivisa, $docContext);
             $shipping = $cfg->hideShippingAddress ? [] : $this->shippingData($model);
             $doc = $this->docData($cfg, $model, $coddivisa, $format);
@@ -344,7 +344,7 @@ class BeplyHtmlRenderService
             $receipts = [];
             $shipping = [];
             $doc = [
-                'title' => mb_strtoupper(trim((string) ($generic['title'] ?? ''))),
+                'title' => mb_strtoupper($this->plain($generic['title'] ?? '')),
                 'code' => '', 'numero' => '', 'numero2' => '', 'serie' => '',
                 'date' => '', 'expiration' => '', 'total' => '',
             ];
@@ -412,9 +412,9 @@ class BeplyHtmlRenderService
             'totals' => $totals,
             'observations' => $observations,
             'receipts' => $receipts,
-            'footer_text' => trim((string) $cfg->footerText),
-            'thanks_title' => trim((string) $cfg->thanksTitle),
-            'thanks_text' => trim((string) $cfg->thanksText),
+            'footer_text' => $this->plain($cfg->footerText),
+            'thanks_title' => $this->plain($cfg->thanksTitle),
+            'thanks_text' => $this->plain($cfg->thanksText),
             // Pie de página (numeración): respeta pageFooterText/Align/FontSize. Vacío => sin pie.
             'page_footer_content' => $this->pageFooterContent(trim((string) $cfg->pageFooterText)),
             'page_footer_box' => $this->footerBox($cfg->pageFooterAlign),
@@ -587,7 +587,7 @@ class BeplyHtmlRenderService
             : (float) ($model->total ?? 0);
 
         return [
-            'title' => mb_strtoupper(trim($title)),
+            'title' => mb_strtoupper($this->plain($title)),
             'code' => $cfg->hideInvoiceNumber ? '' : (string) ($model->codigo ?? ''),
             'numero' => $cfg->hideInvoiceNumber ? '' : (string) ($model->numero ?? ''),
             'numero2' => $cfg->showNumber2 ? (string) ($model->numero2 ?? '') : '',
@@ -638,10 +638,10 @@ class BeplyHtmlRenderService
             $contact[] = $company->web;
         }
         return [
-            'name' => (string) ($company->nombre ?? ''),
-            'cifnif' => (string) ($company->cifnif ?? ''),
+            'name' => $this->plain($company->nombre ?? ''),
+            'cifnif' => $this->plain($company->cifnif ?? ''),
             'lines' => $this->addressLines($company),
-            'contact' => implode(' · ', $contact),
+            'contact' => $this->plain(implode(' · ', $contact)),
         ];
     }
 
@@ -674,12 +674,12 @@ class BeplyHtmlRenderService
 
         return [
             'label' => Tools::lang()->trans($isPurchase ? 'supplier' : 'customer'),
-            'name' => (string) $name,
-            'cifnif' => (string) $cifnif,
-            'code' => (string) $code,
+            'name' => $this->plain($name),
+            'cifnif' => $this->plain($cifnif),
+            'code' => $this->plain($code),
             'lines' => $this->addressLines($model),
-            'phones' => implode(' / ', $contact),
-            'email' => (string) $email,
+            'phones' => $this->plain(implode(' / ', $contact)),
+            'email' => $this->plain($email),
             'agent' => $cfg->showAgent ? $this->agentName($model) : '',
         ];
     }
@@ -1223,16 +1223,21 @@ class BeplyHtmlRenderService
     {
         $lines = [];
         if (!empty($obj->direccion)) {
-            $lines[] = (string) $obj->direccion;
+            $lines[] = $this->plain($obj->direccion);
         }
-        $city = trim(((string) ($obj->codpostal ?? '')) . ' ' . ((string) ($obj->ciudad ?? '')));
+        $city = trim($this->plain($obj->codpostal ?? '') . ' ' . $this->plain($obj->ciudad ?? ''));
         if (!empty($obj->provincia)) {
-            $city .= ($city === '' ? '' : ' ') . '(' . $obj->provincia . ')';
+            $city .= ($city === '' ? '' : ' ') . '(' . $this->plain($obj->provincia) . ')';
         }
         if (trim($city) !== '') {
             $lines[] = trim($city);
         }
         return $lines;
+    }
+
+    private function plain($value): string
+    {
+        return (string) (Tools::fixHtml((string) ($value ?? '')) ?? '');
     }
 
     private function payMethod($codpago): string
