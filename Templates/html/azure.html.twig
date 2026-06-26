@@ -156,12 +156,12 @@
   .desc-table tbody tr:last-child td { border-bottom: 1px solid {{ color1 }}; }
 
   /* ===================== TOTALES LADO DERECHO ===================== */
-  .l-totals-az { margin-bottom: {{ (font_size * 1.5)|round }}px; }
+  .l-totals-az { margin-bottom: {{ paper_scale < 0.8 ? 4 : (font_size * 1.5)|round }}px; }
   .totals-stack { width: auto; table-layout: auto; margin-left: auto; }
-  .totals-stack td { font-size: {{ font_size }}px; padding: 5px 14px; white-space: nowrap; }
+  .totals-stack td { font-size: {{ font_size }}px; padding: {{ paper_scale < 0.8 ? 2 : 5 }}px {{ paper_scale < 0.8 ? 8 : 14 }}px; white-space: nowrap; }
   .totals-stack .ts-label { text-align: left; color: {{ muted_color }}; }
   .totals-stack .ts-value { text-align: right; color: {{ muted_color }}; }
-  .totals-stack .ts-total-row td { background: {{ color1 }}; color: {{ color2 }}; font-weight: 800; font-size: {{ font_size + 2 }}px; padding: 8px 14px; }
+  .totals-stack .ts-total-row td { background: {{ color1 }}; color: {{ color2 }}; font-weight: 800; font-size: {{ font_size + 2 }}px; padding: {{ paper_scale < 0.8 ? 4 : 8 }}px {{ paper_scale < 0.8 ? 8 : 14 }}px; }
 
   /* ===================== PAGO / RECIBOS + TÉRMINOS ===================== */
   .l-payment-az { margin-top: {{ (font_size * 1.5)|round }}px; }
@@ -317,24 +317,13 @@
         <table class="totals-stack">
           <tr>
             <td class="ts-label">{{ 'subtotal'|trans }}</td>
-            <td class="ts-value">
-              {# Suma de bases imponibles #}
-              {% set subtotal_val = '' %}
-              {% for t in taxes %}{% if loop.first %}{% set subtotal_val = t.base %}{% endif %}{% endfor %}
-              {{ subtotal_val }}
-            </td>
+            <td class="ts-value">{{ totals.net }}</td>
           </tr>
           {% for t in taxes %}
           <tr>
-            <td class="ts-label">{{ 'vat'|trans }} {{ t.pct }}</td>
+            <td class="ts-label">{{ t.label }}</td>
             <td class="ts-value">{{ t.cuota }}</td>
           </tr>
-          {% if t.re_pct %}
-          <tr>
-            <td class="ts-label">RE {{ t.re_pct }}</td>
-            <td class="ts-value">{{ t.re_cuota }}</td>
-          </tr>
-          {% endif %}
           {% endfor %}
           <tr class="ts-total-row">
             <td class="ts-label">{{ 'total'|trans }}</td>

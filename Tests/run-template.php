@@ -78,6 +78,31 @@ final class BeplyTemplateQuoteDoc extends BeplyPdfSampleDoc
     }
 }
 
+final class BeplyTemplateBankAccountPaymentDoc extends BeplyPdfSampleDoc
+{
+    private string $paymentCode;
+
+    public function __construct(string $paymentCode)
+    {
+        parent::__construct(null);
+        $this->paymentCode = $paymentCode;
+        $this->codpago = $paymentCode;
+    }
+
+    public function getReceipts(): array
+    {
+        return [
+            (object) [
+                'numero' => '1',
+                'importe' => $this->total,
+                'vencimiento' => date('d-m-Y', strtotime('+15 days')),
+                'pagado' => false,
+                'codpago' => $this->paymentCode,
+            ],
+        ];
+    }
+}
+
 final class BeplyTemplateZeroOptionalColumnsDoc extends BeplyPdfSampleDoc
 {
     public function __construct()
@@ -228,6 +253,8 @@ final class BeplyTemplateSuite
         $this->bottomPinned();
         $this->extensionSlots();
         $this->bodyPresent('receiptInfoProvider', fn($c) => null, 'E2E_RECEIPT_API_INFO');
+        $this->paymentMethodBankAccountIncludesIban();
+        $this->taxBreakdownIncludesIrpf();
         $this->withoutVat();
 
         // -- columnas configurables --
@@ -390,6 +417,89 @@ final class BeplyTemplateSuite
 
         $invoiceBody = $this->bodyOf($this->html($this->cfg(fn($c) => $c->showWithoutVat = true)));
         $this->assert('showWithoutVat applies to selected invoice format too', strpos($invoiceBody, '21%') === false);
+    }
+
+    private function taxBreakdownIncludesIrpf(): void
+    {
+        $doc = new BeplyPdfSampleDoc(null);
+        $body = $this->bodyOf($this->htmlForModel($this->cfg(fn($c) => null), $doc));
+        $amount = Tools::money(0 - (float) $doc->totalirpf, $doc->coddivisa);
+
+        $this->assert('tax breakdown includes IRPF label', stripos($body, Tools::lang()->trans('irpf')) !== false);
+        $this->assert('tax breakdown includes IRPF amount', strpos($body, $amount) !== false);
+    }
+
+    private function paymentMethodBankAccountIncludesIban(): void
+    {
+        $paymentCode = 'BPFIBAN';
+        $bankCode = '990123';
+        $iban = 'ES9121000418450200051332';
+        $formattedIban = 'ES91 2100 0418 4502 0005 1332';
+
+        $this->deletePaymentBankFixture($paymentCode, $bankCode);
+        try {
+            $this->createPaymentBankFixture($paymentCode, $bankCode, $iban);
+            $doc = new BeplyTemplateBankAccountPaymentDoc($paymentCode);
+            $body = $this->bodyOf($this->htmlForModel($this->cfg(fn($c) => null), $doc));
+
+            $this->assert('payment method bank account prints IBAN label', stripos($body, 'IBAN') !== false);
+            $this->assert('payment method bank account prints IBAN value', strpos($body, $formattedIban) !== false);
+        } finally {
+            $this->deletePaymentBankFixture($paymentCode, $bankCode);
+        }
+    }
+
+    private function createPaymentBankFixture(string $paymentCode, string $bankCode, string $iban): void
+    {
+        $bankClass = '\\FacturaScripts\\Dinamic\\Model\\CuentaBanco';
+        $paymentClass = '\\FacturaScripts\\Dinamic\\Model\\FormaPago';
+        if (!class_exists($bankClass) || !class_exists($paymentClass)) {
+            $this->assert('payment method bank account fixture models available', false);
+            return;
+        }
+
+        $idempresa = (int) Tools::settings('default', 'idempresa', 1);
+
+        $bank = new $bankClass();
+        $bank->codcuenta = $bankCode;
+        $bank->descripcion = 'E2E BeplyPDFStudio IBAN';
+        $bank->idempresa = $idempresa;
+        $bank->activa = true;
+        $bank->iban = $iban;
+        $this->assert('payment method bank account fixture saved', $bank->save());
+
+        $payment = new $paymentClass();
+        $payment->codpago = $paymentCode;
+        $payment->descripcion = 'E2E pago con cuenta asignada';
+        $payment->idempresa = $idempresa;
+        $payment->activa = true;
+        $payment->imprimir = true;
+        $payment->domiciliado = false;
+        $payment->pagado = false;
+        $payment->plazovencimiento = 0;
+        $payment->tipovencimiento = 'days';
+        $payment->codcuentabanco = $bankCode;
+        $this->assert('payment method bank account fixture payment saved', $payment->save());
+    }
+
+    private function deletePaymentBankFixture(string $paymentCode, string $bankCode): void
+    {
+        foreach ([
+            '\\FacturaScripts\\Dinamic\\Model\\FormaPago' => $paymentCode,
+            '\\FacturaScripts\\Dinamic\\Model\\CuentaBanco' => $bankCode,
+        ] as $class => $code) {
+            if (!class_exists($class)) {
+                continue;
+            }
+            try {
+                $model = new $class();
+                if (method_exists($model, 'load') && $model->load($code)) {
+                    $model->delete();
+                }
+            } catch (\Throwable $e) {
+                // Best effort cleanup for local test fixtures.
+            }
+        }
     }
 
     private function bodyHasTagText(string $body, string $text): bool

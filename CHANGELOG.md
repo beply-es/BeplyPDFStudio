@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.23 - 2026-06-26
+
+- Shows IRPF in the rendered tax breakdown, with negative withholding amounts, across all HTML/PDF templates.
+- Prints the IBAN of the bank account assigned to the payment method, regardless of the payment method name.
+- Keeps compact A5 totals rendering valid for the Azure layout after the tax-breakdown rows became explicit.
+
 ## v1.21 - 2026-06-22
 
 - Keeps PDFStudio line-column configuration authoritative over native `FormatoDocumento.linecols`, preventing unconfigured `RE`/`IRPF` columns from leaking into rendered documents.

@@ -200,17 +200,17 @@
           {% if taxes %}
           <table class="tax-table">
             <tr>
-              <td><b>{{ 'net'|trans }}</b></td>
-              <td><b>{{ 'vat'|trans }}</b></td>
-              <td><b>{{ 'taxes'|trans }}</b></td>
-              <td><b>{{ 're'|trans }}</b></td>
+              <td><b>{{ 'tax'|trans }}</b></td>
+              <td><b>{{ 'tax-base'|trans }}</b></td>
+              <td><b>{{ 'percentage'|trans }}</b></td>
+              <td><b>{{ 'amount'|trans }}</b></td>
             </tr>
             {% for tax in taxes %}
             <tr>
+              <td>{{ tax.label }}</td>
               <td>{{ tax.base }}</td>
               <td>{{ tax.pct }}</td>
               <td>{{ tax.cuota }}</td>
-              <td>{% if tax.re_pct %}{{ tax.re_pct }} {{ tax.re_cuota }}{% endif %}</td>
             </tr>
             {% endfor %}
           </table>

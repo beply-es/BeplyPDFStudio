@@ -489,11 +489,6 @@ class BeplyHtmlRenderService
         $tableH = ($fs + 18) + $n * $row + (int) ceil($n / 2) * $tline;
 
         $taxRows = 1 + count($taxes);
-        foreach ($taxes as $t) {
-            if (!empty($t['re_pct'])) {
-                $taxRows++;
-            }
-        }
         $taxBlockH = max($taxRows * ($fs + 8), 56);
         $obsH = $obs !== '' ? ($gapObs + (1 + (int) ceil(mb_strlen($obs) / 90)) * $tline) : 0;
         $recibosH = !empty($receipts) ? ($gapRecibo + ($fs + 18) + count($receipts) * $row) : 0;
@@ -1043,46 +1038,87 @@ class BeplyHtmlRenderService
             return [];
         }
         $lines = (is_object($model) && method_exists($model, 'getLines')) ? $model->getLines() : [];
-        $groups = [];
+        $vatGroups = [];
+        $surchargeGroups = [];
+        $irpfGroups = [];
         foreach ($lines as $l) {
             if (!is_object($l)) {
                 continue;
             }
+            $base = (float) ($l->pvptotal ?? 0);
             $iva = (float) ($l->iva ?? 0);
             $re = (float) ($l->recargo ?? 0);
-            $key = $iva . '|' . $re;
-            if (!isset($groups[$key])) {
-                $groups[$key] = ['iva' => $iva, 're' => $re, 'base' => 0.0];
+            $irpf = (float) ($l->irpf ?? 0);
+
+            $vatKey = (string) $iva;
+            if (!isset($vatGroups[$vatKey])) {
+                $vatGroups[$vatKey] = ['pct' => $iva, 'base' => 0.0];
             }
-            $groups[$key]['base'] += (float) ($l->pvptotal ?? 0);
+            $vatGroups[$vatKey]['base'] += $base;
+
+            if (abs($re) > 0.000001) {
+                $reKey = (string) $re;
+                if (!isset($surchargeGroups[$reKey])) {
+                    $surchargeGroups[$reKey] = ['pct' => $re, 'base' => 0.0];
+                }
+                $surchargeGroups[$reKey]['base'] += $base;
+            }
+
+            if (abs($irpf) > 0.000001) {
+                $irpfKey = (string) $irpf;
+                if (!isset($irpfGroups[$irpfKey])) {
+                    $irpfGroups[$irpfKey] = ['pct' => $irpf, 'base' => 0.0];
+                }
+                $irpfGroups[$irpfKey]['base'] += $base;
+            }
         }
-        krsort($groups);
+
+        krsort($vatGroups, SORT_NUMERIC);
+        krsort($surchargeGroups, SORT_NUMERIC);
+        krsort($irpfGroups, SORT_NUMERIC);
+
         $out = [];
-        foreach ($groups as $g) {
-            $out[] = [
-                'base' => Tools::money($g['base'], $coddivisa),
-                'pct' => Tools::number($g['iva']) . '%',
-                'cuota' => Tools::money($g['base'] * $g['iva'] / 100.0, $coddivisa),
-                're_pct' => $g['re'] > 0 ? Tools::number($g['re']) . '%' : '',
-                're_cuota' => $g['re'] > 0 ? Tools::money($g['base'] * $g['re'] / 100.0, $coddivisa) : '',
-            ];
+        foreach ($vatGroups as $g) {
+            $out[] = $this->taxRow(Tools::lang()->trans('vat'), $g['pct'], $g['base'], $g['base'] * $g['pct'] / 100.0, $coddivisa);
+        }
+        foreach ($surchargeGroups as $g) {
+            $out[] = $this->taxRow(Tools::lang()->trans('re'), $g['pct'], $g['base'], $g['base'] * $g['pct'] / 100.0, $coddivisa);
+        }
+        foreach ($irpfGroups as $g) {
+            $out[] = $this->taxRow(Tools::lang()->trans('irpf'), $g['pct'], $g['base'], 0 - ($g['base'] * $g['pct'] / 100.0), $coddivisa);
         }
         return $out;
+    }
+
+    private function taxRow(string $label, float $pct, float $base, float $amount, string $coddivisa): array
+    {
+        $pctText = Tools::number($pct) . '%';
+        return [
+            'label' => trim($label . ' ' . $pctText),
+            'base' => Tools::money($base, $coddivisa),
+            'pct' => $pctText,
+            'cuota' => Tools::money($amount, $coddivisa),
+            'raw_base' => $base,
+            'raw_pct' => $pct,
+            'raw_amount' => $amount,
+        ];
     }
 
     private function totalsData(BeplyPdfConfig $cfg, $model, string $coddivisa): array
     {
         $num = static fn($p) => isset($model->{$p}) ? (float) $model->{$p} : 0.0;
+        $net = Tools::money($num('neto'), $coddivisa);
         if ($cfg->showWithoutVat) {
             return [
                 'rows' => [
-                    ['label' => Tools::lang()->trans('total'), 'value' => Tools::money($num('neto'), $coddivisa)],
+                    ['label' => Tools::lang()->trans('total'), 'value' => $net],
                 ],
-                'total' => Tools::money($num('neto'), $coddivisa),
+                'net' => $net,
+                'total' => $net,
             ];
         }
         $rows = [
-            ['label' => Tools::lang()->trans('net'), 'value' => Tools::money($num('neto'), $coddivisa)],
+            ['label' => Tools::lang()->trans('net'), 'value' => $net],
         ];
         if ($num('totaliva') != 0.0) {
             $rows[] = ['label' => Tools::lang()->trans('taxes'), 'value' => Tools::money($num('totaliva'), $coddivisa)];
@@ -1095,6 +1131,7 @@ class BeplyHtmlRenderService
         }
         return [
             'rows' => $rows,
+            'net' => $net,
             'total' => Tools::money($num('total'), $coddivisa),
         ];
     }
@@ -1123,8 +1160,10 @@ class BeplyHtmlRenderService
                 : (!$cfg->hideDueDates && !empty($r->vencimiento) ? Tools::date($r->vencimiento) : '');
             $out[] = [
                 'numero' => (string) ($r->numero ?? ''),
-                'forma' => BeplyPdfDocumentExtensionRegistry::receiptInfo($context, $r, $receipts)
-                    ?? $this->payMethod($r->codpago ?? ($model->codpago ?? '')),
+                'forma' => $this->payMethod(
+                    $r->codpago ?? ($model->codpago ?? ''),
+                    BeplyPdfDocumentExtensionRegistry::receiptInfo($context, $r, $receipts)
+                ),
                 'importe' => isset($r->importe) ? Tools::money((float) $r->importe, $coddivisa) : '',
                 'vencimiento' => $venc,
             ];
@@ -1240,27 +1279,83 @@ class BeplyHtmlRenderService
         return (string) (Tools::fixHtml((string) ($value ?? '')) ?? '');
     }
 
-    private function payMethod($codpago): string
+    private function payMethod($codpago, ?string $overrideText = null): string
     {
         if (empty($codpago)) {
-            return '';
+            return trim((string) ($overrideText ?? ''));
         }
+
+        $overrideText = trim((string) ($overrideText ?? ''));
         $cls = '\\FacturaScripts\\Dinamic\\Model\\FormaPago';
         if (!class_exists($cls)) {
             $cls = '\\FacturaScripts\\Core\\Model\\FormaPago';
         }
         if (!class_exists($cls)) {
-            return (string) $codpago;
+            return $overrideText !== '' ? $overrideText : (string) $codpago;
         }
         try {
             $fp = new $cls();
             if (method_exists($fp, 'load') && $fp->load($codpago)) {
-                return (string) ($fp->descripcion ?? $codpago);
+                $text = $overrideText !== '' ? $overrideText : (string) ($fp->descripcion ?? $codpago);
+                return $this->appendBankAccountIban($text, $fp);
             }
         } catch (\Throwable $e) {
             // fallback al código
         }
-        return (string) $codpago;
+        return $overrideText !== '' ? $overrideText : (string) $codpago;
+    }
+
+    private function appendBankAccountIban(string $text, $paymentMethod): string
+    {
+        $ibanLine = $this->paymentMethodIbanLine($paymentMethod);
+        if ($ibanLine === '') {
+            return $text;
+        }
+
+        if (stripos($text, 'IBAN') !== false) {
+            return $text;
+        }
+
+        return trim($text) === '' ? $ibanLine : trim($text) . ' - ' . $ibanLine;
+    }
+
+    private function paymentMethodIbanLine($paymentMethod): string
+    {
+        if (!is_object($paymentMethod) || empty($paymentMethod->codcuentabanco)) {
+            return '';
+        }
+
+        try {
+            $bank = method_exists($paymentMethod, 'getBankAccount') ? $paymentMethod->getBankAccount() : null;
+            if (!is_object($bank)) {
+                $cls = '\\FacturaScripts\\Dinamic\\Model\\CuentaBanco';
+                if (!class_exists($cls)) {
+                    $cls = '\\FacturaScripts\\Core\\Model\\CuentaBanco';
+                }
+                if (!class_exists($cls)) {
+                    return '';
+                }
+                $bank = new $cls();
+                if (!method_exists($bank, 'load') || false === $bank->load($paymentMethod->codcuentabanco)) {
+                    return '';
+                }
+            }
+
+            if (isset($bank->activa) && false === (bool) $bank->activa) {
+                return '';
+            }
+
+            $iban = $this->formatIban((string) ($bank->iban ?? ''));
+            return $iban === '' ? '' : Tools::lang()->trans('iban') . ': ' . $iban;
+        } catch (\Throwable $e) {
+            return '';
+        }
+    }
+
+    private function formatIban(string $iban): string
+    {
+        $iban = strtoupper(preg_replace('/\s+/', '', trim($iban)) ?? '');
+        return $iban === '' ? '' : trim(chunk_split($iban, 4, ' '));
     }
 
     private function logoDataUri(BeplyPdfConfig $cfg): string

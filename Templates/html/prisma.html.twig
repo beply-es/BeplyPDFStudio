@@ -359,25 +359,15 @@
           <div class="subtotals-wrap">
             <table class="subtotals-table">
               {# Sub Total + impuestos por tramo #}
-              {% set sub_shown = false %}
-              {% for t in taxes %}
-              {% if not sub_shown %}
               <tr>
                 <td class="sub-label" style="font-weight:800; color:{{ text_color }};">{{ 'subtotal'|trans }}</td>
-                <td class="sub-value" style="font-weight:800; color:{{ text_color }};">{{ t.base }}</td>
+                <td class="sub-value" style="font-weight:800; color:{{ text_color }};">{{ totals.net }}</td>
               </tr>
-              {% set sub_shown = true %}
-              {% endif %}
+              {% for t in taxes %}
               <tr>
-                <td class="sub-label">{{ 'tax'|trans }}: {{ t.pct }}</td>
+                <td class="sub-label">{{ t.label }}</td>
                 <td class="sub-value">{{ t.cuota }}</td>
               </tr>
-              {% if t.re_pct %}
-              <tr>
-                <td class="sub-label">RE: {{ t.re_pct }}</td>
-                <td class="sub-value">{{ t.re_cuota }}</td>
-              </tr>
-              {% endif %}
               {% endfor %}
             </table>
             <div class="grand-total-box">{{ 'beplypdf-grand-total'|trans|upper }}: {{ totals.total }}</div>

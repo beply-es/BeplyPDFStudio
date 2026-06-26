@@ -262,8 +262,7 @@
             <td>{{ 'amount'|trans }}</td>
           </tr>
           {% for t in taxes %}
-          <tr><td>{{ 'vat'|trans }} {{ t.pct }}</td><td>{{ t.base }}</td><td>{{ t.pct }}</td><td>{{ t.cuota }}</td></tr>
-          {% if t.re_pct %}<tr><td>RE {{ t.re_pct }}</td><td>{{ t.base }}</td><td>{{ t.re_pct }}</td><td>{{ t.re_cuota }}</td></tr>{% endif %}
+          <tr><td>{{ t.label }}</td><td>{{ t.base }}</td><td>{{ t.pct }}</td><td>{{ t.cuota }}</td></tr>
           {% endfor %}
         </table>
         {% set slot = slots.TAXES_AFTER %}{% include '_slot.html.twig' %}

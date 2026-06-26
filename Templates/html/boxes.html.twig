@@ -252,19 +252,11 @@
         <tbody>
           {% for t in taxes %}
           <tr>
-            <td style="text-align:left;">{{ 'vat'|trans }} {{ t.pct }}</td>
+            <td style="text-align:left;">{{ t.label }}</td>
             <td style="text-align:right;">{{ t.base }}</td>
             <td style="text-align:right;">{{ t.pct }}</td>
             <td style="text-align:right;">{{ t.cuota }}</td>
           </tr>
-          {% if t.re_pct %}
-          <tr>
-            <td style="text-align:left;">RE {{ t.re_pct }}</td>
-            <td style="text-align:right;">{{ t.base }}</td>
-            <td style="text-align:right;">{{ t.re_pct }}</td>
-            <td style="text-align:right;">{{ t.re_cuota }}</td>
-          </tr>
-          {% endif %}
           {% endfor %}
         </tbody>
       </table>

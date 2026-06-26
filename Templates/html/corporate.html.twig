@@ -401,25 +401,15 @@
       <div class="totals-divider"></div>
       <div class="totals-outer">
         <table class="totals-inner">
-          {% for t in taxes %}
           <tr>
             <td class="t-label">{{ 'subtotal'|trans }}</td>
-            <td class="t-value">{{ t.base }}</td>
+            <td class="t-value">{{ totals.net }}</td>
           </tr>
+          {% for t in taxes %}
           <tr>
-            <td class="t-label">{{ 'net'|trans }}</td>
-            <td class="t-value">{{ t.base }}</td>
-          </tr>
-          <tr>
-            <td class="t-label">{{ 'taxes'|trans }} {{ t.pct }}</td>
+            <td class="t-label">{{ t.label }}</td>
             <td class="t-value">{{ t.cuota }}</td>
           </tr>
-          {% if t.re_pct %}
-          <tr>
-            <td class="t-label">RE {{ t.re_pct }}</td>
-            <td class="t-value">{{ t.re_cuota }}</td>
-          </tr>
-          {% endif %}
           {% endfor %}
           <tr class="t-total-row">
             <td class="t-label">{{ 'total'|trans }} {{ doc.title }}</td>
