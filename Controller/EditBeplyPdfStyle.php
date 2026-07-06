@@ -24,6 +24,7 @@ use FacturaScripts\Core\Lib\ExtendedController\PanelController;
 use FacturaScripts\Dinamic\Model\BeplyPdfStyle;
 use FacturaScripts\Dinamic\Model\FormatoDocumento;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\BeplyPdfPreviewService;
+use FacturaScripts\Plugins\BeplyPDFStudio\Lib\BeplyRichDescriptionAssets;
 
 /**
  * Configurador de un estilo PDF de Beply: pestañas nativas a la izquierda (una EditView
@@ -34,8 +35,11 @@ class EditBeplyPdfStyle extends PanelController
     /** @var string|null diseño del estilo en edición (para la vista previa) */
     public $previewDesign = null;
 
-    /** @var string URL (con token) de la preview WebP del estilo en edición */
+    /** @var string URL (con token) del PDF de preview del estilo en edición */
     public $previewUrl = '';
+
+    /** @var string URL (con token) de la miniatura WebP del estilo en edición */
+    public $previewImageUrl = '';
 
     /** @var bool indica si este estilo pertenece a un FormatoDocumento concreto */
     public $formatScoped = false;
@@ -69,6 +73,8 @@ class EditBeplyPdfStyle extends PanelController
 
     protected function createViews(): void
     {
+        BeplyRichDescriptionAssets::add();
+
         $this->setTabsPosition('left');
 
         $m = 'BeplyPdfStyle';
@@ -125,8 +131,10 @@ class EditBeplyPdfStyle extends PanelController
 
         // En el configurador mostramos PDF: base estatico o personalizado dinamico.
         if ($this->previewDesign === null && $view->model && !empty($view->model->id)) {
+            $preview = new BeplyPdfPreviewService();
             $this->previewDesign = $view->model->diseno;
-            $this->previewUrl = (new BeplyPdfPreviewService())->pdfUrlForStyle($view->model);
+            $this->previewUrl = $preview->pdfUrlForStyle($view->model);
+            $this->previewImageUrl = $preview->urlFor($view->model);
             $this->loadFormatScope($view->model);
         }
     }

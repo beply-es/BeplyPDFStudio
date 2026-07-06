@@ -140,6 +140,32 @@ final class BeplyTemplateZeroOptionalColumnsDoc extends BeplyPdfSampleDoc
     }
 }
 
+final class BeplyTemplateRichDescriptionDoc extends BeplyPdfSampleDoc
+{
+    public function getLines(): array
+    {
+        $line = new \stdClass();
+        $line->referencia = 'RICH-1';
+        $line->descripcion = "### Alcance\n- **Instalacion** inicial\n- Soporte *prioritario*";
+        $line->cantidad = 1.0;
+        $line->pvpunitario = 125.0;
+        $line->dtopor = 0.0;
+        $line->pvptotal = 125.0;
+        $line->iva = 0.0;
+        $line->recargo = 0.0;
+        $line->irpf = 0.0;
+        return [$line];
+    }
+}
+
+final class BeplyTemplateRealSampleDoc extends BeplyPdfSampleDoc
+{
+    public function beplyPdfIsSamplePreview(): bool
+    {
+        return false;
+    }
+}
+
 final class BeplyTemplateSuite
 {
     private int $total = 0;
@@ -158,10 +184,7 @@ final class BeplyTemplateSuite
     public function run(): int
     {
         @mkdir(FS_FOLDER . '/MyFiles/Cache', 0775, true);
-        BeplyPdfDocumentExtensionRegistry::clear();
-        BeplyPdfDocumentExtensionRegistry::addExtension(new BeplyTemplateApiTestExtension());
-        BeplyPdfDocumentExtensionRegistry::addReceiptInfoProvider(new BeplyTemplateApiTestExtension());
-        BeplyPdfDocumentExtensionRegistry::addLineColumnProvider(new BeplyTemplateApiTestExtension());
+        $this->registerTestExtensions();
 
         try {
             // Itera TODOS los diseños del registro: los nuevos se prueban automáticamente.
@@ -183,6 +206,14 @@ final class BeplyTemplateSuite
 
         echo "TEMPLATE total={$this->total} failed={$this->failed}\n";
         return $this->failed === 0 ? 0 : 1;
+    }
+
+    private function registerTestExtensions(): void
+    {
+        BeplyPdfDocumentExtensionRegistry::clear();
+        BeplyPdfDocumentExtensionRegistry::addExtension(new BeplyTemplateApiTestExtension());
+        BeplyPdfDocumentExtensionRegistry::addReceiptInfoProvider(new BeplyTemplateApiTestExtension());
+        BeplyPdfDocumentExtensionRegistry::addLineColumnProvider(new BeplyTemplateApiTestExtension());
     }
 
     /** Comprobaciones de personalización que TODO diseño HTML debe cumplir. */
@@ -245,8 +276,8 @@ final class BeplyTemplateSuite
         $this->bodyAbsent('hideInvoiceNumber=true', fn($c) => $c->hideInvoiceNumber = true, '2026/0001');
         $this->bodyPresent('hideInvoiceNumber=false (número interno visible)', fn($c) => null, 'NUM-2026-XYZ');
         $this->bodyAbsent('hideInvoiceNumber=true (número interno oculto)', fn($c) => $c->hideInvoiceNumber = true, 'NUM-2026-XYZ');
-        $this->bodyPresent('showDraftWarning=true', fn($c) => $c->showDraftWarning = true, 'FACTURA BOCETO');
-        $this->bodyAbsent('showDraftWarning=false', fn($c) => $c->showDraftWarning = false, 'FACTURA BOCETO');
+        $this->bodyPresentForModel('showDraftWarning=true', fn($c) => $c->showDraftWarning = true, 'FACTURA BOCETO', new BeplyTemplateRealSampleDoc(null));
+        $this->bodyAbsentForModel('showDraftWarning=false', fn($c) => $c->showDraftWarning = false, 'FACTURA BOCETO', new BeplyTemplateRealSampleDoc(null));
         $this->bodyPresent('hideShippingAddress=false', fn($c) => $c->hideShippingAddress = false, 'Avenida de Entrega, 25');
         $this->bodyAbsent('hideShippingAddress=true', fn($c) => $c->hideShippingAddress = true, 'Avenida de Entrega, 25');
         $this->draftWarningDocuments();
@@ -256,6 +287,7 @@ final class BeplyTemplateSuite
         $this->paymentMethodBankAccountIncludesIban();
         $this->taxBreakdownIncludesIrpf();
         $this->withoutVat();
+        $this->richLineDescription();
 
         // -- columnas configurables --
         $this->columns();
@@ -343,6 +375,16 @@ final class BeplyTemplateSuite
         $this->assert($name, strpos($this->bodyOf($this->html($this->cfg($mut))), $needle) === false);
     }
 
+    private function bodyPresentForModel(string $name, callable $mut, string $needle, $model): void
+    {
+        $this->assert($name, strpos($this->bodyOf($this->htmlForModel($this->cfg($mut), $model)), $needle) !== false);
+    }
+
+    private function bodyAbsentForModel(string $name, callable $mut, string $needle, $model): void
+    {
+        $this->assert($name, strpos($this->bodyOf($this->htmlForModel($this->cfg($mut), $model)), $needle) === false);
+    }
+
     private function bodyMatches(string $name, callable $mut, string $pattern): void
     {
         $this->assert($name, (bool) preg_match($pattern, $this->bodyOf($this->html($this->cfg($mut)))));
@@ -350,14 +392,19 @@ final class BeplyTemplateSuite
 
     private function bottomPinned(): void
     {
-        $html = $this->html($this->cfg(fn($c) => null));
+        BeplyPdfDocumentExtensionRegistry::clear();
+        try {
+            $html = $this->html($this->cfg(fn($c) => null));
+        } finally {
+            $this->registerTestExtensions();
+        }
         $this->assert(
             'sin bloque artificial entre líneas y totales',
             (bool) preg_match('#<div style="height:\s*[1-9]\d*px;"></div>#s', $this->bodyOf($html)) === false
         );
         $this->assert(
-            'totales/recibos sin padding artificial por defecto',
-            (bool) preg_match('/\.bottom\s*\{[^}]*padding-top:\s*[1-9]\d*px/s', $this->styleOf($html)) === false
+            'totales/recibos anclados abajo con padding nativo',
+            (bool) preg_match('/\.bottom\s*\{[^}]*padding-top:\s*[1-9]\d*px/s', $this->styleOf($html))
         );
         $this->assert(
             'anclaje inferior no usa transform visual',
@@ -382,7 +429,7 @@ final class BeplyTemplateSuite
             'AlbaranCliente' => 'ALBARÁN BOCETO',
         ];
         foreach ($cases as $modelClass => $needle) {
-            $body = $this->bodyOf($this->htmlForModel($cfg, new BeplyPdfSampleDoc(null, $modelClass)));
+            $body = $this->bodyOf($this->htmlForModel($cfg, new BeplyTemplateRealSampleDoc(null, $modelClass)));
             $this->assert('showDraftWarning ' . $modelClass, strpos($body, $needle) !== false);
         }
     }
@@ -417,6 +464,25 @@ final class BeplyTemplateSuite
 
         $invoiceBody = $this->bodyOf($this->html($this->cfg(fn($c) => $c->showWithoutVat = true)));
         $this->assert('showWithoutVat applies to selected invoice format too', strpos($invoiceBody, '21%') === false);
+    }
+
+    private function richLineDescription(): void
+    {
+        $cfg = $this->cfg(function ($c): void {
+            $c->lineColumns = ['descripcion', 'cantidad', 'pvpunitario', 'pvptotal'];
+            $c->lineColumnsAlign = ['left', 'right', 'right', 'right'];
+            $c->lineColumnsType = ['text', 'number', 'money', 'money'];
+            $c->lineColumnsWidth = [58, 10, 16, 16];
+        });
+        $body = $this->bodyOf($this->htmlForModel($cfg, new BeplyTemplateRichDescriptionDoc()));
+        $rich = preg_match('#<div class="beply-rich-desc"[^>]*>(.*?)</div>#s', $body, $match) ? $match[1] : $body;
+
+        $this->assert('descripcion markdown legacy imprime texto normal', strpos($rich, 'Alcance') !== false);
+        $this->assert('descripcion markdown no imprime titulos', preg_match('/<h[1-6]\b/i', $rich) === 0);
+        $this->assert('descripcion markdown imprime negrita', strpos($rich, '<strong') !== false && strpos($rich, 'Instalacion') !== false);
+        $this->assert('descripcion markdown imprime cursiva', strpos($rich, '<em') !== false && strpos($rich, 'font-style:italic') !== false && strpos($rich, 'prioritario') !== false);
+        $this->assert('descripcion markdown imprime lista', strpos($rich, '<li') !== false);
+        $this->assert('descripcion markdown no imprime marcadores raw', strpos($rich, '**Instalacion**') === false && strpos($rich, '*prioritario*') === false);
     }
 
     private function taxBreakdownIncludesIrpf(): void

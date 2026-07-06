@@ -31,6 +31,7 @@ final class BeplyPdfDocumentSlot
     public const OBSERVATIONS_AFTER = 'observations.after';
     public const RECEIPTS_BEFORE = 'receipts.before';
     public const RECEIPTS_AFTER = 'receipts.after';
+    public const FISCAL_FOOTER = 'fiscal.footer';
     public const FOOTER_BEFORE = 'footer.before';
     public const FOOTER_AFTER = 'footer.after';
 
@@ -56,6 +57,7 @@ final class BeplyPdfDocumentSlot
             self::OBSERVATIONS_AFTER,
             self::RECEIPTS_BEFORE,
             self::RECEIPTS_AFTER,
+            self::FISCAL_FOOTER,
             self::FOOTER_BEFORE,
             self::FOOTER_AFTER,
         ];

@@ -1,0 +1,189 @@
+.beply-rich-desc-col {
+    min-width: 0;
+}
+
+.beply-rich-surface {
+    background: var(--bs-body-bg);
+    cursor: text;
+    font-size: .9rem;
+    line-height: 1.28;
+    min-height: 2.25rem;
+    overflow-wrap: anywhere;
+    white-space: normal;
+}
+
+.beply-rich-surface-readonly {
+    background: var(--bs-tertiary-bg, #f8f9fa);
+    cursor: pointer;
+}
+
+.beply-rich-surface-locked {
+    cursor: default;
+}
+
+.beply-rich-surface p {
+    font-size: .9rem;
+}
+
+.beply-rich-surface p {
+    margin: 0 0 .12rem;
+}
+
+.beply-rich-surface ul,
+.beply-rich-surface ol {
+    margin: .08rem 0 .08rem .95rem;
+    padding-left: .9rem;
+}
+
+.beply-rich-surface li {
+    margin: 0 0 .06rem;
+}
+
+.beply-rich-surface strong {
+    font-weight: 650;
+}
+
+.beply-rich-surface em {
+    font-style: italic;
+}
+
+.beply-rich-button-col {
+    padding-left: 0;
+}
+
+.beply-rich-line-button {
+    min-width: 2rem;
+}
+
+.beply-rich-product-field {
+    position: relative;
+}
+
+.beply-rich-inline-field {
+    position: relative;
+}
+
+.beply-rich-product-actions {
+    position: absolute;
+    right: .45rem;
+    top: .45rem;
+    z-index: 4;
+}
+
+.beply-rich-inline-actions {
+    position: absolute;
+    right: .45rem;
+    top: .45rem;
+    z-index: 4;
+}
+
+.beply-rich-product-button {
+    min-width: 2rem;
+    padding-left: .45rem;
+    padding-right: .45rem;
+}
+
+.beply-rich-inline-button {
+    min-width: 2rem;
+    padding-left: .45rem;
+    padding-right: .45rem;
+}
+
+.beply-rich-product-field > textarea[name="descripcion"] {
+    padding-right: 2.75rem;
+}
+
+.beply-rich-inline-field > textarea.beply-rich-generic-source {
+    padding-right: 2.75rem;
+}
+
+.beply-rich-product-surface {
+    border-color: var(--bs-border-color);
+    min-height: 5.75rem;
+    padding: .45rem 2.75rem .45rem .55rem;
+}
+
+.beply-rich-generic-surface {
+    border-color: var(--bs-border-color);
+    min-height: 5.75rem;
+    padding: .45rem 2.75rem .45rem .55rem;
+}
+
+.beply-rich-modal .modal-body {
+    background: var(--bs-body-bg);
+}
+
+.beply-rich-mode-select {
+    background-color: var(--bs-body-bg);
+    color: var(--bs-body-color);
+    display: inline-block !important;
+    flex: 0 0 auto;
+    min-width: 7.5rem;
+    width: auto;
+}
+
+.beply-rich-toolbar-row {
+    align-items: center;
+    background: var(--bs-tertiary-bg, #f8f9fa);
+    border: 1px solid var(--bs-border-color);
+    border-color: var(--bs-border-color);
+    border-radius: .375rem .375rem 0 0;
+    display: flex;
+    flex-wrap: wrap;
+    font-family: inherit;
+    gap: .25rem;
+    padding: .35rem .5rem;
+}
+
+.beply-quill-toolbar.ql-toolbar.ql-snow {
+    background: transparent;
+    border: 0;
+    display: flex;
+    flex: 1 1 auto;
+    flex-wrap: wrap;
+    font-family: inherit;
+    gap: .15rem;
+    padding: 0;
+}
+
+.beply-quill-toolbar .ql-formats {
+    margin-right: 0;
+}
+
+.beply-quill-wrap .ql-container.ql-snow {
+    border-color: var(--bs-border-color);
+    border-top: 0;
+    border-radius: 0 0 .375rem .375rem;
+    font-family: inherit;
+    font-size: .95rem;
+    min-height: 24rem;
+}
+
+.beply-quill-wrap .ql-editor {
+    line-height: 1.35;
+    min-height: 24rem;
+}
+
+.beply-quill-wrap .ql-editor p,
+.beply-quill-wrap .ql-editor ol,
+.beply-quill-wrap .ql-editor ul {
+    margin-bottom: .35rem;
+}
+
+.beply-quill-wrap .ql-snow .ql-picker {
+    color: var(--bs-body-color);
+}
+
+.beply-rich-md {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    min-height: 24rem;
+    resize: vertical;
+}
+
+@media (max-width: 991.98px) {
+    .beply-quill-wrap .ql-container.ql-snow,
+    .beply-quill-wrap .ql-editor,
+    .beply-rich-md {
+        min-height: 20rem;
+    }
+}

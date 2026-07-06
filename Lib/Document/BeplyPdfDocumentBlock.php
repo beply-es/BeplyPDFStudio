@@ -27,6 +27,17 @@ final class BeplyPdfDocumentBlock
         return new self($slot, $html, $title, $priority, $key);
     }
 
+    public static function fiscalQr(BeplyPdfFiscalQrBlockData $data, int $priority = 700): self
+    {
+        return new self(
+            BeplyPdfDocumentSlot::FISCAL_FOOTER,
+            BeplyPdfFiscalQrBlockRenderer::render($data),
+            '',
+            $priority,
+            'fiscal-' . preg_replace('/[^a-zA-Z0-9_-]+/', '-', strtolower(trim($data->systemKey)))
+        );
+    }
+
     public function toArray(): array
     {
         return [

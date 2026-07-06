@@ -1,3 +1,4 @@
+{# Slot contract: slots.FISCAL_FOOTER is rendered through _fiscal-landscape-columns-close.html.twig. #}
 <!DOCTYPE html>
 <html lang="{{ html_lang|default('es') }}">
 <head>
@@ -386,7 +387,7 @@
         </thead>
         <tbody>
           {% for row in lines %}
-          <tr>{% for cell in row %}{% set c = columns[loop.index0]|default({}) %}<td style="text-align:{{ cell.align }};width:{{ c.width|default(0) }}%;{% if c.key|default('') == 'descripcion' or not is_document %}white-space:normal;overflow-wrap:anywhere;word-break:break-word;{% endif %}">{{ cell.value }}</td>{% endfor %}</tr>
+          <tr>{% for cell in row %}{% set c = columns[loop.index0]|default({}) %}<td style="text-align:{{ cell.align }};width:{{ c.width|default(0) }}%;{% if c.key|default('') == 'descripcion' or not is_document %}white-space:normal;overflow-wrap:anywhere;word-break:break-word;{% endif %}">{% if cell.html|default(false) %}{{ cell.value|raw }}{% else %}{{ cell.value }}{% endif %}</td>{% endfor %}</tr>
           {% endfor %}
         </tbody>
       </table>
@@ -395,6 +396,8 @@
   </div>{# /top #}
 
   <div class="bottom">
+
+    {% include '_fiscal-landscape-columns-open.html.twig' %}
 
     {% if is_document %}
     <div class="l-totals-wrap">
@@ -424,7 +427,7 @@
     <div class="bottom-extra" style="break-inside: avoid;">
 
     {% if observations %}
-    <div class="obs"><span class="t">{{ 'observations'|trans }}</span><br/>{{ observations|nl2br }}</div>
+    <div class="obs"><span class="t">{{ 'observations'|trans }}</span><br/>{{ observations|raw }}</div>
     {% endif %}
 
     {% if receipts %}
@@ -448,7 +451,7 @@
     </table>
     {% endif %}
 
-    {% if is_document and footer_text %}<div class="end-text">{{ footer_text|nl2br }}</div>{% endif %}
+    {% if is_document and footer_text %}<div class="end-text">{{ footer_text|raw }}</div>{% endif %}
     {% include '_footer-image.html.twig' %}
     {% if is_document and (thanks_title or thanks_text) %}
     <div class="thanks">
@@ -459,11 +462,13 @@
 
     </div>{# /bottom-extra #}
 
+    {% include '_fiscal-landscape-columns-close.html.twig' %}
+
   </div>{# /bottom #}
 
   {# ---------- BANDA PIE CORPORATIVA ---------- #}
   <div class="l-footer-band">
-    {% if company.contact %}{{ company.contact }}{% elseif footer_text %}{{ footer_text }}{% else %}{{ company.name }}{% endif %}
+    {% if company.contact %}{{ company.contact }}{% elseif footer_text_plain %}{{ footer_text_plain }}{% else %}{{ company.name }}{% endif %}
   </div>
 
 </div>

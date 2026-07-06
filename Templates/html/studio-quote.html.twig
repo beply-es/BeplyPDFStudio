@@ -1,0 +1,365 @@
+{# Slot contract: slots.FISCAL_FOOTER is rendered through _fiscal-landscape-columns-close.html.twig. #}
+<!DOCTYPE html>
+<html lang="{{ html_lang|default('es') }}">
+<head>
+<meta charset="UTF-8">
+<style>
+  {{ font_faces|raw }}
+  {% set brand_text = company.short_name|default(company.name)|default('') %}
+  {% set brand_len = brand_text|length %}
+  {% set small_page = 'A5' in page_size %}
+  {% set line_count = lines is defined ? lines|length : 0 %}
+  {% set compact_doc = line_count >= 3 %}
+  {% set brand_size = small_page ? (brand_len > 24 ? 34 : 40) : (brand_len > 34 ? 42 : (brand_len > 26 ? 49 : 58)) %}
+  {% set title_size = small_page ? 30 : title_font_size %}
+
+  @page {
+    size: {{ page_size }};
+    margin: {{ page_mt }}mm {{ page_mr }}mm {{ page_mb }}mm {{ page_ml }}mm;
+    {% if page_footer_content %}
+    @{{ page_footer_box }} {
+      content: {{ page_footer_content|raw }};
+      font-family: '{{ font_family }}', Arial, sans-serif;
+      font-size: {{ page_footer_size }}px;
+      color: {{ faint_color }};
+    }
+    {% endif %}
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: '{{ font_family }}', 'Poppins', 'Helvetica Neue', Arial, sans-serif;
+    color: {{ text_color }};
+    font-size: {{ font_size }}px;
+    line-height: 1.32;
+    -webkit-font-smoothing: antialiased;
+  }
+  table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+  td, th { vertical-align: top; overflow-wrap: break-word; word-break: break-word; }
+  tr, .studio-line, .studio-total, .beply-slot-block { break-inside: avoid; page-break-inside: avoid; }
+  .sheet { position: relative; min-height: 100%; }
+  .bottom { {% if bottom_anchor_transform %}transform: translateY({{ bottom_anchor_gap }}px); transform-origin: top left;{% else %}padding-top: {{ bottom_anchor_gap }}px;{% endif %} }
+
+  .studio-header { position: relative; min-height: {{ small_page ? 112 : (compact_doc ? 124 : 150) }}px; margin-bottom: {{ small_page ? 10 : (compact_doc ? 10 : 17) }}px; }
+  .studio-brand {
+    font-size: {{ brand_size }}px;
+    line-height: .92;
+    font-weight: 900;
+    letter-spacing: -3px;
+    white-space: nowrap;
+    color: {{ color1 }};
+  }
+  .studio-logo img { width: {{ logo_size }}px; max-width: 100%; height: auto; }
+  .studio-issuer {
+    position: absolute;
+    right: 0;
+    top: {{ small_page ? 58 : (compact_doc ? 70 : 86) }}px;
+    width: {{ small_page ? 48 : 42 }}%;
+    text-align: right;
+    font-size: {{ font_size }}px;
+    line-height: 1.26;
+  }
+  .studio-issuer-name { font-weight: 800; }
+  .studio-issuer .muted { color: {{ text_color }}; }
+
+  .studio-doc-title {
+    font-size: {{ title_size }}px;
+    line-height: .98;
+    font-weight: 900;
+    letter-spacing: -2px;
+    margin-bottom: {{ compact_doc ? 6 : 10 }}px;
+  }
+  .studio-rule { height: 0; border-top: {{ small_page ? 2 : 3 }}px solid {{ color1 }}; margin-bottom: {{ small_page ? 12 : (compact_doc ? 10 : 15) }}px; }
+  .studio-meta {
+    font-size: {{ small_page ? font_size + 4 : font_size + 9 }}px;
+    line-height: 1.05;
+    font-weight: 900;
+    letter-spacing: -1px;
+    margin-bottom: {{ small_page ? 14 : (compact_doc ? 12 : 18) }}px;
+  }
+  .studio-client { margin-bottom: {{ small_page ? 22 : (compact_doc ? 22 : 35) }}px; }
+  .studio-client-label {
+    font-weight: 800;
+    font-size: {{ font_size + 4 }}px;
+    line-height: 1.15;
+    margin-bottom: 3px;
+  }
+  .studio-client-name {
+    font-weight: 800;
+    font-size: {{ font_size + 2 }}px;
+    line-height: 1.22;
+  }
+  .studio-client-extra { font-size: {{ font_size - 1 }}px; margin-top: 3px; }
+
+  .lines-area { min-height: {{ lines_fill }}px; }
+  .studio-lines { border-top: 1.5px solid {{ color1 }}; table-layout: fixed; }
+  .studio-lines th {
+    padding: {{ compact_doc ? 7 : 9 }}px 10px;
+    border-bottom: 1.5px solid {{ color1 }};
+    font-size: {{ font_size }}px;
+    font-weight: 900;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+  .studio-lines td {
+    padding: {{ small_page ? 13 : (compact_doc ? 14 : 18) }}px 10px;
+    border-bottom: 1px solid {{ color1 }};
+    font-size: {{ font_size }}px;
+    line-height: {{ compact_doc ? 1.28 : 1.36 }};
+    white-space: nowrap;
+  }
+  .studio-lines tbody tr:nth-child(even) td { background: {{ color3 }}; }
+  .studio-lines th:first-child,
+  .studio-lines td:first-child,
+  .studio-lines .studio-desc-cell {
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+  .studio-description-rich { font-size: {{ font_size }}px; line-height: {{ compact_doc ? 1.28 : 1.36 }}; }
+  .studio-description h4,
+  .studio-description h5,
+  .studio-description h6 {
+    margin: 0 0 2px 0;
+    font-size: {{ font_size + 1 }}px;
+    line-height: 1.16;
+    font-weight: 800;
+  }
+  .studio-description p { margin: 0 0 2px 0; }
+  .studio-description ul { margin-left: 18px; }
+  .studio-description ol { margin-left: 18px; }
+  .studio-description li { margin-bottom: {{ compact_doc ? 1 : 3 }}px; padding-left: 4px; }
+
+  .tax-total-grid { margin-top: {{ small_page ? 12 : (compact_doc ? 12 : 18) }}px; }
+  .tax-table { width: auto; table-layout: auto; }
+  .tax-table td { font-size: {{ font_size - 1 }}px; line-height: 1.55; padding-right: 20px; white-space: nowrap; }
+  .tax-table .head td { font-weight: 800; padding-bottom: 2px; }
+  .studio-total { text-align: right; font-size: {{ font_size + 1 }}px; }
+  .studio-total-row { line-height: 1.45; }
+  .studio-total-row b { display: inline-block; min-width: 96px; font-weight: 900; }
+  .studio-grand-total {
+    display: inline-block;
+    margin-top: 4px;
+    padding-top: 5px;
+    border-top: 2px solid {{ color1 }};
+    font-size: {{ font_size + 9 }}px;
+    font-weight: 900;
+    line-height: 1;
+    white-space: nowrap;
+  }
+
+  .obs {
+    margin-top: {{ small_page ? 16 : (compact_doc ? 16 : 36) }}px;
+    font-size: {{ font_size }}px;
+    line-height: {{ compact_doc ? 1.26 : 1.36 }};
+  }
+  .obs .t { font-weight: 900; }
+  .recibo-table { margin-top: {{ small_page ? 12 : (compact_doc ? 10 : 18) }}px; table-layout: auto; border-top: 1px solid {{ color1 }}; border-bottom: 1px solid {{ color1 }}; }
+  .recibo-table th, .recibo-table td { font-size: {{ font_size - 1 }}px; padding: {{ compact_doc ? 4 : 5 }}px 8px; white-space: nowrap; }
+  .recibo-table th { font-weight: 900; text-align: left; }
+
+  .studio-footer {
+    margin-top: {{ small_page ? 28 : (compact_doc ? 18 : 48) }}px;
+    display: table;
+    width: 100%;
+    table-layout: fixed;
+  }
+  .studio-contact {
+    display: table-cell;
+    width: 45%;
+    vertical-align: bottom;
+    font-size: {{ font_size - 1 }}px;
+    line-height: 1.3;
+  }
+  .studio-contact .web { font-weight: 900; font-size: {{ font_size + 1 }}px; }
+  .studio-sign {
+    display: table-cell;
+    width: 55%;
+    vertical-align: bottom;
+    text-align: center;
+    padding-left: {{ compact_doc ? 36 : 48 }}px;
+    font-size: {{ font_size + (compact_doc ? 3 : 4) }}px;
+  }
+  .studio-sign-line {
+    margin-top: {{ small_page ? 48 : (compact_doc ? 42 : 82) }}px;
+    border-top: 2px solid {{ color1 }};
+    height: 1px;
+  }
+  .end-text { margin-top: 12px; font-size: {{ font_size - 1 }}px; line-height: 1.35; }
+  .thanks { margin-top: 12px; text-align: center; }
+  .thanks-title { font-size: {{ title_font_size }}px; font-weight: 900; }
+  .thanks-text { font-size: {{ font_size }}px; }
+
+  .beply-slot { margin-top: 8px; }
+  .beply-slot-title { font-weight: 900; margin-bottom: 3px; }
+  .beply-slot-body { line-height: 1.28; }
+  .beply-fiscal-qr-block { margin-top: {{ small_page ? 12 : 22 }}px !important; }
+</style>
+</head>
+<body>
+{% include '_draft-warning.html.twig' %}
+<div class="sheet">
+  {% set slot = slots.DOCUMENT_TITLE_BEFORE %}{% include '_slot.html.twig' %}
+
+  <div class="studio-header">
+    <div class="studio-brand">{% if logo %}<span class="studio-logo"><img src="{{ logo }}" alt=""/></span>{% else %}{{ brand_text ?: company.name }}{% endif %}</div>
+    <div class="studio-issuer">
+      <div class="studio-issuer-name">{{ company.name }}</div>
+      <div class="muted">
+        {% for l in company.lines %}{{ l }}{% if not loop.last %}<br/>{% endif %}{% endfor %}
+        {% if company.cifnif %}<br/>{{ 'cifnif'|trans }}: {{ company.cifnif }}{% endif %}
+      </div>
+      {% set slot = slots.PARTY_COMPANY_AFTER %}{% include '_slot.html.twig' %}
+    </div>
+  </div>
+
+  <div class="studio-doc-title">{{ doc.title|lower }}.</div>
+  <div class="studio-rule"></div>
+  <div class="studio-meta">
+    {% set slot = slots.DOCUMENT_META_BEFORE %}{% include '_slot.html.twig' %}
+    {% if doc.code or doc.numero %}n. {{ doc.code ?: doc.numero }}{% if doc.code and doc.numero and doc.numero != doc.code %} / {{ doc.numero }}{% endif %}{% endif %}
+    {% if doc.numero2 %} ref. {{ doc.numero2 }}{% endif %}
+    {% if doc.supplier_number %} proveedor: {{ doc.supplier_number }}{% endif %}
+    {% if doc.payment_date %} devengo: {{ doc.payment_date }}{% endif %}
+    {% for parent in doc.parent_docs %} doc. {{ parent }}{% endfor %}
+    {% if doc.date %} data: {{ doc.date }}{% endif %}
+    {% set slot = slots.DOCUMENT_META_AFTER %}{% include '_slot.html.twig' %}
+  </div>
+  {% set slot = slots.DOCUMENT_TITLE_AFTER %}{% include '_slot.html.twig' %}
+
+  {% if is_document %}
+  <div class="studio-client">
+    {% set slot = slots.PARTY_CUSTOMER_BEFORE %}{% include '_slot.html.twig' %}
+    <div class="studio-client-label">
+      {{ customer.label }}:
+      <span class="studio-client-name">{{ customer.name }}{% if customer.code %} · {{ customer.code }}{% endif %}</span>
+    </div>
+    {% set customer_bits = [] %}
+    {% if customer.cifnif %}{% set customer_bits = customer_bits|merge(['cifnif'|trans ~ ': ' ~ customer.cifnif]) %}{% endif %}
+    {% for l in customer.lines %}{% if l %}{% set customer_bits = customer_bits|merge([l]) %}{% endif %}{% endfor %}
+    {% if shipping.lines|default([]) %}
+      {% set customer_bits = customer_bits|merge([shipping.label|default('shipping-address'|trans) ~ ': ' ~ shipping.lines|join(' · ')]) %}
+    {% endif %}
+    {% if customer.agent %}{% set customer_bits = customer_bits|merge([customer.agent]) %}{% endif %}
+    {% if customer.phones %}{% set customer_bits = customer_bits|merge(['phone'|trans ~ ': ' ~ customer.phones]) %}{% endif %}
+    {% if customer.email %}{% set customer_bits = customer_bits|merge([customer.email]) %}{% endif %}
+    {% if customer_bits %}
+    <div class="studio-client-extra">
+      {{ customer_bits|join(' · ') }}
+      {% set slot = slots.PARTY_SHIPPING_AFTER %}{% include '_slot.html.twig' %}
+    </div>
+    {% endif %}
+    {% set slot = slots.PARTY_CUSTOMER_AFTER %}{% include '_slot.html.twig' %}
+  </div>
+  {% endif %}
+
+  {% set slot = slots.LINES_BEFORE %}{% include '_slot.html.twig' %}
+  <div class="lines-area">
+    <table class="studio-lines">
+      <thead>
+        <tr>
+          {% for c in columns %}
+          <th style="text-align:{{ c.align }};width:{{ c.width }}%;{% if c.key == 'descripcion' or not is_document %}white-space:normal;overflow-wrap:anywhere;word-break:break-word;{% endif %}">{{ c.label }}</th>
+          {% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in lines %}
+        <tr>
+          {% for cell in row %}
+          {% set c = columns[loop.index0]|default({}) %}
+          <td class="{{ c.key|default('') == 'descripcion' ? 'studio-desc-cell' : '' }}" style="text-align:{{ cell.align }};width:{{ c.width|default(cell.width|default(0)) }}%;{% if c.key|default('') == 'descripcion' or not is_document %}white-space:normal;overflow-wrap:anywhere;word-break:break-word;{% endif %}">
+            {% if cell.html|default(false) %}<div class="studio-description-rich">{{ cell.value|raw }}</div>{% else %}{{ cell.value }}{% endif %}
+          </td>
+          {% endfor %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% set slot = slots.LINES_AFTER %}{% include '_slot.html.twig' %}
+
+  <div class="bottom">
+    {% include '_fiscal-landscape-columns-open.html.twig' %}
+
+    {% if is_document %}
+    <table class="tax-total-grid"><tr>
+      <td style="width:58%;">
+        {% set slot = slots.TAXES_BEFORE %}{% include '_slot.html.twig' %}
+        {% if taxes %}
+        <table class="tax-table">
+          <tr class="head"><td>{{ 'tax'|trans }}</td><td>{{ 'tax-base'|trans }}</td><td>{{ 'amount'|trans }}</td></tr>
+          {% for t in taxes %}
+          <tr><td>{{ t.label }}</td><td>{{ t.base }}</td><td>{{ t.cuota }}</td></tr>
+          {% endfor %}
+        </table>
+        {% endif %}
+        {% set slot = slots.TAXES_AFTER %}{% include '_slot.html.twig' %}
+      </td>
+      <td style="width:42%;" class="studio-total">
+        {% set slot = slots.TOTALS_BEFORE %}{% include '_slot.html.twig' %}
+        {% for row in totals.rows %}
+        <div class="studio-total-row">{{ row.label }} <b>{{ row.value }}</b></div>
+        {% endfor %}
+        <div class="studio-grand-total">{{ totals.total }}</div>
+        {% set slot = slots.TOTALS_AFTER %}{% include '_slot.html.twig' %}
+      </td>
+    </tr></table>
+    {% endif %}
+
+    {% set slot = slots.OBSERVATIONS_BEFORE %}{% include '_slot.html.twig' %}
+    {% if observations %}
+    <div class="obs">{{ observations|raw }}</div>
+    {% endif %}
+    {% set slot = slots.OBSERVATIONS_AFTER %}{% include '_slot.html.twig' %}
+
+    {% set slot = slots.RECEIPTS_BEFORE %}{% include '_slot.html.twig' %}
+    {% if receipts %}
+    <table class="recibo-table">
+      <thead><tr>
+        <th>{{ 'receipt'|trans }}</th>
+        {% if not hide_payment_methods %}<th>{{ 'payment-method'|trans }}</th>{% endif %}
+        <th style="text-align:right;">{{ 'amount'|trans }}</th>
+        <th style="text-align:right;">{{ 'expiration'|trans }}</th>
+      </tr></thead>
+      <tbody>
+      {% for r in receipts %}
+        <tr>
+          <td>{{ r.numero }}</td>
+          {% if not hide_payment_methods %}<td>{{ r.forma }}</td>{% endif %}
+          <td style="text-align:right;">{{ r.importe }}</td>
+          <td style="text-align:right;">{{ r.vencimiento }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+    {% set slot = slots.RECEIPTS_AFTER %}{% include '_slot.html.twig' %}
+
+    {% include '_fiscal-landscape-columns-close.html.twig' %}
+
+    {% set slot = slots.FOOTER_BEFORE %}{% include '_slot.html.twig' %}
+    {% if is_document and footer_text %}<div class="end-text">{{ footer_text|raw }}</div>{% endif %}
+    {% include '_footer-image.html.twig' %}
+    {% if is_document and (thanks_title or thanks_text) %}
+    <div class="thanks">
+      {% if thanks_title %}<div class="thanks-title">{{ thanks_title }}</div>{% endif %}
+      {% if thanks_text %}<div class="thanks-text">{{ thanks_text }}</div>{% endif %}
+    </div>
+    {% endif %}
+    <div class="studio-footer">
+      <div class="studio-contact">
+        {% if company.phones %}<div>{{ company.phones }}</div>{% endif %}
+        {% if company.email %}<div>{{ company.email }}</div>{% endif %}
+        {% if company.web %}<div class="web">{{ company.web }}</div>{% endif %}
+      </div>
+      <div class="studio-sign">
+        {% set accepted_label = 'accepted'|trans %}
+        <div>{{ accepted_label == 'accepted' ? 'Conforme cliente' : accepted_label }},</div>
+        <div class="studio-sign-line"></div>
+      </div>
+    </div>
+    {% set slot = slots.FOOTER_AFTER %}{% include '_slot.html.twig' %}
+  </div>
+</div>
+</body>
+</html>

@@ -41,8 +41,9 @@ class BeplyPdfExport extends PDFExport
             $format = $this->getDocumentFormat($model);
             $idformato = !empty($format->id) ? (int) $format->id : null;
             $idempresa = isset($model->idempresa) ? (int) $model->idempresa : null;
+            $modelClass = method_exists($model, 'modelClassName') ? (string) $model->modelClassName() : null;
 
-            $config = (new BeplyPdfRenderService())->resolveConfig($idformato, $idempresa);
+            $config = (new BeplyPdfRenderService())->resolveConfig($idformato, $idempresa, $modelClass);
             if ($config !== null) {
                 $this->beplyConfig = $config;
                 $this->applyBeplyConfig();

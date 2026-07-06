@@ -15,9 +15,11 @@ use FacturaScripts\Core\Tools;
 use FacturaScripts\Core\Model\FormatoDocumento;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\BeplyPdfBrandingLogoService;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\BeplyPdfConfig;
+use FacturaScripts\Plugins\BeplyPDFStudio\Lib\BeplyPdfRichTextLite;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfDocumentContext;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfDocumentExtensionRegistry;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfDocumentSlot;
+use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfFiscalQrRegistry;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfLineColumn;
 use Twig\Environment;
 use Twig\Loader\FilesystemLoader;
@@ -34,7 +36,7 @@ use Twig\TwigFilter;
 class BeplyHtmlRenderService
 {
     /** Diseños servidos por el motor HTML/WeasyPrint (el resto siguen en el motor de coordenadas). */
-    public const HTML_DESIGNS = ['legacy_summary', 'legacy_standard', 'legacy_boxes', 'legacy_framed', 'legacy_banner', 'corporate', 'azure', 'prisma'];
+    public const HTML_DESIGNS = ['legacy_summary', 'legacy_standard', 'legacy_boxes', 'legacy_framed', 'legacy_banner', 'corporate', 'azure', 'prisma', 'studio_quote'];
 
     /** Plantilla Twig por diseño. */
     private const TEMPLATES = [
@@ -46,6 +48,7 @@ class BeplyHtmlRenderService
         'corporate' => 'corporate.html.twig',
         'azure' => 'azure.html.twig',
         'prisma' => 'prisma.html.twig',
+        'studio_quote' => 'studio-quote.html.twig',
     ];
 
     private const GENERIC_TABLE_TEMPLATE = 'generic-table.html.twig';
@@ -84,8 +87,9 @@ class BeplyHtmlRenderService
     public function render(BeplyPdfConfig $cfg, $model, ?FormatoDocumento $format = null): string
     {
         try {
+            $preciseBottomAnchor = $this->preciseBottomAnchorEnabled();
             $this->forcedPages = null;
-            $this->measuredSpacer = null;
+            $this->measuredSpacer = $preciseBottomAnchor ? 0 : null;
             $html = $this->buildHtml($cfg, $model, null, $format);
             if ($html === '') {
                 return '';
@@ -94,7 +98,8 @@ class BeplyHtmlRenderService
             if ($pdf === '') {
                 return '';
             }
-            if ($this->preciseBottomAnchorEnabled()) {
+            if ($preciseBottomAnchor) {
+                $this->measuredSpacer = null;
                 $pdf = $this->anchorBottomPrecisely($cfg, $model, $format, $pdf);
             }
             if (trim((string) $cfg->pdfPassword) !== '') {
@@ -211,7 +216,15 @@ class BeplyHtmlRenderService
      */
     private function anchorBottomPrecisely(BeplyPdfConfig $cfg, $model, ?FormatoDocumento $format, string $baselinePdf): string
     {
+        if ($this->isCompactLandscape($cfg)) {
+            return $baselinePdf;
+        }
+
         $targetPages = $this->countPdfPages($baselinePdf);
+        if (false === $this->lastPageHasDocumentLines($cfg, $model, $format, $targetPages)) {
+            return $baselinePdf;
+        }
+
         $best = $baselinePdf;
         $appliedGap = 0;
 
@@ -249,6 +262,63 @@ class BeplyHtmlRenderService
         return $best;
     }
 
+    private function lastPageHasDocumentLines(BeplyPdfConfig $cfg, $model, ?FormatoDocumento $format, int $targetPages): bool
+    {
+        if ($targetPages <= 1) {
+            return true;
+        }
+
+        $heights = $this->documentBlockHeights($cfg, $model, $format);
+        if ($heights === null) {
+            return true;
+        }
+
+        if (($heights['lineCount'] ?? 0) < 1) {
+            return false;
+        }
+
+        $pageH = max(1, (int) ($heights['pageH'] ?? 0));
+        $usedBeforeBottom = max(0, (int) ($heights['aboveLines'] ?? 0) + (int) ($heights['tableH'] ?? 0));
+        $lastPageStart = ($targetPages - 1) * $pageH;
+
+        return $usedBeforeBottom > ($lastPageStart + max(6, (int) round($cfg->fontSize * 0.6)));
+    }
+
+    private function documentBlockHeights(BeplyPdfConfig $cfg, $model, ?FormatoDocumento $format): ?array
+    {
+        if (!is_object($model)) {
+            return null;
+        }
+
+        $coddivisa = isset($model->coddivisa) ? (string) $model->coddivisa : '';
+        $docContext = new BeplyPdfDocumentContext($cfg, $model, $format, null);
+        $company = $this->companyData($model);
+        $customer = $this->customerData($cfg, $model);
+        $rawLines = $this->documentLines($model);
+        $columns = $this->columnsMeta($cfg, $docContext, $rawLines, $coddivisa);
+        $lines = $this->linesData($cfg, $model, $coddivisa, $docContext, $columns, $rawLines);
+        $taxes = $this->taxData($cfg, $model, $coddivisa);
+        $observations = $cfg->hideNotes ? '' : $this->richTextHtml($model->observaciones ?? '');
+        $receipts = $this->receiptsData($cfg, $model, $coddivisa, $docContext);
+        $extensionBlocks = $this->extensionBlocks($docContext);
+
+        $heights = $this->blockHeights(
+            $cfg,
+            $company,
+            $customer,
+            $lines,
+            $taxes,
+            $receipts,
+            $observations,
+            $extensionBlocks,
+            (string) $cfg->footerText,
+            (string) $cfg->thanksTitle,
+            (string) $cfg->thanksText
+        );
+        $heights['lineCount'] = count($rawLines);
+        return $heights;
+    }
+
     private function preciseBottomAnchorEnabled(): bool
     {
         return in_array(strtolower((string) getenv('BEPLY_PDF_PRECISE_BOTTOM_ANCHOR')), ['1', 'true', 'yes', 'on'], true);
@@ -270,7 +340,148 @@ class BeplyHtmlRenderService
         }
         $context = $this->context($cfg, $model, $generic, $format);
         $html = $this->twig()->render($template, $context);
+        if ($this->isCompactPaper($cfg)) {
+            $html = $this->injectCompactPaperCss($html, $cfg);
+        }
+        if ($this->isLandscape($cfg)) {
+            $html = $this->injectLandscapeFiscalColumnsCss($html, $cfg);
+        }
         return $this->appendMissingSlots($html, $context['extension_blocks'] ?? []);
+    }
+
+    private function injectCompactPaperCss(string $html, BeplyPdfConfig $cfg): string
+    {
+        $css = $this->compactPaperCss($cfg);
+        if ($css === '') {
+            return $html;
+        }
+
+        if (strpos($html, '</style>') !== false) {
+            return preg_replace('/<\/style>/', $css . "\n</style>", $html, 1) ?? $html;
+        }
+
+        if (strpos($html, '</head>') !== false) {
+            return str_replace('</head>', '<style>' . $css . '</style></head>', $html);
+        }
+
+        return $html;
+    }
+
+    private function compactPaperCss(BeplyPdfConfig $cfg): string
+    {
+        $fs = max(7, (int) $cfg->fontSize);
+        $smallGap = max(4, (int) round($fs * 0.5));
+        $normalGap = max(8, (int) round($fs * 0.9));
+        $headerGap = max(12, (int) round($fs * 1.4));
+        $cellY = max(4, (int) round($fs * 0.45));
+        $cellX = max(8, (int) round($fs * 0.75));
+
+        $css = "\n"
+            . "  .l-header { margin-bottom: {$headerGap}px !important; }\n"
+            . "  .l-title, .l-client, .l-docinfo, .l-items, .l-boxes, .l-bottom-table, .l-tax,"
+            . " .l-totals-az, .l-payment-az, .az-due-wrap, .az-client-accent-wrap {"
+            . " margin-bottom: {$normalGap}px !important; }\n"
+            . "  .desc-table, .impuesto-table, .recibo-table, .az-recibo-table {"
+            . " margin-top: {$smallGap}px !important; margin-bottom: {$smallGap}px !important; }\n"
+            . "  .desc-table thead th, .desc-table tbody td, .impuesto-table thead th,"
+            . " .impuesto-table tbody td, .recibo-table thead th, .recibo-table tbody td,"
+            . " .az-recibo-table th, .az-recibo-table td, .box-table thead th,"
+            . " .box-table tbody td, .totals-stack td {"
+            . " padding: {$cellY}px {$cellX}px !important; }\n"
+            . "  .l-title .num, .l-title .date, .l-title .total-head, .total-box,"
+            . " .grand-total-box, .total-due-box { padding: {$cellY}px {$cellX}px !important; }\n"
+            . "  .tax-table td { line-height: 1.35 !important; padding-right: {$cellX}px !important; }\n"
+            . "  .obs, .end-text, .thanks { margin-top: {$smallGap}px !important; }\n"
+            . "  .beply-fiscal-qr-block { margin-top: 1mm !important; }\n"
+            . "  .beply-fiscal-qr-title { line-height: 1.15 !important; margin-bottom: .7mm !important; }\n"
+            . "  .beply-fiscal-qr-row, .beply-fiscal-qr-notice { line-height: 1.15 !important; }\n";
+
+        if ($this->isCompactLandscape($cfg)) {
+            $tightGap = max(3, (int) round($fs * 0.35));
+            $tightCellY = max(2, (int) round($fs * 0.25));
+            $tightCellX = max(6, (int) round($fs * 0.6));
+
+            $css .= "  .l-header { margin-bottom: " . max(6, (int) round($fs * 0.8)) . "px !important; }\n"
+                . "  .l-title, .l-client, .l-docinfo, .l-items, .l-boxes, .l-bottom-table, .l-tax,"
+                . " .l-totals-az, .l-payment-az, .az-due-wrap, .az-client-accent-wrap {"
+                . " margin-bottom: {$tightGap}px !important; }\n"
+                . "  .l-title .num, .l-title .date, .l-title .total-head, .total-box,"
+                . " .grand-total-box, .total-due-box { padding: {$tightCellY}px {$tightCellX}px !important; }\n"
+                . "  .obs, .end-text, .thanks { margin-top: {$tightGap}px !important; line-height: 1.25 !important; }\n"
+                . "  .recibo-table, .az-recibo-table { margin-top: {$tightGap}px !important; }\n";
+        }
+
+        return $css;
+    }
+
+    private function injectLandscapeFiscalColumnsCss(string $html, BeplyPdfConfig $cfg): string
+    {
+        $css = $this->landscapeFiscalColumnsCss($cfg);
+        if ($css === '') {
+            return $html;
+        }
+
+        if (strpos($html, '</style>') !== false) {
+            return preg_replace('/<\/style>/', $css . "\n</style>", $html, 1) ?? $html;
+        }
+
+        if (strpos($html, '</head>') !== false) {
+            return str_replace('</head>', '<style>' . $css . '</style></head>', $html);
+        }
+
+        return $html;
+    }
+
+    private function landscapeFiscalColumnsCss(BeplyPdfConfig $cfg): string
+    {
+        $fontSize = max(8, (int) $cfg->fontSize);
+        $compact = $this->isCompactLandscape($cfg);
+        $gap = $compact
+            ? max(5, (int) round($fontSize * 0.55))
+            : max(12, (int) round($fontSize * 1.2));
+
+        $css = "\n"
+            . "  .fiscal-landscape-table { width: 100%; border-collapse: collapse; table-layout: fixed;"
+            . " margin-top: {$gap}px; break-inside: avoid; page-break-inside: avoid; }\n"
+            . "  .fiscal-landscape-main { width: 58%; vertical-align: top; padding-right: {$gap}px; }\n"
+            . "  .fiscal-landscape-side { width: 42%; vertical-align: top; padding-left: {$gap}px; }\n"
+            . "  .fiscal-landscape-side .beply-slot { margin-top: 0; }\n"
+            . "  .fiscal-landscape-side .beply-slot-block { break-inside: avoid; page-break-inside: avoid; }\n"
+            . "  .fiscal-landscape-side .beply-fiscal-qr-block { margin-top: 0 !important;"
+            . " margin-left: auto !important; margin-right: 0 !important; }\n"
+            . "  .fiscal-landscape-side .beply-fiscal-qr-table { margin-left: auto; margin-right: 0; }\n"
+            . "  .fiscal-landscape-main table.l-tax > tbody > tr > td,"
+            . " .fiscal-landscape-main table.l-tax > tr > td { display: block; width: 100% !important;"
+            . " padding-left: 0 !important; padding-right: 0 !important; }\n"
+            . "  .fiscal-landscape-main .total-cell, .fiscal-landscape-main .total-plain-cell {"
+            . " text-align: left !important; padding-top: 4px !important; }\n"
+            . "  .fiscal-landscape-main .total-box, .fiscal-landscape-main .total-plain {"
+            . " display: inline-block; max-width: 100%; box-sizing: border-box;"
+            . " padding: 4px 8px !important; white-space: nowrap; }\n";
+
+        if ($compact) {
+            $cellY = max(2, (int) round($fontSize * 0.25));
+            $cellX = max(6, (int) round($fontSize * 0.6));
+
+            $css .= "  .fiscal-landscape-main .tax-table td { line-height: 1.18 !important;"
+                . " padding-top: 0 !important; padding-bottom: 0 !important;"
+                . " padding-right: {$cellX}px !important; }\n"
+                . "  .fiscal-landscape-main .tax-table .head td { padding-bottom: {$cellY}px !important; }\n"
+                . "  .fiscal-landscape-main .obs { margin-top: {$gap}px !important; line-height: 1.25 !important; }\n"
+                . "  .fiscal-landscape-main .recibo-table, .fiscal-landscape-main .az-recibo-table {"
+                . " margin-top: {$gap}px !important; }\n"
+                . "  .fiscal-landscape-main .recibo-table thead th,"
+                . " .fiscal-landscape-main .recibo-table tbody td,"
+                . " .fiscal-landscape-main .az-recibo-table th,"
+                . " .fiscal-landscape-main .az-recibo-table td {"
+                . " padding: {$cellY}px {$cellX}px !important; line-height: 1.15 !important; }\n"
+                . "  .fiscal-landscape-side .beply-fiscal-qr-title { line-height: 1.05 !important;"
+                . " margin-bottom: .5mm !important; }\n"
+                . "  .fiscal-landscape-side .beply-fiscal-qr-row,"
+                . " .fiscal-landscape-side .beply-fiscal-qr-notice { line-height: 1.08 !important; }\n";
+        }
+
+        return $css;
     }
 
     private function useFastGenericTable(array $payload): bool
@@ -329,7 +540,7 @@ class BeplyHtmlRenderService
             $lines = $this->linesData($cfg, $model, $coddivisa, $docContext, $columns, $rawLines);
             $taxes = $this->taxData($cfg, $model, $coddivisa);
             $totals = $this->totalsData($cfg, $model, $coddivisa);
-            $observations = $cfg->hideNotes ? '' : $this->plain($model->observaciones ?? '');
+            $observations = $cfg->hideNotes ? '' : $this->richTextHtml($model->observaciones ?? '');
             $receipts = $this->receiptsData($cfg, $model, $coddivisa, $docContext);
             $shipping = $cfg->hideShippingAddress ? [] : $this->shippingData($model);
             $doc = $this->docData($cfg, $model, $coddivisa, $format);
@@ -354,10 +565,10 @@ class BeplyHtmlRenderService
         $color1 = $this->hex($cfg->colorPrimary, '#555555');
         $textColor = $this->hex($cfg->colorText, '#222222');
 
-        // Escala responsive por tamaño de papel: A4=1.0, A5≈0.70. Achica fuentes/logo/huecos
-        // proporcionalmente al ancho útil para que un diseño afinado en A4 quepa y se vea
-        // equilibrado en A5/Letter. Nunca sobre-escala (papel grande => más aire, mismas fuentes).
+        // Escala de densidad visual por tamaño de papel: compacta algunos espacios y assets,
+        // pero no cambia la tipografía configurada. Un 17px debe salir como 17px también en A5.
         $scale = $this->paperScale($cfg);
+        $extensionBlocks = $this->extensionBlocks($docContext);
 
         return [
             'color1' => $color1,
@@ -372,8 +583,8 @@ class BeplyHtmlRenderService
             'muted_color' => $this->mix($textColor, '#ffffff', 0.13),
             'border_color' => $this->mix($textColor, '#ffffff', 0.86),
             'faint_color' => $this->mix($textColor, '#ffffff', 0.62),
-            'title_font_size' => max(8, (int) round($cfg->titleFontSize * $scale)),
-            'font_size' => max(7, (int) round($cfg->fontSize * $scale)),
+            'title_font_size' => max(8, (int) $cfg->titleFontSize),
+            'font_size' => max(7, (int) $cfg->fontSize),
             'logo_size' => max(20, (int) round($cfg->logoSize * $scale)),
             'footer_image_width' => $this->footerImageWidth($cfg, $scale),
             'footer_image_align' => $this->footerImageAlign($cfg),
@@ -395,8 +606,8 @@ class BeplyHtmlRenderService
             'is_document' => $isDoc,
             // Alto mínimo del área de líneas: se conserva a 0 para no fabricar páginas casi vacías.
             'lines_fill' => $isDoc ? $this->estimateLinesFill($cfg, $company, $customer, $lines, $taxes, $receipts, $observations) : 0,
-            // En modo normal no se fuerza hueco antes de totales; el modo preciso es opt-in.
-            'bottom_anchor_gap' => $isDoc ? $this->estimateBottomAnchorGap($cfg, $company, $customer, $lines, $taxes, $receipts, $observations) : 0,
+            // Hueco antes del bloque inferior para que totales/pagos/pie fiscal cierren la pagina.
+            'bottom_anchor_gap' => $isDoc ? $this->estimateBottomAnchorGap($cfg, $company, $customer, $lines, $taxes, $receipts, $observations, $extensionBlocks, (string) $cfg->footerText, (string) $cfg->thanksTitle, (string) $cfg->thanksText) : 0,
             'bottom_anchor_transform' => $isDoc && $this->preciseBottomAnchorEnabled(),
             'logo' => $this->logoDataUri($cfg),
             'footer_image' => $this->footerImageDataUri($cfg),
@@ -412,16 +623,28 @@ class BeplyHtmlRenderService
             'totals' => $totals,
             'observations' => $observations,
             'receipts' => $receipts,
-            'footer_text' => $this->plain($cfg->footerText),
+            'footer_text' => $this->richTextHtml($cfg->footerText),
+            'footer_text_plain' => $this->richTextPlain($cfg->footerText),
             'thanks_title' => $this->plain($cfg->thanksTitle),
             'thanks_text' => $this->plain($cfg->thanksText),
             // Pie de página (numeración): respeta pageFooterText/Align/FontSize. Vacío => sin pie.
             'page_footer_content' => $this->pageFooterContent(trim((string) $cfg->pageFooterText)),
             'page_footer_box' => $this->footerBox($cfg->pageFooterAlign),
             'page_footer_size' => max(6, (int) $cfg->pageFooterFontSize),
-            'extension_blocks' => BeplyPdfDocumentExtensionRegistry::blocksBySlot($docContext),
+            'extension_blocks' => $extensionBlocks,
             'slots' => $this->slotMap(),
+            'fiscal_landscape_columns' => $isDoc && $this->isLandscape($cfg)
+                && !empty($extensionBlocks[BeplyPdfDocumentSlot::FISCAL_FOOTER] ?? []),
         ];
+    }
+
+    private function extensionBlocks(BeplyPdfDocumentContext $context): array
+    {
+        $blocks = BeplyPdfDocumentExtensionRegistry::blocksBySlot($context);
+        foreach (BeplyPdfFiscalQrRegistry::blocksFor($context) as $block) {
+            $blocks[$block->slot][] = $block->toArray();
+        }
+        return $blocks;
     }
 
     private function genericTableContext(BeplyPdfConfig $cfg, array $payload): array
@@ -431,7 +654,7 @@ class BeplyHtmlRenderService
         $color1 = $this->hex($cfg->colorPrimary, '#555555');
         $textColor = $this->hex($cfg->colorText, '#222222');
         $scale = $this->paperScale($cfg);
-        $fontSize = max(10, min(11, (int) round($cfg->fontSize * $scale)));
+        $fontSize = max(10, min(11, (int) $cfg->fontSize));
 
         return [
             'color1' => $color1,
@@ -441,7 +664,7 @@ class BeplyHtmlRenderService
             'muted_color' => $this->mix($textColor, '#ffffff', 0.18),
             'border_color' => $this->mix($textColor, '#ffffff', 0.82),
             'font_size' => $fontSize,
-            'title_font_size' => max(14, min(18, (int) round($cfg->titleFontSize * $scale))),
+            'title_font_size' => max(14, min(18, (int) $cfg->titleFontSize)),
             'logo_size' => max(40, min(64, (int) round($cfg->logoSize * $scale))),
             'footer_image_width' => $this->footerImageWidth($cfg, $scale),
             'footer_image_align' => $this->footerImageAlign($cfg),
@@ -466,11 +689,11 @@ class BeplyHtmlRenderService
     }
 
     /** @return array{pageH:int,aboveLines:int,tableH:int,bottomH:int} alturas estimadas por bloque. */
-    private function blockHeights(BeplyPdfConfig $cfg, array $company, array $customer, array $lines, array $taxes, array $receipts, string $obs): array
+    private function blockHeights(BeplyPdfConfig $cfg, array $company, array $customer, array $lines, array $taxes, array $receipts, string $obs, array $extensionBlocks = [], string $footerText = '', string $thanksTitle = '', string $thanksText = ''): array
     {
         $scale = $this->paperScale($cfg);
-        $fs = max(7, (int) round($cfg->fontSize * $scale));
-        $titleSize = max(8, (int) round($cfg->titleFontSize * $scale));
+        $fs = max(7, (int) $cfg->fontSize);
+        $titleSize = max(8, (int) $cfg->titleFontSize);
         $pageH = $this->pageContentHeightPx($cfg);
         $row = $fs + 20;          // fila de tabla: padding 9+9 + texto (~fs+20)
         $tline = $fs + 6;
@@ -485,23 +708,105 @@ class BeplyHtmlRenderService
         $clientLines = 1 + ($customer['name'] !== '' ? 1 : 0) + ($customer['cifnif'] !== '' ? 1 : 0)
             + count($customer['lines']) + ($customer['phones'] !== '' ? 1 : 0) + ($customer['email'] !== '' ? 1 : 0);
         $clientH = ($fs + 1) + 4 + $clientLines * $tline + $gapClient;
-        $n = count($lines);
-        $tableH = ($fs + 18) + $n * $row + (int) ceil($n / 2) * $tline;
+        $tableH = $this->estimateLinesTableHeight($lines, $fs, $row, $tline);
 
         $taxRows = 1 + count($taxes);
         $taxBlockH = max($taxRows * ($fs + 8), 56);
-        $obsH = $obs !== '' ? ($gapObs + (1 + (int) ceil(mb_strlen($obs) / 90)) * $tline) : 0;
+        $obsText = $this->metricText($obs);
+        $footerText = $this->metricText($footerText);
+        $thanksTitle = $this->metricText($thanksTitle);
+        $thanksText = $this->metricText($thanksText);
+        $obsH = $obsText !== '' ? ($gapObs + $this->estimateDescriptionVisualLines($obsText) * $tline) : 0;
         $recibosH = !empty($receipts) ? ($gapRecibo + ($fs + 18) + count($receipts) * $row) : 0;
+        $footerTextH = $footerText !== '' ? ($gapObs + $this->estimateDescriptionVisualLines($footerText) * $tline) : 0;
+        $thanksH = ($thanksTitle !== '' || $thanksText !== '')
+            ? ($gapObs + ($thanksTitle !== '' ? ($titleSize + 8) : 0) + ($thanksText !== '' ? $tline : 0))
+            : 0;
         $footerImageH = $this->hasFooterImage($cfg)
             ? (int) round($gapObs + max(32, $this->footerImageWidth($cfg, $scale) * 0.22))
             : 0;
+        $fiscalFooterH = $this->fiscalFooterHeight($extensionBlocks, $tline);
 
         return [
             'pageH' => $pageH,
             'aboveLines' => $headerH + $titleH + $clientH,
             'tableH' => $tableH,
-            'bottomH' => $taxBlockH + $obsH + $recibosH + $footerImageH,
+            'bottomH' => $taxBlockH + $obsH + $recibosH + $fiscalFooterH + $footerTextH + $footerImageH + $thanksH,
         ];
+    }
+
+    private function estimateLinesTableHeight(array $lines, int $fontSize, int $baseRowHeight, int $lineHeight): int
+    {
+        $height = $fontSize + 18;
+        foreach ($lines as $row) {
+            $description = '';
+            foreach ($row as $cell) {
+                if (($cell['key'] ?? '') === 'descripcion') {
+                    $description = (string) ($cell['value'] ?? '');
+                    if (!empty($cell['html'])) {
+                        $description = strip_tags(str_replace(['</li>', '</p>', '</h4>', '</h5>', '</h6>'], "\n", $description));
+                    }
+                    break;
+                }
+            }
+
+            $visualLines = $this->estimateDescriptionVisualLines($description);
+            $height += $baseRowHeight + max(0, $visualLines - 1) * $lineHeight;
+        }
+
+        return $height;
+    }
+
+    private function estimateDescriptionVisualLines(string $description): int
+    {
+        $description = trim(str_replace(["\r\n", "\r"], "\n", html_entity_decode($description, ENT_QUOTES | ENT_HTML5, 'UTF-8')));
+        if ($description === '') {
+            return 1;
+        }
+
+        $lines = 0;
+        foreach (preg_split('/\n/u', $description) ?: [] as $line) {
+            $line = trim((string) $line);
+            if ($line === '') {
+                continue;
+            }
+
+            $line = preg_replace('/^\s{0,3}(#{1,3}|[-*]|\d+[.)])\s+/u', '', $line) ?? $line;
+            $line = BeplyPdfRichTextLite::toFallbackText($line);
+            $lines += max(1, (int) ceil(mb_strlen($line) / 62));
+        }
+
+        return max(1, $lines);
+    }
+
+    private function fiscalFooterHeight(array $extensionBlocks, int $lineHeight): int
+    {
+        $blocks = $extensionBlocks[BeplyPdfDocumentSlot::FISCAL_FOOTER] ?? [];
+        if (empty($blocks)) {
+            return 0;
+        }
+
+        $height = 0;
+        foreach ($blocks as $block) {
+            $html = (string) ($block['html'] ?? '');
+            if (strpos($html, 'beply-fiscal-qr-block') === false) {
+                $height += max($lineHeight * 2, 32);
+                continue;
+            }
+
+            $qrMm = 35.0;
+            if (preg_match('/width:\s*([0-9]+(?:\.[0-9]+)?)mm/i', $html, $match)) {
+                $qrMm = (float) $match[1];
+            }
+            $qrPx = (int) ceil(max(30.0, min(40.0, $qrMm)) * 96 / 25.4);
+            $rows = max(0, substr_count($html, 'beply-fiscal-qr-row'));
+            $notice = strpos($html, 'beply-fiscal-qr-notice') !== false ? 1 : 0;
+
+            $textPx = max(28, $lineHeight + ($rows * $lineHeight) + ($notice * $lineHeight) + 8);
+            $height += (int) round(max($qrPx, $textPx) + 8);
+        }
+
+        return $height;
     }
 
     /** min-height del área de líneas. Se mantiene a 0 por compatibilidad de plantilla. */
@@ -513,12 +818,12 @@ class BeplyHtmlRenderService
     /**
      * Hueco de anclaje del bloque inferior.
      *
-     * En modo normal el hueco se limita para no fabricar una página casi vacía solo para pegar
-     * totales al borde inferior. El modo preciso conserva el anclaje completo mediante medición.
+     * En modo normal usa una estimación conservadora para cerrar la última página con los totales.
+     * El modo preciso conserva el anclaje completo mediante medición multipasada.
      */
-    private function estimateBottomAnchorGap(BeplyPdfConfig $cfg, array $company, array $customer, array $lines, array $taxes, array $receipts, string $obs): int
+    private function estimateBottomAnchorGap(BeplyPdfConfig $cfg, array $company, array $customer, array $lines, array $taxes, array $receipts, string $obs, array $extensionBlocks = [], string $footerText = '', string $thanksTitle = '', string $thanksText = ''): int
     {
-        $b = $this->blockHeights($cfg, $company, $customer, $lines, $taxes, $receipts, $obs);
+        $b = $this->blockHeights($cfg, $company, $customer, $lines, $taxes, $receipts, $obs, $extensionBlocks, $footerText, $thanksTitle, $thanksText);
         $pageH = max(1, $b['pageH']);
         $usedBeforeBottom = max(0, $b['aboveLines'] + $b['tableH']);
         $bottomH = max(0, $b['bottomH']);
@@ -533,27 +838,92 @@ class BeplyHtmlRenderService
         }
 
         $fontSize = max(8, (int) $cfg->fontSize);
-        $safety = max(8, (int) round($fontSize * 1.2));
+        $safety = max(8, (int) round($fontSize * 1.2))
+            + $this->bottomAnchorPaginationReserve($cfg, $receipts, $obs, $extensionBlocks);
+        if ($this->isCompactLandscape($cfg)) {
+            return $this->bottomAnchorGap($cfg, 0);
+        }
+
         $samePageSpacer = $pageH - $lastPageUsed - $bottomH - $safety;
         if ($samePageSpacer > 0) {
             $estimate = max(0, $samePageSpacer);
             return $this->bottomAnchorGap($cfg, $estimate);
         }
-
-        if ($usedBeforeBottom < $pageH) {
-            $estimate = 0;
-            return $this->bottomAnchorGap($cfg, $estimate);
+        if ($samePageSpacer >= -max(18, (int) round($fontSize * 2.5))) {
+            return $this->bottomAnchorGap($cfg, 0);
+        }
+        if ($usedBeforeBottom < $pageH || $this->isCompactPaper($cfg)) {
+            return $this->bottomAnchorGap($cfg, 0);
         }
 
         $estimate = max(0, ($pageH - $lastPageUsed) + ($pageH - $bottomH - $safety));
         return $this->bottomAnchorGap($cfg, $estimate);
     }
 
+    private function bottomAnchorPaginationReserve(BeplyPdfConfig $cfg, array $receipts, string $obs, array $extensionBlocks): int
+    {
+        $fontSize = max(8, (int) $cfg->fontSize);
+        $line = $fontSize + 6;
+        $reserve = 0;
+
+        if (trim($obs) !== '') {
+            $obsLines = 1 + (int) ceil(mb_strlen($obs) / 90);
+            $reserve += max((int) round($fontSize * 4), $obsLines * $line);
+        }
+
+        if (!empty($receipts)) {
+            $row = $fontSize + 20;
+            $header = $fontSize + 18;
+            $reserve += max(
+                (int) round($fontSize * 7),
+                (int) round(($header + count($receipts) * $row) * 1.35)
+            );
+        }
+
+        foreach ([BeplyPdfDocumentSlot::OBSERVATIONS_AFTER, BeplyPdfDocumentSlot::RECEIPTS_AFTER, BeplyPdfDocumentSlot::FISCAL_FOOTER] as $slot) {
+            if (!empty($extensionBlocks[$slot] ?? [])) {
+                $reserve += (int) round($fontSize * 4);
+            }
+        }
+
+        if ($reserve <= 0) {
+            return 0;
+        }
+
+        return min((int) round($this->pageContentHeightPx($cfg) * 0.25), $reserve);
+    }
+
+    private function isCompactPaper(BeplyPdfConfig $cfg): bool
+    {
+        return strtoupper((string) $cfg->paperSize) === 'A5' || $this->pageContentHeightPx($cfg) < 850;
+    }
+
+    private function isLandscape(BeplyPdfConfig $cfg): bool
+    {
+        return strtolower((string) $cfg->orientation) === 'landscape';
+    }
+
+    private function isCompactLandscape(BeplyPdfConfig $cfg): bool
+    {
+        return $this->isLandscape($cfg) && $this->isCompactPaper($cfg);
+    }
+
     private function bottomAnchorGap(BeplyPdfConfig $cfg, int $estimate): int
     {
-        $estimate = max(0, $estimate - $this->bottomAnchorFlowReserve($cfg));
-        if ($this->measuredSpacer !== null || $this->preciseBottomAnchorEnabled()) {
-            return $this->measuredSpacer === null ? $estimate : max(0, $estimate + (int) $this->measuredSpacer);
+        if ($this->measuredSpacer !== null) {
+            return max(0, (int) $this->measuredSpacer);
+        }
+
+        $estimate = max(0, $estimate);
+        $reserve = $this->bottomAnchorFlowReserve($cfg);
+        if ($estimate > 0 && $reserve > 0) {
+            $minimumVisibleGap = max(8, (int) round(max(8, (int) $cfg->fontSize) * 1.5));
+            $reserve = min($reserve, max(0, $estimate - $minimumVisibleGap));
+            $estimate = max(0, $estimate - $reserve);
+        }
+
+        if ($this->preciseBottomAnchorEnabled()) {
+            return $estimate;
         }
 
         return min($estimate, $this->defaultBottomAnchorGapLimit($cfg));
@@ -561,14 +931,14 @@ class BeplyHtmlRenderService
 
     private function defaultBottomAnchorGapLimit(BeplyPdfConfig $cfg): int
     {
-        return 0;
+        return $this->pageContentHeightPx($cfg);
     }
 
     private function bottomAnchorFlowReserve(BeplyPdfConfig $cfg): int
     {
         $scale = $this->paperScale($cfg);
         return match ($cfg->diseno) {
-            'corporate' => (int) round(170 * $scale),
+            'corporate' => (int) round(60 * $scale),
             'azure' => (int) round(90 * $scale),
             default => 0,
         };
@@ -618,25 +988,32 @@ class BeplyHtmlRenderService
     {
         $company = $this->loadCompany($model);
         if ($company === null) {
-            return ['name' => '', 'cifnif' => '', 'lines' => [], 'contact' => ''];
+            return ['name' => '', 'short_name' => '', 'cifnif' => '', 'lines' => [], 'contact' => '', 'phones' => '', 'email' => '', 'web' => ''];
         }
-        $contact = [];
+        $phones = [];
         foreach (['telefono1', 'telefono2'] as $f) {
             if (!empty($company->{$f})) {
-                $contact[] = $company->{$f};
+                $phones[] = $this->plain($company->{$f});
             }
         }
+        $email = !empty($company->email) ? $this->plain($company->email) : '';
+        $web = !empty($company->web) ? $this->plain($company->web) : '';
+        $contact = $phones;
         if (!empty($company->email)) {
-            $contact[] = $company->email;
+            $contact[] = $email;
         }
         if (!empty($company->web)) {
-            $contact[] = $company->web;
+            $contact[] = $web;
         }
         return [
             'name' => $this->plain($company->nombre ?? ''),
+            'short_name' => $this->plain($company->nombrecorto ?? ($company->nombre ?? '')),
             'cifnif' => $this->plain($company->cifnif ?? ''),
             'lines' => $this->addressLines($company),
             'contact' => $this->plain(implode(' · ', $contact)),
+            'phones' => $this->plain(implode(' · ', $phones)),
+            'email' => $email,
+            'web' => $web,
         ];
     }
 
@@ -692,12 +1069,34 @@ class BeplyHtmlRenderService
 
     private function draftWarning(BeplyPdfConfig $cfg, $model, bool $isDoc, ?FormatoDocumento $format = null): string
     {
-        if (!$isDoc || !$cfg->showDraftWarning || !is_object($model)
-            || empty($model->editable) || !method_exists($model, 'modelClassName')) {
+        if (!$isDoc || !is_object($model)) {
+            return '';
+        }
+
+        $previewWarning = $this->samplePreviewWarning($model);
+        if ($previewWarning !== '') {
+            return $previewWarning;
+        }
+
+        if (!$cfg->showDraftWarning || empty($model->editable) || !method_exists($model, 'modelClassName')) {
             return '';
         }
 
         return mb_strtoupper(trim($this->draftWarningTitle($model, $format) . ' ' . $this->draftWarningSuffix()));
+    }
+
+    private function samplePreviewWarning($model): string
+    {
+        if (!is_object($model) || !method_exists($model, 'beplyPdfIsSamplePreview')
+            || false === (bool) $model->beplyPdfIsSamplePreview()) {
+            return '';
+        }
+
+        $notice = method_exists($model, 'beplyPdfPreviewNotice')
+            ? trim((string) $model->beplyPdfPreviewNotice())
+            : '';
+
+        return $notice === '' ? '' : mb_strtoupper($notice);
     }
 
     private function draftWarningTitle($model, ?FormatoDocumento $format = null): string
@@ -969,8 +1368,15 @@ class BeplyHtmlRenderService
                 } else {
                     $value = $this->cell($c['key'], $types[$c['key']] ?? 'text', $line, $n, $coddivisa);
                 }
+                $isRichDescription = empty($c['external'])
+                    && ($c['key'] ?? '') === 'descripcion'
+                    && BeplyPdfRichTextLite::hasMarkup((string) ($line->descripcion ?? ''));
+                if ($isRichDescription) {
+                    $value = BeplyPdfRichTextLite::toHtml((string) ($line->descripcion ?? ''));
+                }
                 $cells[] = [
                     'align' => $c['align'],
+                    'html' => $isRichDescription,
                     'key' => $c['key'],
                     'value' => $value,
                     'width' => $c['width'],
@@ -1204,6 +1610,7 @@ class BeplyHtmlRenderService
             'OBSERVATIONS_AFTER' => BeplyPdfDocumentSlot::OBSERVATIONS_AFTER,
             'RECEIPTS_BEFORE' => BeplyPdfDocumentSlot::RECEIPTS_BEFORE,
             'RECEIPTS_AFTER' => BeplyPdfDocumentSlot::RECEIPTS_AFTER,
+            'FISCAL_FOOTER' => BeplyPdfDocumentSlot::FISCAL_FOOTER,
             'FOOTER_BEFORE' => BeplyPdfDocumentSlot::FOOTER_BEFORE,
             'FOOTER_AFTER' => BeplyPdfDocumentSlot::FOOTER_AFTER,
         ];
@@ -1277,6 +1684,33 @@ class BeplyHtmlRenderService
     private function plain($value): string
     {
         return (string) (Tools::fixHtml((string) ($value ?? '')) ?? '');
+    }
+
+    private function richTextHtml($value): string
+    {
+        $text = trim((string) ($value ?? ''));
+        if ($text === '') {
+            return '';
+        }
+
+        if (BeplyPdfRichTextLite::hasMarkup($text)) {
+            return BeplyPdfRichTextLite::toHtml($text);
+        }
+
+        return nl2br(htmlspecialchars($text, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'), false);
+    }
+
+    private function richTextPlain($value): string
+    {
+        return $this->plain(BeplyPdfRichTextLite::toFallbackText((string) ($value ?? '')));
+    }
+
+    private function metricText(string $value): string
+    {
+        $value = html_entity_decode($value, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        $value = preg_replace('#<(br|/p|/li|/div|/ul|/ol)\b[^>]*>#i', "\n", $value) ?? $value;
+        $value = strip_tags($value);
+        return trim(preg_replace('/[ \t]+/u', ' ', $value) ?? $value);
     }
 
     private function payMethod($codpago, ?string $overrideText = null): string
@@ -1533,6 +1967,7 @@ class BeplyHtmlRenderService
     private function fontFaces(string $family): array
     {
         $entry = \FacturaScripts\Plugins\BeplyPDFStudio\Lib\PdfEngine\BeplyPdfFonts::entry($family);
+        $entry = $this->completeFontEntry($entry);
         $files = is_array($entry) ? ($entry['files'] ?? []) : [];
         $regular = $files['regular'] ?? null;
         if (!is_string($regular) || !is_file($regular)) {
@@ -1546,6 +1981,38 @@ class BeplyHtmlRenderService
             }
         }
         return ['css' => implode("\n  ", $faces), 'family' => 'PdfBody'];
+    }
+
+    private function completeFontEntry(?array $entry): ?array
+    {
+        if ($entry === null) {
+            return null;
+        }
+
+        $files = is_array($entry['files'] ?? null) ? $entry['files'] : [];
+        foreach (['regular', 'bold', 'italic', 'bolditalic'] as $key) {
+            $files[$key] = $this->resolveFontFile($files[$key] ?? null);
+        }
+
+        $files['bold'] = $files['bold'] ?: $files['regular'];
+        $files['italic'] = $files['italic'] ?: $files['regular'];
+        $files['bolditalic'] = $files['bolditalic'] ?: ($files['italic'] ?: $files['bold']);
+        $entry['files'] = $files;
+        return $entry;
+    }
+
+    private function resolveFontFile($path): ?string
+    {
+        if (is_string($path) && is_file($path)) {
+            return $path;
+        }
+
+        if (!is_string($path) || $path === '') {
+            return null;
+        }
+
+        $local = FS_FOLDER . '/Plugins/BeplyPDFStudio/Assets/Fonts/' . basename($path);
+        return is_file($local) ? $local : null;
     }
 
     private function fontFace(string $path, string $weight, string $style): string

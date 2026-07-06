@@ -156,6 +156,7 @@ class AdminBeplyPdf extends ListController
             'corporate' => 'Bandas oscuras a sangre, emisor/receptor y totales tabulados.',
             'azure' => 'Moderno con acento azul, título grande y total destacado.',
             'prisma' => 'Cabecera bicolor geométrica y "Grand Total" en caja.',
+            'studio_quote' => 'Presupuesto creativo minimalista con marca tipográfica y firma.',
         ];
         $preview = new BeplyPdfPreviewService();
         foreach (AbstractBeplyPdfLayout::registry() as $key => $layout) {
@@ -164,7 +165,7 @@ class AdminBeplyPdf extends ListController
                 'name' => $layout->name(),
                 'layout' => $layoutDesc[$key] ?? '',
             ];
-            $this->designPreviews[$key] = $preview->cachedUrlForDesignKey($key);
+            $this->designPreviews[$key] = $preview->cachedUrlForDesignKey($key, $this->selectedEmpresa);
         }
 
         // estilo de la empresa seleccionada; si no tiene propio, hereda el por defecto

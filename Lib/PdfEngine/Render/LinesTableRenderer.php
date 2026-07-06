@@ -21,6 +21,7 @@ namespace FacturaScripts\Plugins\BeplyPDFStudio\Lib\PdfEngine\Render;
 
 use FacturaScripts\Core\Tools;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\BeplyPdfConfig;
+use FacturaScripts\Plugins\BeplyPDFStudio\Lib\BeplyPdfRichTextLite;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\PdfEngine\BeplyPdfDraw;
 
 /**
@@ -598,7 +599,7 @@ class LinesTableRenderer
                 return (string) $num;
             case 'descripcion':
                 $d = $this->prop($line, 'descripcion');
-                return (string) (Tools::fixHtml($d) ?? $d);
+                return BeplyPdfRichTextLite::toFallbackText((string) (Tools::fixHtml($d) ?? $d));
             case 'referencia':
                 return $this->prop($line, 'referencia');
             case 'totaliva':
@@ -909,7 +910,7 @@ class LinesTableRenderer
 
             case 'descripcion':
                 $desc = $this->prop($line, 'descripcion');
-                return BeplyPdfDraw::esc(Tools::fixHtml($desc) ?? $desc);
+                return BeplyPdfDraw::esc(BeplyPdfRichTextLite::toFallbackText((string) (Tools::fixHtml($desc) ?? $desc)));
 
             case 'totaliva':
                 // Total con impuestos de la línea: pvptotal * (1 + iva/100) + recargo.

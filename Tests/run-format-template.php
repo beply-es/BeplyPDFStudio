@@ -34,7 +34,15 @@ final class BeplyFormatTemplateExportProbe extends PDFExport
     }
 }
 
-final class BeplyFormatTemplateQuoteDoc extends BeplyPdfSampleDoc
+class BeplyFormatTemplateDoc extends BeplyPdfSampleDoc
+{
+    public function beplyPdfIsSamplePreview(): bool
+    {
+        return false;
+    }
+}
+
+final class BeplyFormatTemplateQuoteDoc extends BeplyFormatTemplateDoc
 {
     public function modelClassName(): string
     {
@@ -42,7 +50,7 @@ final class BeplyFormatTemplateQuoteDoc extends BeplyPdfSampleDoc
     }
 }
 
-final class BeplyFormatTemplateLangDoc extends BeplyPdfSampleDoc
+final class BeplyFormatTemplateLangDoc extends BeplyFormatTemplateDoc
 {
     private string $langcode;
 
@@ -391,7 +399,7 @@ final class BeplyFormatTemplateSuite
 
     private function doc(): BeplyPdfSampleDoc
     {
-        $doc = new BeplyPdfSampleDoc($this->idempresa);
+        $doc = new BeplyFormatTemplateDoc($this->idempresa);
         $doc->codserie = self::SERIES_CODE;
         $doc->codigo = 'E2E_CODE_SHOULD_HIDE';
         $doc->numero = 'E2E_NUMBER_SHOULD_HIDE';

@@ -29,7 +29,7 @@ class BeplyPdfConfig
 {
     public const DISENOS = [
         'legacy_standard', 'legacy_summary', 'legacy_boxes', 'legacy_framed', 'legacy_banner',
-        'corporate', 'azure', 'prisma',
+        'corporate', 'azure', 'prisma', 'studio_quote',
     ];
     public const PAPELES = ['A4', 'A5', 'Letter', 'Legal'];
     public const ORIENTACIONES = ['portrait', 'landscape'];

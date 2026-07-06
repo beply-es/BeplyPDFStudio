@@ -1,3 +1,4 @@
+{# Slot contract: slots.FISCAL_FOOTER is rendered through _fiscal-landscape-columns-close.html.twig. #}
 <!DOCTYPE html>
 <html lang="{{ html_lang|default('es') }}">
 <head>
@@ -226,7 +227,7 @@
       </thead>
       <tbody>
         {% for row in lines %}
-        <tr>{% for cell in row %}{% set c = columns[loop.index0]|default({}) %}<td style="text-align:{{ cell.align }};width:{{ c.width|default(0) }}%;{% if c.key|default('') == 'descripcion' or not is_document %}white-space:normal;overflow-wrap:anywhere;word-break:break-word;{% endif %}">{{ cell.value }}</td>{% endfor %}</tr>
+        <tr>{% for cell in row %}{% set c = columns[loop.index0]|default({}) %}<td style="text-align:{{ cell.align }};width:{{ c.width|default(0) }}%;{% if c.key|default('') == 'descripcion' or not is_document %}white-space:normal;overflow-wrap:anywhere;word-break:break-word;{% endif %}">{% if cell.html|default(false) %}{{ cell.value|raw }}{% else %}{{ cell.value }}{% endif %}</td>{% endfor %}</tr>
         {% endfor %}
       </tbody>
     </table>
@@ -236,6 +237,8 @@
   </div>
 
   <div class="bottom">
+
+    {% include '_fiscal-landscape-columns-open.html.twig' %}
 
     {# ---------- IMPUESTOS + TOTAL (solo documentos) ---------- #}
     {% if is_document %}
@@ -260,7 +263,7 @@
 
     {% set slot = slots.OBSERVATIONS_BEFORE %}{% include '_slot.html.twig' %}
     {% if observations %}
-    <div class="obs"><span class="t">{{ 'observations'|trans }}</span><br/>{{ observations|nl2br }}</div>
+    <div class="obs"><span class="t">{{ 'observations'|trans }}</span><br/>{{ observations|raw }}</div>
     {% endif %}
     {% set slot = slots.OBSERVATIONS_AFTER %}{% include '_slot.html.twig' %}
 
@@ -287,8 +290,9 @@
     {% endif %}
     {% set slot = slots.RECEIPTS_AFTER %}{% include '_slot.html.twig' %}
 
+    {% include '_fiscal-landscape-columns-close.html.twig' %}
     {% set slot = slots.FOOTER_BEFORE %}{% include '_slot.html.twig' %}
-    {% if is_document and footer_text %}<div class="end-text">{{ footer_text|nl2br }}</div>{% endif %}
+    {% if is_document and footer_text %}<div class="end-text">{{ footer_text|raw }}</div>{% endif %}
     {% include '_footer-image.html.twig' %}
     {% if is_document and (thanks_title or thanks_text) %}
     <div class="thanks">

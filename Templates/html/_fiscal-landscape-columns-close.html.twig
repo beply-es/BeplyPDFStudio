@@ -1,0 +1,10 @@
+{% if fiscal_landscape_columns and (extension_blocks[slots.FISCAL_FOOTER]|default([])) %}
+    </td>
+    <td class="fiscal-landscape-side">
+      {% set slot = slots.FISCAL_FOOTER %}{% include '_slot.html.twig' %}
+    </td>
+  </tr>
+</table>
+{% else %}
+{% set slot = slots.FISCAL_FOOTER %}{% include '_slot.html.twig' %}
+{% endif %}

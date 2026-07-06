@@ -21,7 +21,10 @@ namespace FacturaScripts\Plugins\BeplyPDFStudio\Model;
 
 use FacturaScripts\Core\Template\ModelClass;
 use FacturaScripts\Core\Template\ModelTrait;
+use FacturaScripts\Core\Tools;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\BeplyPdfConfig;
+use FacturaScripts\Plugins\BeplyPDFStudio\Lib\BeplyPdfInternalFormatGuard;
+use FacturaScripts\Plugins\BeplyPDFStudio\Lib\BeplyPdfRenderService;
 
 /**
  * Una columna de la tabla de líneas de un estilo PDF. Se edita como fila de un
@@ -62,6 +65,36 @@ class BeplyPdfColumn extends ModelClass
         $this->orden = 100;
     }
 
+    public function delete(): bool
+    {
+        if ($this->isLockedByInternalFormat() && false === BeplyPdfInternalFormatGuard::isInternalWriteAllowed()) {
+            Tools::log()->warning('beplypdf-internal-style-locked-delete');
+            return false;
+        }
+
+        $deleted = parent::delete();
+        if ($deleted) {
+            BeplyPdfRenderService::clearCache();
+        }
+
+        return $deleted;
+    }
+
+    public function save(): bool
+    {
+        if ($this->isLockedByInternalFormat() && false === BeplyPdfInternalFormatGuard::isInternalWriteAllowed()) {
+            Tools::log()->warning('beplypdf-internal-style-locked-save');
+            return false;
+        }
+
+        $saved = parent::save();
+        if ($saved) {
+            BeplyPdfRenderService::clearCache();
+        }
+
+        return $saved;
+    }
+
     public static function primaryColumn(): string
     {
         return 'id';
@@ -99,5 +132,16 @@ class BeplyPdfColumn extends ModelClass
             $this->width = BeplyPdfConfig::defaultLineColumnWidth((string) $this->fieldname);
         }
         return parent::test();
+    }
+
+    private function isLockedByInternalFormat(): bool
+    {
+        if (empty($this->idstyle)) {
+            return false;
+        }
+
+        $style = new BeplyPdfStyle();
+        return $style->loadFromCode((int) $this->idstyle)
+            && BeplyPdfInternalFormatGuard::isLockedStyle($style);
     }
 }

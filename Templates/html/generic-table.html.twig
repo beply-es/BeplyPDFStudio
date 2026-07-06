@@ -142,7 +142,7 @@
       {% for line in lines %}
         <tr>
           {% for cell in line %}
-            <td class="{{ cell.align == 'right' ? 'right' : (cell.align == 'center' ? 'center' : 'left') }}">{{ cell.value }}</td>
+            <td class="{{ cell.align == 'right' ? 'right' : (cell.align == 'center' ? 'center' : 'left') }}">{% if cell.html|default(false) %}{{ cell.value|raw }}{% else %}{{ cell.value }}{% endif %}</td>
           {% endfor %}
         </tr>
       {% else %}

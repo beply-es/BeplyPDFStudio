@@ -36,7 +36,7 @@ class BeplyPdfPreviewService
     private const SUBDIR = 'beplypdf';
 
     /** Se incrementa cuando cambia la lógica de generación, para invalidar cachés antiguas. */
-    private const VERSION = '55';
+    private const VERSION = '64';
 
     /** Resolución de las miniaturas WebP usadas en galerías y listados. */
     private const THUMBNAIL_DENSITY = 160;
@@ -65,7 +65,8 @@ class BeplyPdfPreviewService
 
         $config = $style->buildConfig();
         $company = $this->companyName($style);
-        $hash = substr(md5(self::VERSION . '|' . $config->toJson() . '|' . $company), 0, 10);
+        $idempresa = !empty($style->idempresa) ? (int) $style->idempresa : null;
+        $hash = substr(md5(self::VERSION . '|' . $config->toJson() . '|' . $company . '|' . $this->externalPreviewSignature($idempresa)), 0, 10);
         $rel = self::SUBDIR . '/preview_' . $style->id . '_' . $hash . '.webp';
 
         return is_file(FS_FOLDER . '/MyFiles/' . $rel) ? MyFilesToken::getUrl($rel, true) : '';
@@ -136,7 +137,8 @@ class BeplyPdfPreviewService
 
         $config = $style->buildConfig();
         $company = $this->companyName($style);
-        $hash = substr(md5(self::VERSION . '|' . $config->toJson() . '|' . $company), 0, 10);
+        $idempresa = !empty($style->idempresa) ? (int) $style->idempresa : null;
+        $hash = substr(md5(self::VERSION . '|' . $config->toJson() . '|' . $company . '|' . $this->externalPreviewSignature($idempresa)), 0, 10);
 
         $base = FS_FOLDER . '/MyFiles/' . self::SUBDIR;
         if (false === is_dir($base)) {
@@ -154,7 +156,8 @@ class BeplyPdfPreviewService
             @unlink($old);
         }
 
-        $this->generateRealImage($config, !empty($style->idempresa) ? (int) $style->idempresa : null, $abs, 's' . $style->id);
+        $idempresa = !empty($style->idempresa) ? (int) $style->idempresa : null;
+        $this->generateRealImage($config, $idempresa, $abs, 's' . $style->id);
         if (false === is_file($abs)) {
             $this->generate($this->buildSvg($config, $company), $abs, 's' . $style->id);
         }
@@ -182,7 +185,7 @@ class BeplyPdfPreviewService
         $config = $style->buildConfig();
         $idempresa = !empty($style->idempresa) ? (int) $style->idempresa : null;
         $company = $this->companyName($style);
-        $hash = substr(md5('real|' . self::VERSION . '|' . $config->toJson() . '|' . $company), 0, 10);
+        $hash = substr(md5('real|' . self::VERSION . '|' . $config->toJson() . '|' . $company . '|' . $this->externalPreviewSignature($idempresa)), 0, 10);
 
         $base = FS_FOLDER . '/MyFiles/' . self::SUBDIR;
         if (false === is_dir($base)) {
@@ -245,7 +248,8 @@ class BeplyPdfPreviewService
             ? ''
             : implode('|', [(string) $format->id, (string) $format->tipodoc, (string) $format->titulo]);
         $hash = substr(md5(
-            'real-config|' . self::VERSION . '|' . $config->toJson() . '|' . $company . '|' . $modelClassName . '|' . $formatKey
+            'real-config|' . self::VERSION . '|' . $config->toJson() . '|' . $company . '|'
+            . $modelClassName . '|' . $formatKey . '|' . $this->externalPreviewSignature($idempresa)
         ), 0, 10);
 
         $base = FS_FOLDER . '/MyFiles/' . self::SUBDIR;
@@ -288,7 +292,8 @@ class BeplyPdfPreviewService
 
         $config = $style->buildConfig();
         $company = $this->companyName($style);
-        $hash = substr(md5(self::VERSION . '|pdf|' . $config->toJson() . '|' . $company), 0, 10);
+        $idempresa = !empty($style->idempresa) ? (int) $style->idempresa : null;
+        $hash = substr(md5(self::VERSION . '|pdf|' . $config->toJson() . '|' . $company . '|' . $this->externalPreviewSignature($idempresa)), 0, 10);
 
         $base = FS_FOLDER . '/MyFiles/' . self::SUBDIR;
         if (false === is_dir($base)) {
@@ -311,15 +316,17 @@ class BeplyPdfPreviewService
     }
 
     /** URL (con token) de la preview de un diseño base (config por defecto + empresa). */
-    public function urlForDesignKey(string $key): string
+    public function urlForDesignKey(string $key, ?int $idempresa = null): string
     {
         $layout = AbstractBeplyPdfLayout::find($key);
         if ($layout === null) {
             return '';
         }
         $config = $layout->defaultConfig();
-        $company = $this->companyName(new BeplyPdfStyle());
-        $hash = substr(md5(self::VERSION . '|' . $config->toJson() . '|' . $company), 0, 10);
+        $style = new BeplyPdfStyle();
+        $style->idempresa = $idempresa;
+        $company = $this->companyName($style);
+        $hash = substr(md5(self::VERSION . '|' . $config->toJson() . '|' . $company . '|' . $this->externalPreviewSignature($idempresa)), 0, 10);
 
         $base = FS_FOLDER . '/MyFiles/' . self::SUBDIR;
         if (false === is_dir($base)) {
@@ -330,22 +337,16 @@ class BeplyPdfPreviewService
         $rel = self::SUBDIR . '/preview_design_' . $key . '_' . $hash . '.webp';
         $abs = FS_FOLDER . '/MyFiles/' . $rel;
         if (false === is_file($abs)) {
-            foreach (glob($base . '/preview_design_' . $key . '_*.webp') ?: [] as $old) {
-                @unlink($old);
-            }
-            $this->generateRealImage($config, null, $abs, 'd' . $key);
-            if (false === is_file($abs)) {
-                $this->generate($this->buildSvg($config, $company), $abs, 'd' . $key);
-            }
+            $this->generateRealImage($config, $idempresa, $abs, 'd' . $key);
         }
         return is_file($abs) ? MyFilesToken::getUrl($rel, true) : '';
     }
 
     /**
      * Devuelve la preview cacheada de un diseño base sin generarla. Si el cache no
-     * existe, el listado puede usar una miniatura estatica o mock sin bloquear.
+     * existe, el listado usa la miniatura estatica de la plantilla sin bloquear.
      */
-    public function cachedUrlForDesignKey(string $key): string
+    public function cachedUrlForDesignKey(string $key, ?int $idempresa = null): string
     {
         $layout = AbstractBeplyPdfLayout::find($key);
         if ($layout === null) {
@@ -353,11 +354,27 @@ class BeplyPdfPreviewService
         }
 
         $config = $layout->defaultConfig();
-        $company = $this->companyName(new BeplyPdfStyle());
-        $hash = substr(md5(self::VERSION . '|' . $config->toJson() . '|' . $company), 0, 10);
+        $style = new BeplyPdfStyle();
+        $style->idempresa = $idempresa;
+        $company = $this->companyName($style);
+        $hash = substr(md5(self::VERSION . '|' . $config->toJson() . '|' . $company . '|' . $this->externalPreviewSignature($idempresa)), 0, 10);
         $rel = self::SUBDIR . '/preview_design_' . $key . '_' . $hash . '.webp';
 
         return is_file(FS_FOLDER . '/MyFiles/' . $rel) ? MyFilesToken::getUrl($rel, true) : '';
+    }
+
+    private function externalPreviewSignature(?int $idempresa): string
+    {
+        $class = '\\FacturaScripts\\Plugins\\BeplyTicketBAI\\Lib\\Pdf\\TbaiPdfPreviewSignature';
+        if (!class_exists($class)) {
+            return '';
+        }
+
+        try {
+            return (string) $class::forCompany($idempresa);
+        } catch (\Throwable $exception) {
+            return 'ticketbai:error';
+        }
     }
 
     private function cleanupObsoleteDesignPreviews(string $base): void
@@ -369,7 +386,7 @@ class BeplyPdfPreviewService
 
         $valid = array_keys(AbstractBeplyPdfLayout::registry());
         foreach (glob($base . '/preview_design_*.webp') ?: [] as $file) {
-            if (!preg_match('/preview_design_([a-z0-9_-]+)_/i', basename($file), $match)) {
+            if (!preg_match('/^preview_design_(.+)_[a-f0-9]{10}\.webp$/i', basename($file), $match)) {
                 continue;
             }
             if (!in_array($match[1], $valid, true)) {
@@ -414,7 +431,7 @@ class BeplyPdfPreviewService
         }
     }
 
-    /** SVG -> PNG -> WebP. */
+    /** SVG -> PNG -> imagen cacheada. */
     private function generate(string $svg, string $abs, string $tag): void
     {
         $base = dirname($abs);

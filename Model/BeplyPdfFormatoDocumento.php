@@ -11,12 +11,37 @@
 
 namespace FacturaScripts\Plugins\BeplyPDFStudio\Model;
 
+use FacturaScripts\Core\Tools;
+use FacturaScripts\Plugins\BeplyPDFStudio\Lib\BeplyPdfInternalFormatGuard;
+
 /**
  * Wrapper del FormatoDocumento nativo para que el listado Beply conserve el
  * control ListView estándar, pero abra el editor de formatos del plugin.
  */
 class BeplyPdfFormatoDocumento extends \FacturaScripts\Core\Model\FormatoDocumento
 {
+    public function delete(): bool
+    {
+        if (BeplyPdfInternalFormatGuard::isLockedFormat($this)
+            && false === BeplyPdfInternalFormatGuard::isInternalWriteAllowed()) {
+            Tools::log()->warning('beplypdf-internal-format-locked-delete');
+            return false;
+        }
+
+        return parent::delete();
+    }
+
+    public function save(): bool
+    {
+        if (BeplyPdfInternalFormatGuard::isLockedFormat($this)
+            && false === BeplyPdfInternalFormatGuard::isInternalWriteAllowed()) {
+            Tools::log()->warning('beplypdf-internal-format-locked-save');
+            return false;
+        }
+
+        return parent::save();
+    }
+
     public static function tableName(): string
     {
         return 'formatos_documentos';

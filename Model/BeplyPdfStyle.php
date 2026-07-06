@@ -24,8 +24,10 @@ use FacturaScripts\Core\Template\ModelClass;
 use FacturaScripts\Core\Template\ModelTrait;
 use FacturaScripts\Core\Tools;
 use FacturaScripts\Dinamic\Model\BeplyPdfColumn;
+use FacturaScripts\Plugins\BeplyPDFStudio\Lib\BeplyPdfInternalFormatGuard;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\BeplyPdfConfig;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\BeplyPdfConfigValidator;
+use FacturaScripts\Plugins\BeplyPDFStudio\Lib\BeplyPdfRenderService;
 
 /**
  * Estilo PDF de Beply: global, por empresa o por formato de impresión.
@@ -198,6 +200,38 @@ class BeplyPdfStyle extends ModelClass
         $this->diseno = 'legacy_summary';
     }
 
+    public function delete(): bool
+    {
+        if (BeplyPdfInternalFormatGuard::isLockedStyle($this)
+            && false === BeplyPdfInternalFormatGuard::isInternalWriteAllowed()) {
+            Tools::log()->warning('beplypdf-internal-style-locked-delete');
+            return false;
+        }
+
+        $deleted = parent::delete();
+        if ($deleted) {
+            BeplyPdfRenderService::clearCache();
+        }
+
+        return $deleted;
+    }
+
+    public function save(): bool
+    {
+        if (BeplyPdfInternalFormatGuard::isLockedStyle($this)
+            && false === BeplyPdfInternalFormatGuard::isInternalWriteAllowed()) {
+            Tools::log()->warning('beplypdf-internal-style-locked-save');
+            return false;
+        }
+
+        $saved = parent::save();
+        if ($saved) {
+            BeplyPdfRenderService::clearCache();
+        }
+
+        return $saved;
+    }
+
     /** Materializa la configuración a partir de las columnas. */
     public function buildConfig(): BeplyPdfConfig
     {
@@ -330,6 +364,8 @@ class BeplyPdfStyle extends ModelClass
             $col->orden = ($i + 1) * 10;
             $col->save();
         }
+
+        BeplyPdfRenderService::clearCache();
     }
 
     private function csvToArray(?string $value): array

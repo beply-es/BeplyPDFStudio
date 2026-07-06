@@ -61,7 +61,7 @@ final class BeplyPdfConfigTest extends TestCase
     {
         $v = new BeplyPdfConfigValidator();
         $reg = AbstractBeplyPdfLayout::registry();
-        $this->assertCount(8, $reg);
+        $this->assertCount(9, $reg);
         foreach ($reg as $key => $layout) {
             $cfg = $layout->defaultConfig();
             $this->assertSame($key, $cfg->diseno);
@@ -76,6 +76,7 @@ final class BeplyPdfConfigTest extends TestCase
         $this->assertNotNull(AbstractBeplyPdfLayout::find('legacy_boxes'));
         $this->assertNotNull(AbstractBeplyPdfLayout::find('legacy_framed'));
         $this->assertNotNull(AbstractBeplyPdfLayout::find('legacy_banner'));
+        $this->assertNotNull(AbstractBeplyPdfLayout::find('studio_quote'));
         $this->assertNull(AbstractBeplyPdfLayout::find('inexistente'));
     }
 }

@@ -27,6 +27,9 @@ namespace FacturaScripts\Plugins\BeplyPDFStudio\Lib\PdfEngine;
  */
 class BeplyPdfSampleDoc
 {
+    private const PREVIEW_INVOICE_NOTICE = 'ESTA FACTURA ES 100% DE PRUEBA Y NO ES REAL';
+    private const PREVIEW_DOCUMENT_NOTICE = 'ESTE DOCUMENTO ES 100% DE PRUEBA Y NO ES REAL';
+
     public $idempresa;
     public $codigo = '2026/0001';
     public $numero = 'NUM-2026-XYZ';
@@ -153,6 +156,18 @@ class BeplyPdfSampleDoc
     public function beplyPdfDocumentTitle(): string
     {
         return $this->documentTitle;
+    }
+
+    public function beplyPdfIsSamplePreview(): bool
+    {
+        return true;
+    }
+
+    public function beplyPdfPreviewNotice(): string
+    {
+        return $this->modelClassName === 'FacturaCliente'
+            ? self::PREVIEW_INVOICE_NOTICE
+            : self::PREVIEW_DOCUMENT_NOTICE;
     }
 
     public function getSubject()

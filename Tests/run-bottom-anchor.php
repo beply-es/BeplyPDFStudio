@@ -80,10 +80,10 @@ final class BeplyBottomAnchorSuite
         @mkdir(FS_FOLDER . '/MyFiles/Cache', 0775, true);
         $svc = new BeplyHtmlRenderService();
         $cases = [
-            ['1 linea', 1, 'one'],
-            ['media pagina', 6, 'one'],
-            ['frontera', 12, 'any'],
-            ['muchas lineas', 18, 'multi'],
+            ['1 linea', 1, 'single-bottom'],
+            ['media pagina', 6, 'single-bottom'],
+            ['bloque inferior en pagina nueva', 18, 'newpage-top'],
+            ['lineas continuadas', 24, 'continued-bottom'],
         ];
 
         foreach (AbstractBeplyPdfLayout::registry() as $key => $layout) {
@@ -94,14 +94,19 @@ final class BeplyBottomAnchorSuite
                 $pages = $this->pageCount($pdf);
                 $gap = $pages > 0 ? $this->bottomGap($pdf, $pages, $cfg) : 9999;
 
-                if ($mode === 'one') {
+                if ($mode === 'single-bottom') {
                     $this->assert("{$label}: no crea pagina extra", $pages === 1, "pages={$pages}");
-                } elseif ($mode === 'multi') {
-                    $this->assert("{$label}: fuerza ultima pagina", $pages >= 2, "pages={$pages}");
-                } else {
-                    $this->assert("{$label}: paginas razonables", $pages >= 1 && $pages <= 2, "pages={$pages}");
+                    $this->assert("{$label}: totales/recibos pegados al bottom", $gap <= 28, "gap={$gap}px");
+                    continue;
                 }
 
+                if ($mode === 'newpage-top') {
+                    $this->assert("{$label}: salta a una pagina nueva", $pages >= 2, "pages={$pages}");
+                    $this->assert("{$label}: deja el espacio dinamico despues del bloque inferior", $gap >= 120, "gap={$gap}px");
+                    continue;
+                }
+
+                $this->assert("{$label}: mantiene lineas en la ultima pagina", $pages >= 2, "pages={$pages}");
                 $this->assert("{$label}: totales/recibos pegados al bottom", $gap <= 28, "gap={$gap}px");
             }
         }

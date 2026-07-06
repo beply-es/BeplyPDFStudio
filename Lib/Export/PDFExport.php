@@ -29,6 +29,7 @@ use FacturaScripts\Dinamic\Model\AttachedFileRelation;
 use FacturaScripts\Dinamic\Model\FormatoDocumento;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\BeplyPdfBrandingLogoService;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\BeplyPdfConfig;
+use FacturaScripts\Plugins\BeplyPDFStudio\Lib\BeplyPdfDocumentCacheService;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\BeplyPdfRenderService;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Html\BeplyHtmlRenderService;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\PdfEngine\BeplyPdfDraw;
@@ -129,18 +130,33 @@ class PDFExport extends CorePDFExport
                 $this->format = $format;
                 $idformato = !empty($format->id) ? (int) $format->id : null;
                 $idempresa = isset($model->idempresa) ? (int) $model->idempresa : null;
+                $modelClass = method_exists($model, 'modelClassName') ? (string) $model->modelClassName() : null;
 
-                $config = (new BeplyPdfRenderService())->resolveConfig($idformato, $idempresa);
+                $config = (new BeplyPdfRenderService())->resolveConfig($idformato, $idempresa, $modelClass);
                 if ($config !== null) {
                     $restoreLang = $this->applyCustomerLanguage($config, $model);
                     $this->beplyConfig = $config;
 
                     // Motor HTML (Twig + WeasyPrint) para los diseños soportados.
                     if (!$this->useCezpdfDocumentDesign($config) && BeplyHtmlRenderService::handles($config->diseno)) {
+                        $documentCache = new BeplyPdfDocumentCacheService();
+                        $cacheKey = $documentCache->key($config, $model, $format);
+                        if ($cacheKey !== null) {
+                            $cachedPdf = $documentCache->get($cacheKey);
+                            if ($cachedPdf !== null) {
+                                $this->beplyHtmlPdfs[] = $cachedPdf;
+                                return false;
+                            }
+                        }
+
                         $bytes = (new BeplyHtmlRenderService())->render($config, $model, $format);
                         if ($bytes !== '') {
-                            $this->beplyHtmlPdfs[] = $bytes;
-                            $this->appendPrintableAttachments($config, $model);
+                            $parts = array_merge([$bytes], $this->printableAttachmentPdfs($config, $model));
+                            $finalPdf = count($parts) === 1 ? $parts[0] : $this->mergePdfs($parts);
+                            if ($cacheKey !== null) {
+                                $documentCache->store($cacheKey, $finalPdf);
+                            }
+                            $this->beplyHtmlPdfs[] = $finalPdf;
                             return false; // el documento se sirve vía getDoc()
                         }
                     }
@@ -1150,15 +1166,24 @@ class PDFExport extends CorePDFExport
 
     private function appendPrintableAttachments(BeplyPdfConfig $config, $model): void
     {
+        foreach ($this->printableAttachmentPdfs($config, $model) as $bytes) {
+            $this->beplyHtmlPdfs[] = $bytes;
+        }
+    }
+
+    /** @return string[] */
+    private function printableAttachmentPdfs(BeplyPdfConfig $config, $model): array
+    {
         if (!is_object($model) || !method_exists($model, 'getAttachedFiles')) {
-            return;
+            return [];
         }
 
         $modelClass = method_exists($model, 'modelClassName') ? $model->modelClassName() : '';
         if (!in_array($modelClass, self::ATTACHMENT_DOCUMENT_MODELS, true)) {
-            return;
+            return [];
         }
 
+        $out = [];
         foreach ($model->getAttachedFiles() as $relation) {
             if (!$relation instanceof AttachedFileRelation || empty($relation->beply_pdf_print)) {
                 continue;
@@ -1166,9 +1191,10 @@ class PDFExport extends CorePDFExport
 
             $bytes = $this->attachmentPdfBytes($relation);
             if ($bytes !== '') {
-                $this->beplyHtmlPdfs[] = $bytes;
+                $out[] = $bytes;
             }
         }
+        return $out;
     }
 
     private function attachmentPdfBytes(AttachedFileRelation $relation): string
@@ -1451,15 +1477,34 @@ class PDFExport extends CorePDFExport
 
     private function drawDraftWarning($model, BeplyPdfConfig $config): void
     {
-        if (!$config->showDraftWarning || empty($model->editable) || !method_exists($model, 'modelClassName')) {
+        $text = $this->samplePreviewWarning($model);
+        if ($text === '' && (!$config->showDraftWarning || empty($model->editable) || !method_exists($model, 'modelClassName'))) {
             return;
+        }
+
+        if ($text === '') {
+            $text = $this->draftWarningText($model);
         }
 
         $pageWidth = (float) ($this->pdf->ez['pageWidth'] ?? 595.28);
         $pageHeight = (float) ($this->pdf->ez['pageHeight'] ?? 841.89);
         BeplyPdfDraw::setFill($this->pdf, '#C80000');
-        $this->pdf->addText(0, $pageHeight * 0.27, 15, $this->draftWarningText($model), $pageWidth, 'center', -35);
+        $this->pdf->addText(0, $pageHeight * 0.27, 15, $text, $pageWidth, 'center', -35);
         BeplyPdfDraw::setFill($this->pdf, $config->colorText);
+    }
+
+    private function samplePreviewWarning($model): string
+    {
+        if (!is_object($model) || !method_exists($model, 'beplyPdfIsSamplePreview')
+            || false === (bool) $model->beplyPdfIsSamplePreview()) {
+            return '';
+        }
+
+        $notice = method_exists($model, 'beplyPdfPreviewNotice')
+            ? trim((string) $model->beplyPdfPreviewNotice())
+            : '';
+
+        return $notice === '' ? '' : mb_strtoupper($notice);
     }
 
     private function draftWarningText($model): string

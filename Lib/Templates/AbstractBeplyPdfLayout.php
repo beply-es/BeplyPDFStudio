@@ -44,6 +44,7 @@ abstract class AbstractBeplyPdfLayout implements BeplyPdfLayoutInterface
             new BeplyCorporateLayout(),
             new BeplyAzureLayout(),
             new BeplyPrismaLayout(),
+            new BeplyStudioQuoteLayout(),
         ] as $layout) {
             $out[$layout->key()] = $layout;
         }

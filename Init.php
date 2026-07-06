@@ -22,14 +22,22 @@ namespace FacturaScripts\Plugins\BeplyPDFStudio;
 use FacturaScripts\Core\Base\DataBase;
 use FacturaScripts\Core\Base\DataBase\DataBaseWhere;
 use FacturaScripts\Core\Cache;
+use FacturaScripts\Core\DbUpdater;
+use FacturaScripts\Core\Lib\AjaxForms\PurchasesFooterHTML;
+use FacturaScripts\Core\Lib\AjaxForms\SalesFooterHTML;
+use FacturaScripts\Core\Lib\AjaxForms\SalesLineHTML;
 use FacturaScripts\Core\Lib\ExportManager;
 use FacturaScripts\Core\Template\InitClass;
 use FacturaScripts\Core\Tools;
+use FacturaScripts\Dinamic\Model\BeplyPdfInternalFormat;
 use FacturaScripts\Dinamic\Model\BeplyPdfStyle;
 use FacturaScripts\Dinamic\Model\FormatoDocumento;
 use FacturaScripts\Plugins\BeplyPDFStudio\Extension\Controller\EditController;
+use FacturaScripts\Plugins\BeplyPDFStudio\Extension\Controller\EditProducto;
 use FacturaScripts\Plugins\BeplyPDFStudio\Extension\Controller\EditSettings;
 use FacturaScripts\Plugins\BeplyPDFStudio\Extension\Model\AttachedFileRelation as AttachedFileRelationExtension;
+use FacturaScripts\Plugins\BeplyPDFStudio\Lib\AjaxForms\BeplyRichDocumentFooterObservationsMod;
+use FacturaScripts\Plugins\BeplyPDFStudio\Lib\AjaxForms\BeplyRichSalesLineDescriptionMod;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\PdfEngine\BeplyPdfExport;
 
 /**
@@ -60,11 +68,23 @@ class Init extends InitClass
         'FacturaProveedor' => ['nombre' => 'Factura proveedor', 'titulo' => 'FACTURA'],
     ];
 
+    private const PDFSTUDIO_TABLES = [
+        'beply_pdf_styles',
+        'beply_pdf_columns',
+        'beply_pdf_internal_formats',
+    ];
+
     public function init(): void
     {
         $this->loadExtension(new AttachedFileRelationExtension());
         $this->loadExtension(new EditController());
+        $this->loadExtension(new EditProducto());
         $this->loadExtension(new EditSettings());
+
+        SalesLineHTML::addMod(new BeplyRichSalesLineDescriptionMod());
+        $footerObservationsMod = new BeplyRichDocumentFooterObservationsMod();
+        SalesFooterHTML::addMod($footerObservationsMod);
+        PurchasesFooterHTML::addMod($footerObservationsMod);
 
         foreach (self::DOC_MODELS as $modelName) {
             ExportManager::addOptionModel(BeplyPdfExport::class, 'PDF', $modelName, 10);
@@ -80,20 +100,31 @@ class Init extends InitClass
 
     public function update(): void
     {
+        $this->repairStaleSchemaChecks();
         $this->ensureStyleSchema();
         $this->ensureAttachedFileRelationSchema();
         if (!$this->isBaseSchemaReady()) {
             return;
         }
 
+        new BeplyPdfInternalFormat();
         $this->seedGlobalStyle();
         $this->seedDefaultPrintFormats();
         $this->migrateLineColumns();
+        $this->refreshExternalPreviewCaches();
     }
 
     public function uninstall(): void
     {
         // No se eliminan datos de usuario al desinstalar.
+    }
+
+    private function refreshExternalPreviewCaches(): void
+    {
+        $syncClass = '\\FacturaScripts\\Plugins\\BeplyTicketBAI\\Lib\\Pdf\\TbaiPdfStudioPreviewSync';
+        if (class_exists($syncClass) && method_exists($syncClass, 'refreshEnabledCompanies')) {
+            $syncClass::refreshEnabledCompanies();
+        }
     }
 
     /** Añade columnas nuevas en instalaciones que ya tenían la tabla antes de actualizar el XML. */
@@ -184,6 +215,29 @@ class Init extends InitClass
         return $db->tableExists('formatos_documentos');
     }
 
+    /**
+     * If a previous failed update marked a PDFStudio table as checked without
+     * actually creating it, the core will not retry and models will have no fields.
+     */
+    private function repairStaleSchemaChecks(): void
+    {
+        $db = new DataBase();
+        if (!$db->connect()) {
+            return;
+        }
+
+        foreach (self::PDFSTUDIO_TABLES as $table) {
+            if (false === $db->tableExists($table) && DbUpdater::isTableChecked($table)) {
+                DbUpdater::rebuild();
+                $this->clearStyleModelFieldsCache();
+                Cache::delete('model-fields-BeplyPdfColumn');
+                Cache::delete('model-fields-BeplyPdfInternalFormat');
+                Tools::log()->warning('beplypdf-stale-db-updater-rebuilt: ' . $table);
+                return;
+            }
+        }
+    }
+
     /** Crea un estilo global por defecto (diseño Summary) si todavía no existe ninguno. */
     private function seedGlobalStyle(): void
     {
@@ -240,7 +294,11 @@ class Init extends InitClass
             if ($style->columnsConfig()['columns']) {
                 continue;
             }
-            $style->rebuildColumnsFromConfig($style->buildConfig());
+            \FacturaScripts\Plugins\BeplyPDFStudio\Lib\BeplyPdfInternalFormatGuard::withInternalWrite(
+                static function () use ($style): void {
+                    $style->rebuildColumnsFromConfig($style->buildConfig());
+                }
+            );
         }
     }
 }

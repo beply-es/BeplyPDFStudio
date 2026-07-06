@@ -20,6 +20,7 @@
 namespace FacturaScripts\Plugins\BeplyPDFStudio\Lib;
 
 use FacturaScripts\Dinamic\Model\BeplyPdfStyle;
+use FacturaScripts\Dinamic\Model\Empresa;
 use FacturaScripts\Dinamic\Model\FormatoDocumento;
 
 /**
@@ -31,6 +32,7 @@ class BeplyPdfRenderService
     private static array $configByKey = [];
     private static array $styleIdByKey = [];
     private static ?array $styleRows = null;
+    private static ?bool $singleCompanyBaseMode = null;
 
     private BeplyPdfStyleResolver $resolver;
 
@@ -39,12 +41,21 @@ class BeplyPdfRenderService
         $this->resolver = $resolver ?? new BeplyPdfStyleResolver();
     }
 
+    public static function clearCache(): void
+    {
+        self::$configByKey = [];
+        self::$styleIdByKey = [];
+        self::$styleRows = null;
+        self::$singleCompanyBaseMode = null;
+    }
+
     /** Devuelve el estilo aplicable (formato → empresa → global) o null. */
     public function resolveStyle(?int $idformato, ?int $idempresa = null): ?BeplyPdfStyle
     {
         $key = $this->cacheKey($idformato, $idempresa);
         if (!array_key_exists($key, self::$styleIdByKey)) {
-            self::$styleIdByKey[$key] = $this->resolver->resolve($this->styleRows(), $idformato, $idempresa);
+            $style = $this->resolveStyleObject($idformato, $idempresa);
+            self::$styleIdByKey[$key] = $style === null ? null : (int) $style->id;
         }
 
         $idstyle = self::$styleIdByKey[$key];
@@ -57,9 +68,9 @@ class BeplyPdfRenderService
     }
 
     /** Devuelve la configuración aplicable o null si no hay estilo. */
-    public function resolveConfig(?int $idformato, ?int $idempresa = null): ?BeplyPdfConfig
+    public function resolveConfig(?int $idformato, ?int $idempresa = null, ?string $docType = null): ?BeplyPdfConfig
     {
-        $key = $this->cacheKey($idformato, $idempresa);
+        $key = $this->cacheKey($idformato, $idempresa, $docType);
         if (!array_key_exists($key, self::$configByKey)) {
             $baseStyle = $this->resolveBaseStyle($idempresa);
             if ($baseStyle === null) {
@@ -79,6 +90,8 @@ class BeplyPdfRenderService
                 if ($formatStyle !== null) {
                     $this->applyFormatStyleOverrides($config, $formatStyle);
                 }
+
+                $this->applyInternalFormatPolicy($config, $idformato, $docType);
             }
 
             self::$configByKey[$key] = $config;
@@ -91,13 +104,80 @@ class BeplyPdfRenderService
 
     private function resolveBaseStyle(?int $idempresa): ?BeplyPdfStyle
     {
-        $idstyle = $this->resolver->resolve($this->styleRows(), null, $idempresa);
+        if ($idempresa !== null && $this->singleCompanyUsesGlobalBase()) {
+            if (false === $this->companyExists($idempresa)) {
+                $companyStyle = $this->loadSpecificCompanyStyle($idempresa);
+                if ($companyStyle !== null) {
+                    return $companyStyle;
+                }
+            }
+
+            $global = $this->loadResolvedStyle(null, null);
+            if ($global !== null) {
+                return $global;
+            }
+        }
+
+        return $this->loadResolvedStyle(null, $idempresa);
+    }
+
+    private function companyExists(int $idempresa): bool
+    {
+        $company = new Empresa();
+        return $company->loadFromCode($idempresa);
+    }
+
+    private function loadSpecificCompanyStyle(int $idempresa): ?BeplyPdfStyle
+    {
+        foreach ($this->styleRows() as $row) {
+            if (false === (bool) ($row['activo'] ?? true)) {
+                continue;
+            }
+            if (($row['idformato'] ?? null) !== null) {
+                continue;
+            }
+            if (($row['idempresa'] ?? null) !== $idempresa) {
+                continue;
+            }
+
+            $style = new BeplyPdfStyle();
+            return $style->loadFromCode((int) $row['id']) ? $style : null;
+        }
+
+        return null;
+    }
+
+    private function resolveStyleObject(?int $idformato, ?int $idempresa): ?BeplyPdfStyle
+    {
+        if ($idformato !== null) {
+            $formatStyle = $this->resolveFormatStyle($idformato);
+            if ($formatStyle !== null) {
+                return $formatStyle;
+            }
+        }
+
+        return $this->resolveBaseStyle($idempresa);
+    }
+
+    private function loadResolvedStyle(?int $idformato, ?int $idempresa): ?BeplyPdfStyle
+    {
+        $idstyle = $this->resolver->resolve($this->styleRows(), $idformato, $idempresa);
         if (empty($idstyle)) {
             return null;
         }
 
         $style = new BeplyPdfStyle();
         return $style->loadFromCode($idstyle) ? $style : null;
+    }
+
+    private function singleCompanyUsesGlobalBase(): bool
+    {
+        if (self::$singleCompanyBaseMode !== null) {
+            return self::$singleCompanyBaseMode;
+        }
+
+        self::$singleCompanyBaseMode = count(Empresa::all([], [], 0, 2)) <= 1;
+        return self::$singleCompanyBaseMode;
     }
 
     private function resolveFormatStyle(int $idformato): ?BeplyPdfStyle
@@ -175,9 +255,17 @@ class BeplyPdfRenderService
         return trim((string) $style->line_columns) !== '';
     }
 
-    private function cacheKey(?int $idformato, ?int $idempresa): string
+    private function applyInternalFormatPolicy(BeplyPdfConfig $config, int $idformato, ?string $docType): void
     {
-        return ($idformato ?? 'global') . '|' . ($idempresa ?? 'global');
+        $rule = BeplyPdfInternalFormatGuard::ruleForFormatId($idformato);
+        if (BeplyPdfInternalFormatPolicy::shouldForceDraftWarning($rule, $docType)) {
+            $config->showDraftWarning = true;
+        }
+    }
+
+    private function cacheKey(?int $idformato, ?int $idempresa, ?string $docType = null): string
+    {
+        return ($idformato ?? 'global') . '|' . ($idempresa ?? 'global') . '|' . ($docType ?? 'any');
     }
 
     private function styleRows(): array

@@ -1,0 +1,12 @@
+{
+  "private": true,
+  "scripts": {
+    "test": "playwright test rich-line-description.spec.js markdown-listing-display.spec.js",
+    "test:rich-editor": "playwright test rich-line-description.spec.js",
+    "test:listing-markdown": "playwright test markdown-listing-display.spec.js",
+    "test:visual-compat": "playwright test visual-compat.spec.js"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.61.1"
+  }
+}

@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    Document   : beply_pdf_internal_formats.xml
+    Author     : Beply Technologies S.L.
+    Description: Formatos de impresion internos gestionados por BeplyPDFStudio.
+-->
+<table>
+    <column><name>id</name><type>serial</type><null>NO</null></column>
+    <column><name>idformato</name><type>integer</type><null>NO</null></column>
+    <column><name>owner_plugin</name><type>character varying(50)</type><null>NO</null></column>
+    <column><name>internal_key</name><type>character varying(100)</type><null>NO</null></column>
+    <column><name>locked</name><type>boolean</type><default>true</default></column>
+    <column><name>lock_reason</name><type>text</type></column>
+    <column><name>force_draft_warning</name><type>boolean</type><default>false</default></column>
+    <column><name>draft_warning_scope</name><type>character varying(30)</type><default>'none'</default></column>
+    <column><name>creado</name><type>timestamp</type></column>
+    <column><name>modificado</name><type>timestamp</type></column>
+
+    <constraint><name>beply_pdf_internal_formats_pkey</name><type>PRIMARY KEY (id)</type></constraint>
+    <constraint><name>beply_pdf_internal_formats_owner_key</name><type>UNIQUE (owner_plugin, internal_key)</type></constraint>
+    <constraint><name>beply_pdf_internal_formats_format_unique</name><type>UNIQUE (idformato)</type></constraint>
+    <constraint><name>ca_beply_pdf_internal_formats_formato</name><type>FOREIGN KEY (idformato) REFERENCES formatos_documentos (id) ON DELETE CASCADE ON UPDATE CASCADE</type></constraint>
+</table>

@@ -13,12 +13,14 @@ Thumbs.db
 
 # Node
 /node_modules/
+/Tests/playwright/node_modules/
 
 # Logs
 *.log
 
 # Cache
 *.cache
+/MyFiles/
 
 # Playwright / visual evidence generated locally
 /test-results/

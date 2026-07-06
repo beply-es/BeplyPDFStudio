@@ -48,6 +48,10 @@ class BeplyPdfFormatStyleService
         if (empty($format->id)) {
             return null;
         }
+        if (BeplyPdfInternalFormatGuard::isLockedFormat($format)
+            && false === BeplyPdfInternalFormatGuard::isInternalWriteAllowed()) {
+            return null;
+        }
 
         $config = new BeplyPdfConfig();
         $this->applyNativeFormatDefaults($config, $format);

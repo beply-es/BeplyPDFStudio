@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.24 - 2026-07-06
+
+- Adds the rich Markdown editor for document lines, observations, product descriptions and template legal text, while keeping listings/search results rendered as clean plain text.
+- Improves dynamic PDF block placement, fiscal QR slots, preview generation and Studio Quote template rendering.
+- Adds document PDF caching and expands local browser/PHP test coverage for rich text, templates and document layouts.
+
 ## v1.23 - 2026-06-26
 
 - Shows IRPF in the rendered tax breakdown, with negative withholding amounts, across all HTML/PDF templates.

@@ -17,9 +17,13 @@ use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfDocumentContext;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfDocumentExtensionInterface;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfDocumentExtensionRegistry;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfDocumentSlot;
+use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfFiscalQrBlockData;
+use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfFiscalQrProviderInterface;
+use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfFiscalQrRegistry;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfLineColumn;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfLineColumnProviderInterface;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfReceiptInfoProviderInterface;
+use FacturaScripts\Plugins\BeplyPDFStudio\Lib\PdfEngine\BeplyPdfSampleDoc;
 use PHPUnit\Framework\TestCase;
 
 final class BeplyPdfDocumentExtensionRegistryTest extends TestCase
@@ -58,6 +62,7 @@ final class BeplyPdfDocumentExtensionRegistryTest extends TestCase
         $this->assertContains(BeplyPdfDocumentSlot::LINES_AFTER, $slots);
         $this->assertContains(BeplyPdfDocumentSlot::TOTALS_BEFORE, $slots);
         $this->assertContains(BeplyPdfDocumentSlot::RECEIPTS_AFTER, $slots);
+        $this->assertContains(BeplyPdfDocumentSlot::FISCAL_FOOTER, $slots);
     }
 
     public function testBaseCopyTemplateContainsEverySlot(): void
@@ -75,6 +80,82 @@ final class BeplyPdfDocumentExtensionRegistryTest extends TestCase
     public function testDocumentExtensionDocsExist(): void
     {
         $this->assertTrue(is_file(dirname(__DIR__) . '/docs/document-extension-api.md'), 'Document extension docs missing');
+    }
+
+    public function testFiscalQrBlockUsesLegalSizeAndFiscalSlot(): void
+    {
+        $block = BeplyPdfDocumentBlock::fiscalQr(new BeplyPdfFiscalQrBlockData(
+            'ticketbai',
+            'TicketBAI',
+            'data:image/png;base64,AA==',
+            [
+                ['label' => 'Codigo TicketBAI', 'value' => 'TBAI-00000006Y-251019-btFpwP8dcLGAF-237'],
+                ['label' => 'Firmado', 'value' => '2026-07-02 10:00:00'],
+            ],
+            '',
+            99,
+            'landscape',
+            'TicketBAI QR'
+        ));
+
+        $this->assertSame(BeplyPdfDocumentSlot::FISCAL_FOOTER, $block->slot);
+        $this->assertSame('', $block->title);
+        $this->assertTrue(strpos($block->html, 'data-beply-fiscal-system="ticketbai"') !== false, 'Fiscal system marker missing');
+        $this->assertTrue(strpos($block->html, 'width:40mm;height:40mm') !== false, 'QR size was not clamped to 40mm');
+        $this->assertTrue(strpos($block->html, 'margin-left:auto;margin-right:0') !== false, 'Landscape block is not aligned right');
+        $this->assertTrue(strpos($block->html, 'Codigo TicketBAI') !== false, 'Fiscal row label missing');
+    }
+
+    public function testFiscalQrRegistryRendersNativePdfStudioBlocksFromProviders(): void
+    {
+        BeplyPdfFiscalQrRegistry::clear();
+        BeplyPdfFiscalQrRegistry::addProvider(new class implements BeplyPdfFiscalQrProviderInterface {
+            public function fiscalQr(BeplyPdfDocumentContext $context): ?BeplyPdfFiscalQrBlockData
+            {
+                return new BeplyPdfFiscalQrBlockData(
+                    'verifactu',
+                    'VERI*FACTU',
+                    'data:image/png;base64,AA==',
+                    [['label' => 'URL', 'value' => 'https://www2.agenciatributaria.gob.es/...']],
+                    'Factura verificable en la sede electronica de la AEAT',
+                    30,
+                    'portrait',
+                    'VERI*FACTU QR',
+                    600
+                );
+            }
+        });
+
+        $blocks = BeplyPdfFiscalQrRegistry::blocksFor(new BeplyPdfDocumentContext(
+            new BeplyPdfConfig(),
+            (object) ['codigo' => 'FV-1']
+        ));
+
+        $this->assertCount(1, $blocks);
+        $this->assertSame(BeplyPdfDocumentSlot::FISCAL_FOOTER, $blocks[0]->slot);
+        $this->assertSame(600, $blocks[0]->priority);
+        $this->assertTrue(strpos($blocks[0]->html, 'data-beply-fiscal-system="verifactu"') !== false, 'VERI*FACTU marker missing');
+        $this->assertTrue(strpos($blocks[0]->html, 'Factura verificable') !== false, 'VERI*FACTU legal notice missing');
+        BeplyPdfFiscalQrRegistry::clear();
+    }
+
+    public function testSamplePreviewDocumentCarriesNonRealInvoiceWarning(): void
+    {
+        $doc = new BeplyPdfSampleDoc(null, 'FacturaCliente');
+
+        $this->assertTrue($doc->beplyPdfIsSamplePreview());
+        $this->assertSame('ESTA FACTURA ES 100% DE PRUEBA Y NO ES REAL', $doc->beplyPdfPreviewNotice());
+    }
+
+    public function testPublishedDesignTemplatesExposeFiscalFooterSlot(): void
+    {
+        $templates = ['standard', 'summary', 'boxes', 'framed', 'banner', 'corporate', 'azure', 'prisma', 'studio-quote'];
+        foreach ($templates as $template) {
+            $path = dirname(__DIR__) . '/Templates/html/' . $template . '.html.twig';
+            $this->assertTrue(is_file($path), 'Missing template ' . $template);
+            $body = (string) file_get_contents($path);
+            $this->assertTrue(strpos($body, 'slots.FISCAL_FOOTER') !== false, 'Fiscal footer slot missing in ' . $template);
+        }
     }
 
     public function testExternalLineColumnsAreSortedAndRenderable(): void

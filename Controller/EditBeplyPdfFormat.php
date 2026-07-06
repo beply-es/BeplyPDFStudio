@@ -16,8 +16,10 @@ use FacturaScripts\Core\Lib\ExtendedController\PanelController;
 use FacturaScripts\Dinamic\Model\BeplyPdfFormatoDocumento;
 use FacturaScripts\Dinamic\Model\BeplyPdfStyle;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\BeplyPdfFormatStyleService;
+use FacturaScripts\Plugins\BeplyPDFStudio\Lib\BeplyPdfInternalFormatGuard;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\BeplyPdfPreviewService;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\BeplyPdfRenderService;
+use FacturaScripts\Plugins\BeplyPDFStudio\Lib\BeplyRichDescriptionAssets;
 
 /**
  * CRUD de FormatoDocumento dentro de BeplyPDFStudio.
@@ -39,6 +41,12 @@ class EditBeplyPdfFormat extends PanelController
     /** @var string nombre visible del formato en edición */
     public $formatScopedName = '';
 
+    /** @var bool indica si el formato es interno y gestionado por codigo */
+    public $lockedFormat = false;
+
+    /** @var string motivo visible para el bloqueo */
+    public $lockedFormatReason = '';
+
     /** @var BeplyPdfFormatoDocumento|null */
     private $format = null;
 
@@ -57,6 +65,8 @@ class EditBeplyPdfFormat extends PanelController
 
     protected function createViews(): void
     {
+        BeplyRichDescriptionAssets::add();
+
         $this->setTabsPosition('left');
 
         $this->addEditView('EditBeplyPdfFormat', 'BeplyPdfFormatoDocumento', 'printing-format', 'fa-solid fa-print');
@@ -99,6 +109,7 @@ class EditBeplyPdfFormat extends PanelController
                 if ($style === null || empty($style->id)) {
                     return;
                 }
+                $this->applyLockedFormatUi($this->formatForCurrentCode());
                 $where = [new DataBaseWhere('idstyle', $style->id)];
                 $view->loadData('', $where, ['orden' => 'ASC', 'id' => 'ASC']);
                 $this->loadPreview();
@@ -110,7 +121,11 @@ class EditBeplyPdfFormat extends PanelController
                 if ($style === null || empty($style->id)) {
                     return;
                 }
+                $this->applyLockedFormatUi($this->formatForCurrentCode());
                 $view->loadData((string) $style->id);
+                if ($this->lockedFormat && method_exists($view, 'setReadOnly')) {
+                    $view->setReadOnly(true);
+                }
                 $this->loadPreview();
                 break;
         }
@@ -130,6 +145,10 @@ class EditBeplyPdfFormat extends PanelController
             $this->formatScoped = true;
             $this->formatScopedName = (string) ($view->model->nombre ?: $view->model->titulo);
             $this->title .= ' ' . $view->model->primaryDescription();
+            $this->applyLockedFormatUi($view->model);
+            if ($this->lockedFormat && method_exists($view, 'setReadOnly')) {
+                $view->setReadOnly(true);
+            }
         }
     }
 
@@ -158,6 +177,7 @@ class EditBeplyPdfFormat extends PanelController
         $this->format = $format;
         $this->formatScoped = true;
         $this->formatScopedName = (string) ($format->nombre ?: $format->titulo);
+        $this->applyLockedFormatUi($format);
         return $format;
     }
 
@@ -188,7 +208,8 @@ class EditBeplyPdfFormat extends PanelController
         }
 
         $idempresa = !empty($format->idempresa) ? (int) $format->idempresa : null;
-        $config = (new BeplyPdfRenderService())->resolveConfig((int) $format->id, $idempresa);
+        $docType = trim((string) $format->tipodoc) !== '' ? (string) $format->tipodoc : 'FacturaCliente';
+        $config = (new BeplyPdfRenderService())->resolveConfig((int) $format->id, $idempresa, $docType);
         if ($config === null) {
             return;
         }
@@ -198,8 +219,29 @@ class EditBeplyPdfFormat extends PanelController
             $config,
             $idempresa,
             'format_' . (int) $format->id,
-            trim((string) $format->tipodoc) !== '' ? (string) $format->tipodoc : 'FacturaCliente',
+            $docType,
             $format
         );
+    }
+
+    private function applyLockedFormatUi(?BeplyPdfFormatoDocumento $format): void
+    {
+        if ($format === null || empty($format->id)) {
+            return;
+        }
+
+        $rule = BeplyPdfInternalFormatGuard::ruleForFormatId((int) $format->id);
+        if ($rule === null || false === (bool) $rule->locked) {
+            return;
+        }
+
+        $this->lockedFormat = true;
+        $this->lockedFormatReason = trim((string) $rule->lock_reason);
+        foreach (['EditBeplyPdfFormat', 'BpfVisibilidad', 'BpfTextos', 'BpsLineas'] as $viewName) {
+            $this->setSettings($viewName, 'btnDelete', false);
+            $this->setSettings($viewName, 'btnNew', false);
+            $this->setSettings($viewName, 'btnSave', false);
+            $this->setSettings($viewName, 'btnUndo', false);
+        }
     }
 }

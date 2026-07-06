@@ -182,7 +182,7 @@
       {% for row in lines %}
       <tr>
         {% for cell in row %}
-        <td style="text-align:{{ cell.align }};">{{ cell.value|raw }}</td>
+        <td style="text-align:{{ cell.align }};">{% if cell.html|default(false) %}{{ cell.value|raw }}{% else %}{{ cell.value }}{% endif %}</td>
         {% endfor %}
       </tr>
       {% endfor %}
@@ -256,6 +256,7 @@
   </div>
   {% endif %}
 
+  {% set slot = slots.FISCAL_FOOTER %}{% include '_slot.html.twig' %}
   {% set slot = slots.FOOTER_BEFORE %}{% include '_slot.html.twig' %}
   {% if footer_text %}<div class="footer">{{ footer_text|raw }}</div>{% endif %}
   {% include '_footer-image.html.twig' %}

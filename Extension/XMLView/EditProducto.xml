@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<view>
+    <columns>
+        <group name="description">
+            <column name="description" numcolumns="12" order="100" overwrite="true">
+                <widget type="richtextarea" fieldname="descripcion" required="true"/>
+            </column>
+        </group>
+    </columns>
+</view>
