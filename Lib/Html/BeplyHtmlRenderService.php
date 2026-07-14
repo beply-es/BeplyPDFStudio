@@ -886,11 +886,25 @@ class BeplyHtmlRenderService
             }
         }
 
+        $reserve = max($reserve, $this->bottomAnchorLayoutReserve($cfg, $fontSize));
+
         if ($reserve <= 0) {
             return 0;
         }
 
         return min((int) round($this->pageContentHeightPx($cfg) * 0.25), $reserve);
+    }
+
+    /**
+     * Margen de seguridad para diferencias entre la estimación de bloques y el flujo CSS real.
+     * Corporate usa bandas, bordes y una cabecera cuyo alto final depende del logo; sin esta
+     * reserva, un documento corto sin observaciones/recibos puede dejar los totales huérfanos.
+     */
+    private function bottomAnchorLayoutReserve(BeplyPdfConfig $cfg, int $fontSize): int
+    {
+        return $cfg->diseno === 'corporate'
+            ? (int) round($fontSize * 5)
+            : 0;
     }
 
     private function isCompactPaper(BeplyPdfConfig $cfg): bool

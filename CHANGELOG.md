@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.25 - 2026-07-14
+
+- Keeps totals on the same page for short corporate invoices, quotes, orders and delivery notes by applying one shared bottom-spacing safety calculation to every customer and supplier document type.
+- Adds real PDF regression coverage for orphaned totals across all supported business document flows.
+
 ## v1.24 - 2026-07-06
 
 - Adds the rich Markdown editor for document lines, observations, product descriptions and template legal text, while keeping listings/search results rendered as clean plain text.

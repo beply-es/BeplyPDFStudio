@@ -81,6 +81,77 @@ final class BeplyDocumentLayoutDoc extends BeplyPdfSampleDoc
     }
 }
 
+final class BeplyShortBusinessDoc extends BeplyPdfSampleDoc
+{
+    /** @var object[] */
+    private array $customLines;
+    private string $businessModelClass;
+    public $codproveedor;
+    public $nombre;
+
+    public function __construct(string $modelClassName)
+    {
+        $this->businessModelClass = $modelClassName;
+        parent::__construct(null, in_array($modelClassName, [
+            'FacturaCliente', 'PresupuestoCliente', 'PedidoCliente', 'AlbaranCliente',
+        ], true) ? $modelClassName : 'FacturaCliente');
+        if (str_ends_with($modelClassName, 'Proveedor')) {
+            $this->codproveedor = 'PROV-001';
+            $this->nombre = 'Proveedor de Ejemplo S.L.';
+        }
+        $this->observaciones = '';
+        $this->customLines = [
+            (object) [
+                'referencia' => 'Suscripcion anual a plataforma',
+                'descripcion' => 'Suscripcion de acceso a la plataforma de servicios VISITRAIN',
+                'cantidad' => 1.0,
+                'pvpunitario' => 274.0,
+                'dtopor' => 0.0,
+                'pvptotal' => 274.0,
+                'iva' => 21.0,
+                'recargo' => 0.0,
+                'irpf' => 0.0,
+            ],
+            (object) [
+                'referencia' => 'Licencia VISITRAIN VG 3 meses',
+                'descripcion' => 'Licencia para el tratamiento con el sistema VISITRAIN VG',
+                'cantidad' => 10.0,
+                'pvpunitario' => 49.0,
+                'dtopor' => 0.0,
+                'pvptotal' => 490.0,
+                'iva' => 21.0,
+                'recargo' => 0.0,
+                'irpf' => 0.0,
+            ],
+        ];
+        $this->neto = $this->netosindto = 764.0;
+        $this->totaliva = 160.44;
+        $this->totalrecargo = 0.0;
+        $this->totalirpf = 0.0;
+        $this->total = 924.44;
+    }
+
+    public function getLines(): array
+    {
+        return $this->customLines;
+    }
+
+    public function modelClassName(): string
+    {
+        return $this->businessModelClass;
+    }
+
+    public function getReceipts(): array
+    {
+        return [];
+    }
+
+    public function beplyPdfIsSamplePreview(): bool
+    {
+        return false;
+    }
+}
+
 final class BeplyDocumentLayoutSuite
 {
     private int $total = 0;
@@ -91,6 +162,7 @@ final class BeplyDocumentLayoutSuite
     {
         @mkdir(FS_FOLDER . '/MyFiles/Cache', 0775, true);
         $svc = new BeplyHtmlRenderService();
+        $this->checkShortCorporateDocuments($svc);
         $documents = [
             'FacturaCliente',
             'PresupuestoCliente',
@@ -129,6 +201,27 @@ final class BeplyDocumentLayoutSuite
 
         echo "DOCUMENT_LAYOUT total={$this->total} failed={$this->failed}\n";
         return $this->failed === 0 ? 0 : 1;
+    }
+
+    private function checkShortCorporateDocuments(BeplyHtmlRenderService $svc): void
+    {
+        $documentTypes = [
+            'FacturaCliente', 'PresupuestoCliente', 'PedidoCliente', 'AlbaranCliente',
+            'FacturaProveedor', 'PresupuestoProveedor', 'PedidoProveedor', 'AlbaranProveedor',
+        ];
+        foreach ($documentTypes as $modelClassName) {
+            $this->label = 'Corporativo / ' . $modelClassName . ' corto sin recibos';
+            $cfg = AbstractBeplyPdfLayout::find('corporate')->defaultConfig();
+            $cfg->marginBottom = 10;
+            // Fuerza el mismo caso frontera observado en producción: el cálculo estimado
+            // cabe, pero el flujo real de WeasyPrint manda solo los totales a otra página.
+            $cfg->fontSize = 17;
+            $doc = new BeplyShortBusinessDoc($modelClassName);
+
+            $pdf = $svc->render($cfg, $doc);
+            $pages = $this->pageCount($pdf);
+            $this->assert('totales permanecen en la primera pagina', $pages === 1, 'pages=' . $pages);
+        }
     }
 
     private function configureStressColumns(BeplyPdfConfig $cfg): void
