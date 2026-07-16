@@ -43,7 +43,7 @@ class BeplyPdfFonts
         if (self::$manifest !== null) {
             return self::$manifest;
         }
-        $path = FS_FOLDER . '/Plugins/BeplyPDFStudio/Assets/Fonts/fonts.json';
+        $path = dirname(__DIR__, 2) . '/Assets/Fonts/fonts.json';
         $data = is_file($path) ? json_decode((string) @file_get_contents($path), true) : null;
         self::$manifest = is_array($data) ? $data : [];
         return self::$manifest;

@@ -21,7 +21,7 @@ permissions:
 
 jobs:
   php84_compat:
-    name: PHP 8.4 Compatibility
+    name: PHP 8.4 Compatibility and Unit
     timeout-minutes: 10
     runs-on: ${{ vars.BEPLY_GHA_RUNNER || 'ubuntu-latest' }}
 
@@ -37,6 +37,9 @@ jobs:
 
       - name: Run PHP 8.4 compatibility scan
         run: php scripts/ci/php84-compat-scan.php "$PWD"
+
+      - name: Run unit tests
+        run: php Tests/run-unit.php
 
   lint:
     name: PHP Lint

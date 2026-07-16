@@ -128,7 +128,7 @@ final class BeplyFormatTemplateSuite
         $this->bodyPresent('showCustomerEmail', fn($c) => $c->showCustomerEmail = true, 'cliente@example.test');
         $this->bodyPresent('showNumber2', fn($c) => $c->showNumber2 = true, 'E2E_NUMBER2_VISIBLE');
         $this->bodyPresent('showSupplierNumber', fn($c) => $c->showSupplierNumber = true, 'E2E_SUPPLIER_NUMBER');
-        $this->bodyPresent('showPaymentDate', fn($c) => $c->showPaymentDate = true, $this->paymentDateNeedle());
+        $this->bodyAbsent('showPaymentDate unpaid invoice', fn($c) => $c->showPaymentDate = true, $this->paymentDateNeedle());
         $this->bodyPresent('showAgent', fn($c) => $c->showAgent = true, 'E2E_AGENT_CODE');
         $this->bodyPresent('showDraftWarning=true', fn($c) => $c->showDraftWarning = true, 'E2E_FORMAT_MATRIX BOCETO');
         $this->bodyAbsent('showDraftWarning=false', fn($c) => $c->showDraftWarning = false, 'E2E_FORMAT_MATRIX BOCETO');

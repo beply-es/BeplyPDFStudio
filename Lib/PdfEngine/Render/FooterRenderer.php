@@ -21,6 +21,7 @@ namespace FacturaScripts\Plugins\BeplyPDFStudio\Lib\PdfEngine\Render;
 
 use FacturaScripts\Core\Tools;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\BeplyPdfConfig;
+use FacturaScripts\Plugins\BeplyPDFStudio\Lib\BeplyPdfPaymentDateResolver;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\PdfEngine\BeplyPdfDraw;
 
 /**
@@ -704,9 +705,10 @@ class FooterRenderer
                 $parts[] = Tools::trans('expiration') . ': ' . (string) $model->finoferta;
             }
 
-            // fecha de pago, solo si el toggle showPaymentDate está activo y hay dato
-            if ($cfg->showPaymentDate && !empty($model->fechadevengo)) {
-                $parts[] = Tools::trans('payment-date') . ': ' . (string) $model->fechadevengo;
+            // fecha de pago real: solo cuando todos los recibos están cobrados
+            $paymentDate = $cfg->showPaymentDate ? BeplyPdfPaymentDateResolver::resolve($model) : '';
+            if ($paymentDate !== '') {
+                $parts[] = Tools::trans('payment-date') . ': ' . Tools::date($paymentDate);
             }
 
             if (!empty($parts)) {

@@ -15,6 +15,7 @@ use FacturaScripts\Core\Tools;
 use FacturaScripts\Core\Model\FormatoDocumento;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\BeplyPdfBrandingLogoService;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\BeplyPdfConfig;
+use FacturaScripts\Plugins\BeplyPDFStudio\Lib\BeplyPdfPaymentDateResolver;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\BeplyPdfRichTextLite;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfDocumentContext;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfDocumentExtensionRegistry;
@@ -964,6 +965,7 @@ class BeplyHtmlRenderService
         $displayTotal = $cfg->showWithoutVat
             ? (float) ($model->neto ?? 0)
             : (float) ($model->total ?? 0);
+        $paymentDate = $cfg->showPaymentDate ? BeplyPdfPaymentDateResolver::resolve($model) : '';
 
         return [
             'title' => mb_strtoupper($this->plain($title)),
@@ -971,7 +973,7 @@ class BeplyHtmlRenderService
             'numero' => $cfg->hideInvoiceNumber ? '' : (string) ($model->numero ?? ''),
             'numero2' => $cfg->showNumber2 ? (string) ($model->numero2 ?? '') : '',
             'supplier_number' => $cfg->showSupplierNumber ? (string) ($model->numproveedor ?? '') : '',
-            'payment_date' => ($cfg->showPaymentDate && !empty($model->fechadevengo)) ? Tools::date($model->fechadevengo) : '',
+            'payment_date' => $paymentDate !== '' ? Tools::date($paymentDate) : '',
             'parent_docs' => $cfg->showParentDocs ? $this->parentDocumentLines($model) : [],
             'serie' => $cfg->hideSeries ? '' : (string) ($model->codserie ?? ''),
             'date' => !empty($model->fecha) ? Tools::date($model->fecha) : '',
