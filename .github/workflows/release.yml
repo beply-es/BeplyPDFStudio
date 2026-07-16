@@ -1,20 +1,97 @@
 name: Release Plugin
 
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
-
 on:
   push:
     branches: [main]
     tags:
       - 'v*'
+  workflow_dispatch:
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+concurrency:
+  group: beplypdfstudio-release-${{ github.ref }}
+  cancel-in-progress: false
 
 permissions:
+  actions: read
   contents: write
 
 jobs:
-  release:
+  verify_tests:
+    name: Verify Tests Workflow
+    timeout-minutes: 20
     runs-on: ${{ vars.BEPLY_GHA_RUNNER || 'ubuntu-latest' }}
+
+    steps:
+      - name: Wait for Tests workflow on this commit
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          TARGET_SHA: ${{ github.sha }}
+          TARGET_REF_NAME: ${{ github.ref_name }}
+          CURRENT_RUN_ID: ${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          import os
+          import sys
+          import time
+          import urllib.request
+
+          repository = os.environ["REPOSITORY"]
+          target_sha = os.environ["TARGET_SHA"]
+          target_ref_name = os.environ["TARGET_REF_NAME"]
+          current_run_id = int(os.environ["CURRENT_RUN_ID"])
+          token = os.environ["GITHUB_TOKEN"]
+          api_url = f"https://api.github.com/repos/{repository}/actions/runs?head_sha={target_sha}&per_page=100"
+          deadline = time.time() + 19 * 60
+
+          def fetch_runs():
+              request = urllib.request.Request(
+                  api_url,
+                  headers={
+                      "Authorization": f"Bearer {token}",
+                      "Accept": "application/vnd.github+json",
+                      "User-Agent": "beplypdfstudio-release-gate",
+                  },
+              )
+              with urllib.request.urlopen(request) as response:
+                  return json.load(response)
+
+          while time.time() < deadline:
+              runs = [
+                  run for run in fetch_runs().get("workflow_runs", [])
+                  if run.get("name") == "Tests"
+                  and int(run.get("id", 0)) != current_run_id
+                  and run.get("head_branch") == target_ref_name
+              ]
+              if not runs:
+                  print("Waiting for Tests workflow to start on this commit...")
+                  time.sleep(15)
+                  continue
+
+              run = runs[0]
+              status = run.get("status")
+              conclusion = run.get("conclusion")
+              print(f"Tests workflow status={status} conclusion={conclusion} url={run.get('html_url', '')}")
+              if status != "completed":
+                  time.sleep(15)
+                  continue
+              sys.exit(0 if conclusion == "success" else 1)
+
+          print("Timed out waiting for Tests workflow to complete successfully.", file=sys.stderr)
+          sys.exit(1)
+          PY
+
+  release:
+    name: Publish Candidate
+    needs: verify_tests
+    timeout-minutes: 15
+    runs-on: ${{ vars.BEPLY_GHA_RUNNER || 'ubuntu-latest' }}
+
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
@@ -24,69 +101,34 @@ jobs:
         id: ini
         run: |
           parse_field() {
-            local val
-            val=$(grep -E "^${1}\s*=" facturascripts.ini | head -1 | sed 's/[^=]*=\s*//' | sed 's/^"\(.*\)"$/\1/' | xargs)
-            echo "$val"
+            grep -E "^${1}\s*=" facturascripts.ini | head -1 | sed 's/[^=]*=\s*//' | sed 's/^"\(.*\)"$/\1/' | xargs
           }
-
-          VERSION=$(parse_field version)
-          NAME=$(parse_field name)
-          MIN_VERSION=$(parse_field min_version)
-          MAX_VERSION=$(parse_field max_version)
-          MIN_PHP=$(parse_field min_php)
-          DESCRIPTION=$(parse_field description)
-
-          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
-          echo "name=${NAME}" >> "$GITHUB_OUTPUT"
-          echo "min_version=${MIN_VERSION}" >> "$GITHUB_OUTPUT"
-          echo "max_version=${MAX_VERSION:-Sin limite}" >> "$GITHUB_OUTPUT"
-          echo "min_php=${MIN_PHP}" >> "$GITHUB_OUTPUT"
-          echo "description=${DESCRIPTION}" >> "$GITHUB_OUTPUT"
-
-      - name: Check if tag already exists
-        id: check
-        run: |
-          TAG="v${{ steps.ini.outputs.version }}"
-          if [ "${GITHUB_REF_TYPE:-}" = "tag" ]; then
-            if [ "${GITHUB_REF_NAME}" != "$TAG" ]; then
-              echo "::error::Tag ${GITHUB_REF_NAME} does not match facturascripts.ini version ${TAG}"
-              exit 1
-            fi
-            echo "skip=false" >> "$GITHUB_OUTPUT"
-            echo "::notice::Building release for tag $TAG."
-          elif git rev-parse "$TAG" >/dev/null 2>&1; then
-            echo "skip=true" >> "$GITHUB_OUTPUT"
-            echo "::notice::Tag $TAG already exists — skipping release."
-          else
-            echo "skip=false" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Generate release notes
-        if: steps.check.outputs.skip == 'false'
-        id: changelog
-        run: |
-          PREV_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
-          if [ -n "$PREV_TAG" ]; then
-            NOTES=$(git log "${PREV_TAG}..HEAD" --pretty=format:"- %s (%h)" --no-merges)
-          else
-            NOTES=$(git log --pretty=format:"- %s (%h)" --no-merges -20)
-          fi
-
-          if [ -z "$NOTES" ]; then
-            NOTES="- Release inicial"
-          fi
-
           {
-            echo "notes<<CHANGELOG_EOF"
-            echo "$NOTES"
-            echo "CHANGELOG_EOF"
+            echo "version=$(parse_field version)"
+            echo "name=$(parse_field name)"
+            echo "min_version=$(parse_field min_version)"
+            echo "max_version=$(parse_field max_version)"
+            echo "min_php=$(parse_field min_php)"
+            echo "description=$(parse_field description)"
           } >> "$GITHUB_OUTPUT"
 
-      - name: Build plugin zip
-        if: steps.check.outputs.skip == 'false'
+      - name: Validate release ref
+        env:
+          PLUGIN_VERSION: ${{ steps.ini.outputs.version }}
         run: |
-          NAME="${{ steps.ini.outputs.name }}"
-          mkdir -p /tmp/build/"${NAME}"
+          set -euo pipefail
+          if [ "$GITHUB_REF_TYPE" = "tag" ] && [ "$GITHUB_REF_NAME" != "v${PLUGIN_VERSION}" ]; then
+            echo "::error::Tag ${GITHUB_REF_NAME} does not match facturascripts.ini version v${PLUGIN_VERSION}"
+            exit 1
+          fi
+
+      - name: Build plugin zip
+        env:
+          PLUGIN_NAME: ${{ steps.ini.outputs.name }}
+          PLUGIN_VERSION: ${{ steps.ini.outputs.version }}
+        run: |
+          set -euo pipefail
+          mkdir -p "/tmp/build/${PLUGIN_NAME}"
           rsync -a \
             --exclude='.git' \
             --exclude='.github' \
@@ -96,29 +138,113 @@ jobs:
             --exclude='scripts' \
             --exclude='test-results' \
             --exclude='.gitignore' \
-            ./ /tmp/build/"${NAME}"/
-          VERSION="${{ steps.ini.outputs.version }}"
-          cd /tmp/build && zip -r /tmp/"${NAME}-v${VERSION}".zip "${NAME}"/
+            ./ "/tmp/build/${PLUGIN_NAME}/"
+          cd /tmp/build
+          zip -r "/tmp/${PLUGIN_NAME}-v${PLUGIN_VERSION}.zip" "${PLUGIN_NAME}/"
 
-      - name: Create GitHub Release
-        if: steps.check.outputs.skip == 'false'
-        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
+      - name: Preserve dev candidate artifact
+        if: github.ref_type == 'branch'
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
         with:
-          tag_name: "v${{ steps.ini.outputs.version }}"
-          name: "${{ steps.ini.outputs.name }} v${{ steps.ini.outputs.version }}"
+          name: ${{ steps.ini.outputs.name }}-dev-${{ steps.ini.outputs.version }}
+          path: /tmp/${{ steps.ini.outputs.name }}-v${{ steps.ini.outputs.version }}.zip
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload candidate to Beply dev
+        if: github.ref_type == 'branch'
+        env:
+          BEPLY_DEV_API_URL: ${{ secrets.BEPLY_DEV_API_URL }}
+          BEPLY_DEV_CI_TOKEN: ${{ secrets.BEPLY_DEV_CI_TOKEN }}
+          PLUGIN_NAME: ${{ steps.ini.outputs.name }}
+          PLUGIN_VERSION: ${{ steps.ini.outputs.version }}
+        run: |
+          set -euo pipefail
+          if [ -z "$BEPLY_DEV_CI_TOKEN" ]; then
+            echo "::warning::BEPLY_DEV_CI_TOKEN not configured. Candidate remains available as a workflow artifact."
+            exit 0
+          fi
+          API_URL="${BEPLY_DEV_API_URL:-https://api.services.devbeply.es}"
+          RESPONSE=$(curl -sS -w "\n%{http_code}" -X POST \
+            -H "Authorization: Bearer ${BEPLY_DEV_CI_TOKEN}" \
+            -F "file=@/tmp/${PLUGIN_NAME}-v${PLUGIN_VERSION}.zip" \
+            -F "sourceRepoFullName=${{ github.repository }}" \
+            -F "sourceBranch=${GITHUB_REF_NAME}" \
+            -F "sourceReleaseTag=${GITHUB_REF_NAME}-${GITHUB_SHA::12}" \
+            -F "sourceReleaseUrl=https://github.com/${{ github.repository }}/commit/${GITHUB_SHA}" \
+            -F "sourcePublishedAt=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            "${API_URL}/api/v1/plugins/release")
+          HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+          BODY=$(echo "$RESPONSE" | sed '$d')
+          if [ "$HTTP_CODE" -ge 200 ] && [ "$HTTP_CODE" -lt 300 ]; then
+            echo "$BODY" | jq -r '.data | "Plugin: \(.pluginName) | Version: \(.version) | Status: \(.releaseStatus)"'
+            exit 0
+          fi
+          if [ "$HTTP_CODE" = "409" ] && echo "$BODY" | grep -q VERSION_ALREADY_APPROVED; then
+            echo "::notice::Version already approved in dev."
+            exit 0
+          fi
+          echo "::error::Dev platform upload failed (HTTP $HTTP_CODE): $BODY"
+          exit 1
+
+      - name: Generate release notes
+        if: github.ref_type == 'tag'
+        id: changelog
+        run: |
+          PREV_TAG=$(git describe --tags --abbrev=0 "${GITHUB_REF_NAME}^" 2>/dev/null || echo "")
+          if [ -n "$PREV_TAG" ]; then
+            NOTES=$(git log "${PREV_TAG}..${GITHUB_REF_NAME}" --pretty=format:"- %s (%h)" --no-merges)
+          else
+            NOTES=$(git log "${GITHUB_REF_NAME}" --pretty=format:"- %s (%h)" --no-merges -20)
+          fi
+          {
+            echo "notes<<CHANGELOG_EOF"
+            echo "${NOTES:-- Release inicial}"
+            echo "CHANGELOG_EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub release
+        if: github.ref_type == 'tag'
+        uses: softprops/action-gh-release@153bb8e04406b158c6c84fc1615b65b24149a1fe # v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: ${{ steps.ini.outputs.name }} ${{ github.ref_name }}
           body: |
-            ## ${{ steps.ini.outputs.name }} v${{ steps.ini.outputs.version }}
+            Version `${{ steps.ini.outputs.version }}` · FacturaScripts `${{ steps.ini.outputs.min_version }}`–`${{ steps.ini.outputs.max_version || 'sin límite' }}` · PHP `${{ steps.ini.outputs.min_php }}`.
 
-            | Campo | Valor |
-            |-------|-------|
-            | **Version** | `${{ steps.ini.outputs.version }}` |
-            | **Version minima FS** | `${{ steps.ini.outputs.min_version }}` |
-            | **Version maxima FS** | `${{ steps.ini.outputs.max_version }}` |
-            | **PHP minimo** | `${{ steps.ini.outputs.min_php }}` |
-
-            ### Descripcion
-            ${{ steps.ini.outputs.description }}
-
-            ### Notas de version
             ${{ steps.changelog.outputs.notes }}
           files: /tmp/${{ steps.ini.outputs.name }}-v${{ steps.ini.outputs.version }}.zip
+
+      - name: Upload candidate to Beply production
+        if: github.ref_type == 'tag'
+        env:
+          BEPLY_API_URL: ${{ secrets.BEPLY_API_URL }}
+          BEPLY_CI_TOKEN: ${{ secrets.BEPLY_CI_TOKEN }}
+          PLUGIN_NAME: ${{ steps.ini.outputs.name }}
+          PLUGIN_VERSION: ${{ steps.ini.outputs.version }}
+        run: |
+          set -euo pipefail
+          if [ -z "$BEPLY_API_URL" ] || [ -z "$BEPLY_CI_TOKEN" ]; then
+            echo "::warning::Production platform credentials are not configured. GitHub release was created, but no platform upload was attempted."
+            exit 0
+          fi
+          RESPONSE=$(curl -sS -w "\n%{http_code}" -X POST \
+            -H "Authorization: Bearer ${BEPLY_CI_TOKEN}" \
+            -F "file=@/tmp/${PLUGIN_NAME}-v${PLUGIN_VERSION}.zip" \
+            -F "sourceRepoFullName=${{ github.repository }}" \
+            -F "sourceReleaseTag=${GITHUB_REF_NAME}" \
+            -F "sourceReleaseUrl=https://github.com/${{ github.repository }}/releases/tag/${GITHUB_REF_NAME}" \
+            -F "sourcePublishedAt=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            "${BEPLY_API_URL}/api/v1/plugins/release")
+          HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+          BODY=$(echo "$RESPONSE" | sed '$d')
+          if [ "$HTTP_CODE" -ge 200 ] && [ "$HTTP_CODE" -lt 300 ]; then
+            echo "$BODY" | jq -r '.data | "Plugin: \(.pluginName) | Version: \(.version) | Status: \(.releaseStatus)"'
+            exit 0
+          fi
+          if [ "$HTTP_CODE" = "409" ] && echo "$BODY" | grep -q VERSION_ALREADY_APPROVED; then
+            echo "::notice::Version already approved in production."
+            exit 0
+          fi
+          echo "::error::Production platform upload failed (HTTP $HTTP_CODE): $BODY"
+          exit 1
