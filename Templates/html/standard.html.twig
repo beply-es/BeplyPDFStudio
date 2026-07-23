@@ -56,7 +56,7 @@
   /* Totales + extras fluyen tras las líneas; las piezas internas evitan partirse. */
   .bottom { {% if bottom_anchor_transform %}transform: translateY({{ bottom_anchor_gap }}px); transform-origin: top left;{% else %}padding-top: {{ bottom_anchor_gap }}px;{% endif %} }
 
-  /* ===================== TÍTULO: izquierda rojo + subrayado ===================== */
+  /* ===================== BLOQUE FISCAL: documento + emisor ===================== */
   .doc-title {
     display: inline-block;
     font-size: {{ title_font_size }}px;
@@ -66,8 +66,9 @@
     padding-bottom: 3px;
     margin-bottom: {{ (font_size * 1.2)|round }}px;
   }
+  .company-fiscal-block { width: 100%; }
 
-  /* ===================== CABECERA: empresa izquierda · logo derecha ===================== */
+  /* ===================== CABECERA: bloque fiscal y logo desde la misma altura ===================== */
   .l-header { margin-bottom: {{ (font_size * 0.8)|round }}px; }
   .company-name { font-weight: 800; font-size: {{ font_size }}px; letter-spacing: .3px; margin-bottom: 3px; text-transform: uppercase; }
   .company-info { font-size: {{ font_size }}px; line-height: 1.3; color: {{ muted_color }}; }
@@ -78,10 +79,11 @@
 
   /* ===================== LÍNEA HORIZONTAL ROJA ===================== */
   .h-rule { border: none; border-top: 1px solid {{ color1 }}; margin: {{ (font_size * 0.8)|round }}px 0; }
+  .l-client-rule { margin: {{ (font_size * 0.4)|round }}px 0; }
 
   /* ===================== BANDA CLIENTE + META ===================== */
   .l-client { margin: 0; }
-  .l-client td { vertical-align: top; padding: {{ (font_size * 0.7)|round }}px 0; }
+  .l-client td { vertical-align: top; padding: {{ (font_size * 0.35)|round }}px 0; }
   .client-label { font-weight: 800; font-size: {{ font_size }}px; margin-bottom: 4px; color: {{ text_color }}; }
   .client-info { font-size: {{ font_size }}px; line-height: 1.3; color: {{ muted_color }}; }
   .client-inner td { padding: 0; vertical-align: top; }
@@ -140,19 +142,17 @@
 <body>
 {% include '_draft-warning.html.twig' %}
 <div class="sheet">
-  {% set slot = slots.DOCUMENT_TITLE_BEFORE %}{% include '_slot.html.twig' %}
-
   {# Sub-cabecera de continuación: aparece en el margen superior de las páginas 2+ (no en la 1ª) #}
   <div class="cont-info"><b>{{ doc.title }}{% if doc.code %} {{ doc.code }}{% endif %}</b>{% if doc.date %} · {{ doc.date }}{% endif %}{% if customer.name %} · {{ customer.name }}{% endif %}</div>
 
   <div class="top">
 
-    {# ---------- TÍTULO DEL DOCUMENTO ---------- #}
-    <div class="doc-title">{{ doc.title }}{% if doc.code %} {{ doc.code }}{% endif %}</div>
-    {% set slot = slots.DOCUMENT_TITLE_AFTER %}{% include '_slot.html.twig' %}
-
-    {# ---------- CABECERA: empresa izquierda · logo derecha ---------- #}
+    {# ---------- CABECERA: bloque fiscal (documento + empresa) y logo ---------- #}
     {% set company_block %}
+      <div class="company-fiscal-block">
+        {% set slot = slots.DOCUMENT_TITLE_BEFORE %}{% include '_slot.html.twig' %}
+        <div class="doc-title">{{ doc.title }}{% if doc.code %} {{ doc.code }}{% endif %}</div>
+        {% set slot = slots.DOCUMENT_TITLE_AFTER %}{% include '_slot.html.twig' %}
         <div class="company-name">{{ company.name }}</div>
         <div class="company-info">
           {% if company.cifnif %}{{ 'cifnif'|trans }}: {{ company.cifnif }}<br/>{% endif %}
@@ -160,18 +160,19 @@
         </div>
         {% if company.contact %}<div class="company-contact">{{ company.contact }}</div>{% endif %}
         {% set slot = slots.PARTY_COMPANY_AFTER %}{% include '_slot.html.twig' %}
+      </div>
     {% endset %}
     {% set logo_block %}{% if logo %}<img src="{{ logo }}" alt=""/>{% else %}<span class="logo-text">{{ company.name }}</span>{% endif %}{% endset %}
 
     {% if logo_position == 'center' %}
-      <table class="l-header">
-        <tr><td class="logo-cell" style="text-align:center;">{{ logo_block }}</td></tr>
-        <tr><td style="text-align:center; padding-top:{{ font_size }}px;">{{ company_block }}</td></tr>
-      </table>
+      <table class="l-header"><tr>
+        <td style="width:62%; vertical-align:top;">{{ company_block }}</td>
+        <td class="logo-cell" style="width:38%; text-align:center; vertical-align:top;">{{ logo_block }}</td>
+      </tr></table>
     {% elseif logo_position == 'left' %}
       <table class="l-header"><tr>
         <td class="logo-cell" style="width:38%; text-align:left; vertical-align:top;">{{ logo_block }}</td>
-        <td style="width:62%; text-align:right;">{{ company_block }}</td>
+        <td style="width:62%; text-align:right; vertical-align:top;">{{ company_block }}</td>
       </tr></table>
     {% else %}
       <table class="l-header"><tr>
@@ -182,7 +183,7 @@
 
     {# ---------- LÍNEA ROJA + BANDA CLIENTE/META + LÍNEA ROJA (solo documentos) ---------- #}
     {% if is_document %}
-    <hr class="h-rule"/>
+    <hr class="h-rule l-client-rule"/>
     {% set party_extra_slot = slots.PARTY_CUSTOMER_AFTER %}
     {% set party_extra_blocks = extension_blocks[party_extra_slot]|default([]) %}
     {% set has_party_extra = party_extra_blocks is not empty %}
@@ -226,7 +227,7 @@
       </td>
     </tr></table>
 
-    <hr class="h-rule"/>
+    <hr class="h-rule l-client-rule"/>
     {% endif %}
 
     {# ---------- LÍNEAS / TABLA GENÉRICA (el área reserva alto: los totales caen al fondo) ---------- #}
@@ -251,10 +252,9 @@
 
     {% include '_fiscal-landscape-columns-open.html.twig' %}
 
-    {# ---------- LÍNEA ROJA SUPERIOR + IMPUESTOS + TOTAL TEXTO (solo documentos) ---------- #}
-    {% if is_document %}
+    {# ---------- IMPUESTOS + TOTAL TEXTO (posicionados por el anclaje inferior dinámico) ---------- #}
+    {% if is_document and not hide_totals %}
     {% set slot = slots.TAXES_BEFORE %}{% include '_slot.html.twig' %}
-    <hr class="h-rule"/>
     <table class="l-tax"><tr>
       <td style="width:58%;">
         <table class="tax-table">

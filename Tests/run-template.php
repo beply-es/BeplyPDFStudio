@@ -200,6 +200,12 @@ final class BeplyTemplateSuite
             $this->label = 'Summary';
             $this->logoPos('logoPosition=center', 'center', 'padding-top:');
             $this->logoPos('logoPosition=left', 'left', 'text-align:left;');
+
+            // En Clásico, documento/código forman parte del bloque fiscal y este bloque
+            // comparte la misma fila superior con el logo.
+            $this->design = 'legacy_standard';
+            $this->label = 'Clásico';
+            $this->standardHeaderBlocks();
         } finally {
             BeplyPdfDocumentExtensionRegistry::clear();
         }
@@ -365,6 +371,51 @@ final class BeplyTemplateSuite
         $this->assert($name, strpos($h, $needle) !== false);
     }
 
+    private function standardHeaderBlocks(): void
+    {
+        foreach (['left', 'center', 'right'] as $position) {
+            $body = $this->bodyOf($this->html($this->cfg(
+                fn($c) => $c->logoPosition = $position
+            )));
+
+            $this->assert(
+                'bloque fiscal contiene documento/código (' . $position . ')',
+                (bool) preg_match(
+                    '#<div class="company-fiscal-block">.*?<div class="doc-title">FACTURA 2026/0001</div>#s',
+                    $body
+                )
+            );
+            $this->assert(
+                'logo y bloque fiscal comparten fila (' . $position . ')',
+                (bool) preg_match(
+                    '#<table class="l-header"><tr>\s*<td[^>]*>.*?</td>\s*<td[^>]*>.*?</td>\s*</tr></table>#s',
+                    $body
+                )
+            );
+        }
+
+        $compactHtml = $this->html($this->cfg(fn($c) => $c->fontSize = 20));
+        $compactStyle = $this->styleOf($compactHtml);
+        $this->assert(
+            'separadores de cliente usan la mitad de margen',
+            strpos($compactStyle, '.l-client-rule { margin: 8px 0; }') !== false
+        );
+        $this->assert(
+            'banda de cliente usa la mitad de padding vertical',
+            strpos($compactStyle, '.l-client td { vertical-align: top; padding: 7px 0; }') !== false
+        );
+        $this->assert(
+            'compactación limitada a los dos separadores de cliente',
+            substr_count($this->bodyOf($compactHtml), 'class="h-rule l-client-rule"') === 2
+        );
+        $this->assert(
+            'totales no añaden separador ni espaciador fijo',
+            strpos($this->bodyOf($compactHtml), 'class="totals-top-space"') === false
+                && strpos($this->bodyOf($compactHtml), 'class="h-rule h-rule-space"') === false
+                && strpos($this->bodyOf($compactHtml), 'class="h-rule"') === false
+        );
+    }
+
     private function bodyPresent(string $name, callable $mut, string $needle): void
     {
         $this->assert($name, strpos($this->bodyOf($this->html($this->cfg($mut))), $needle) !== false);
@@ -402,21 +453,33 @@ final class BeplyTemplateSuite
             'sin bloque artificial entre líneas y totales',
             (bool) preg_match('#<div style="height:\s*[1-9]\d*px;"></div>#s', $this->bodyOf($html)) === false
         );
-        $this->assert(
-            'totales/recibos anclados abajo con padding nativo',
-            (bool) preg_match('/\.bottom\s*\{[^}]*padding-top:\s*[1-9]\d*px/s', $this->styleOf($html))
-        );
-        $this->assert(
-            'anclaje inferior no usa transform visual',
-            (bool) preg_match('/\.bottom\s*\{[^}]*transform:\s*translateY/s', $this->styleOf($html)) === false
-        );
+        $style = $this->styleOf($html);
+        if ($this->design === 'legacy_standard') {
+            $this->assert(
+                'Clásico usa anclaje inferior medido',
+                (bool) preg_match('/\.bottom\s*\{[^}]*transform:\s*translateY\([1-9]\d*px\)/s', $style)
+            );
+            $this->assert(
+                'Clásico no mezcla padding estimado con anclaje medido',
+                (bool) preg_match('/\.bottom\s*\{[^}]*padding-top:/s', $style) === false
+            );
+        } else {
+            $this->assert(
+                'totales/recibos anclados abajo con padding nativo',
+                (bool) preg_match('/\.bottom\s*\{[^}]*padding-top:\s*[1-9]\d*px/s', $style)
+            );
+            $this->assert(
+                'anclaje inferior no usa transform visual',
+                (bool) preg_match('/\.bottom\s*\{[^}]*transform:\s*translateY/s', $style) === false
+            );
+        }
         $this->assert(
             'anclaje inferior no fuerza página nueva',
-            stripos($this->styleOf($html), 'break-before: page') === false
+            stripos($style, 'break-before: page') === false
         );
         $this->assert(
             'bottom no bloquea el flujo completo',
-            (bool) preg_match('/\.bottom\s*\{[^}]*break-inside:\s*avoid/s', $this->styleOf($html)) === false
+            (bool) preg_match('/\.bottom\s*\{[^}]*break-inside:\s*avoid/s', $style) === false
         );
     }
 

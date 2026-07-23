@@ -156,7 +156,7 @@ class HeaderRenderer
         $contentW = $right - $contentX;
         $fs = (float) $cfg->fontSize;
 
-        [$emisorTop, $emisorBottom] = $this->legacyHeaderTop($pdf, $cfg, $model, $ctx, true);
+        [$emisorTop, $emisorBottom] = $this->legacyStandardHeaderTop($pdf, $cfg, $model, $ctx);
 
         // Cliente en caja clara a la derecha, alineada con el bloque del emisor.
         $boxW = $contentW * 0.46;
@@ -168,6 +168,75 @@ class HeaderRenderer
         $bottom = min($emisorBottom, $cliBottom) - 14.0;
         BeplyPdfDraw::line($pdf, $contentX, $bottom, $right, $bottom, $cfg->colorPrimary, 1.0);
         $pdf->ezSetY($bottom - 10.0);
+    }
+
+    /**
+     * Cabecera de Clásico en dos únicos bloques, ambos anclados al mismo borde superior:
+     * logo y bloque fiscal (documento/código + empresa). Al poner el logo a la izquierda,
+     * el bloque fiscal completo pasa a la derecha.
+     *
+     * @return float[] [Y de inicio de los datos de empresa, Y inferior del conjunto]
+     */
+    private function legacyStandardHeaderTop($pdf, BeplyPdfConfig $cfg, $model, array $ctx): array
+    {
+        $contentX = (float) $ctx['contentX'];
+        $right = (float) $ctx['right'];
+        $pageHeight = (float) $ctx['pageHeight'];
+        $contentW = $right - $contentX;
+        $topY = $pageHeight - max(28.0, (float) ($ctx['marginTop'] ?? 44.0));
+        $fs = (float) $cfg->fontSize;
+        $titleFs = (float) $cfg->titleFontSize;
+        $logoW = $contentW * 0.38;
+        $fiscalW = $contentW * 0.58;
+        $gap = $contentW - $logoW - $fiscalW;
+
+        $logoOnLeft = $cfg->logoPosition === 'left';
+        $logoX = $logoOnLeft ? $contentX : $right - $logoW;
+        $fiscalX = $logoOnLeft ? $contentX + $logoW + $gap : $contentX;
+        $fiscalAlign = $logoOnLeft ? 'right' : 'left';
+
+        $logoBottom = $this->drawLogo($pdf, $cfg, $logoX, $topY, $logoW, false);
+
+        // Documento y código son la primera parte del bloque fiscal, no una fila aparte.
+        $y = $topY - $titleFs;
+        BeplyPdfDraw::text(
+            $pdf,
+            $fiscalX,
+            $y,
+            $titleFs,
+            $this->docTitle($model),
+            $cfg->colorPrimary,
+            $fiscalAlign,
+            $fiscalW
+        );
+        $sub = $this->docNumberDateInline($cfg, $model);
+        if ($sub !== '') {
+            $y -= $fs + 6.0;
+            BeplyPdfDraw::text(
+                $pdf,
+                $fiscalX,
+                $y,
+                $fs,
+                $sub,
+                $cfg->colorSecondary,
+                $fiscalAlign,
+                $fiscalW
+            );
+        }
+
+        $emisorTop = $y - 10.0;
+        $companyBottom = $this->drawLetterheadCompany(
+            $pdf,
+            $this->companyLines($model),
+            $fiscalX,
+            $emisorTop,
+            $fs,
+            $cfg,
+            $fiscalW,
+            $fiscalAlign
+        );
+
+        return [$emisorTop, min($companyBottom, $logoBottom)];
     }
 
     /**
@@ -613,7 +682,7 @@ class HeaderRenderer
     }
 
     /** Membrete de empresa: nombre destacado + líneas pequeñas (NIF, dirección, contacto). */
-    private function drawLetterheadCompany($pdf, array $lines, float $x, float $startY, float $size, BeplyPdfConfig $cfg, float $width): float
+    private function drawLetterheadCompany($pdf, array $lines, float $x, float $startY, float $size, BeplyPdfConfig $cfg, float $width, string $align = 'left'): float
     {
         $clean = array_values(array_filter(array_map('trim', $lines), static fn($l) => $l !== ''));
         if (empty($clean)) {
@@ -621,10 +690,10 @@ class HeaderRenderer
         }
         $name = array_shift($clean);
         $y = $startY - ($size + 2.0);
-        BeplyPdfDraw::text($pdf, $x, $y, $size + 1.0, $name, $cfg->colorPrimary, 'left', $width);
+        BeplyPdfDraw::text($pdf, $x, $y, $size + 1.0, $name, $cfg->colorPrimary, $align, $width);
         foreach ($clean as $line) {
             $y -= $size + 2.5;
-            BeplyPdfDraw::text($pdf, $x, $y, $size, $line, $cfg->colorText, 'left', $width);
+            BeplyPdfDraw::text($pdf, $x, $y, $size, $line, $cfg->colorText, $align, $width);
         }
         return $y;
     }

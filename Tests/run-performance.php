@@ -10,7 +10,7 @@ require FS_FOLDER . '/vendor/autoload.php';
 require FS_FOLDER . '/config.php';
 \FacturaScripts\Core\Kernel::init();
 
-putenv('BEPLY_PDF_PRECISE_BOTTOM_ANCHOR=');
+putenv('BEPLY_PDF_PRECISE_BOTTOM_ANCHOR=0');
 
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Html\BeplyHtmlRenderService;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\PdfEngine\BeplyPdfSampleDoc;

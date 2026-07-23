@@ -1,5 +1,11 @@
 # Changelog
 
+## v2.0 - 2026-07-23
+
+- Reorganiza la cabecera de Clásico en dos bloques alineados desde el borde superior: logo y bloque fiscal completo, intercambiando ambos al mover el logo.
+- Reduce a la mitad el espacio vertical del bloque cliente/fecha/número/serie y elimina el separador redundante sobre los totales.
+- Ancla dinámicamente totales, recibos y bloques finales al pie útil del documento Clásico, con cobertura PDF para facturas cortas, medias y multipágina.
+
 ## v1.25 - 2026-07-14
 
 - Keeps totals on the same page for short corporate invoices, quotes, orders and delivery notes by applying one shared bottom-spacing safety calculation to every customer and supplier document type.

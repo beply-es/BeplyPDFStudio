@@ -85,10 +85,20 @@ final class BeplyBottomAnchorSuite
             ['bloque inferior en pagina nueva', 18, 'newpage-top'],
             ['lineas continuadas', 24, 'continued-bottom'],
         ];
+        $designFilter = trim((string) getenv('BEPLY_BOTTOM_ANCHOR_DESIGN'));
 
         foreach (AbstractBeplyPdfLayout::registry() as $key => $layout) {
+            if ($designFilter !== '' && $key !== $designFilter) {
+                continue;
+            }
             echo "== {$layout->name()} ({$key}) ==\n";
-            foreach ($cases as [$label, $lineCount, $mode]) {
+            $layoutCases = $cases;
+            if ($key === 'legacy_standard') {
+                // La cabecera y la banda de cliente compactadas permiten conservar 18 líneas
+                // en una sola página; el bloque inferior debe seguir anclado al fondo.
+                $layoutCases[2] = ['18 lineas compactas', 18, 'single-bottom'];
+            }
+            foreach ($layoutCases as [$label, $lineCount, $mode]) {
                 $cfg = $layout->defaultConfig();
                 $pdf = $svc->render($cfg, new BeplyBottomAnchorDoc($lineCount));
                 $pages = $this->pageCount($pdf);

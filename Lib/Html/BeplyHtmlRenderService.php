@@ -88,7 +88,7 @@ class BeplyHtmlRenderService
     public function render(BeplyPdfConfig $cfg, $model, ?FormatoDocumento $format = null): string
     {
         try {
-            $preciseBottomAnchor = $this->preciseBottomAnchorEnabled();
+            $preciseBottomAnchor = $this->preciseBottomAnchorEnabled($cfg);
             $this->forcedPages = null;
             $this->measuredSpacer = $preciseBottomAnchor ? 0 : null;
             $html = $this->buildHtml($cfg, $model, null, $format);
@@ -320,9 +320,24 @@ class BeplyHtmlRenderService
         return $heights;
     }
 
-    private function preciseBottomAnchorEnabled(): bool
+    /**
+     * Clásico usa por defecto el anclaje medido contra el PDF real. El resto de diseños
+     * conserva la estimación de una pasada hasta migrarlos al mismo contrato.
+     *
+     * BEPLY_PDF_PRECISE_BOTTOM_ANCHOR permite forzar el modo para todos los diseños (1)
+     * o desactivarlo explícitamente (0), por ejemplo en pruebas de rendimiento.
+     */
+    private function preciseBottomAnchorEnabled(?BeplyPdfConfig $cfg = null): bool
     {
-        return in_array(strtolower((string) getenv('BEPLY_PDF_PRECISE_BOTTOM_ANCHOR')), ['1', 'true', 'yes', 'on'], true);
+        $value = strtolower(trim((string) getenv('BEPLY_PDF_PRECISE_BOTTOM_ANCHOR')));
+        if (in_array($value, ['1', 'true', 'yes', 'on'], true)) {
+            return true;
+        }
+        if (in_array($value, ['0', 'false', 'no', 'off'], true)) {
+            return false;
+        }
+
+        return $cfg !== null && $cfg->diseno === 'legacy_standard';
     }
 
     private function renderWithBottomAnchorGap(BeplyPdfConfig $cfg, $model, ?FormatoDocumento $format, int $gap): string
@@ -609,7 +624,7 @@ class BeplyHtmlRenderService
             'lines_fill' => $isDoc ? $this->estimateLinesFill($cfg, $company, $customer, $lines, $taxes, $receipts, $observations) : 0,
             // Hueco antes del bloque inferior para que totales/pagos/pie fiscal cierren la pagina.
             'bottom_anchor_gap' => $isDoc ? $this->estimateBottomAnchorGap($cfg, $company, $customer, $lines, $taxes, $receipts, $observations, $extensionBlocks, (string) $cfg->footerText, (string) $cfg->thanksTitle, (string) $cfg->thanksText) : 0,
-            'bottom_anchor_transform' => $isDoc && $this->preciseBottomAnchorEnabled(),
+            'bottom_anchor_transform' => $isDoc && $this->preciseBottomAnchorEnabled($cfg),
             'logo' => $this->logoDataUri($cfg),
             'footer_image' => $this->footerImageDataUri($cfg),
             // Logo en blanco para bandas oscuras (contraste); cae al normal si no hay.

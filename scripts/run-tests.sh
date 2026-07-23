@@ -33,6 +33,9 @@ docker exec -u www-data "$CONTAINER" php "$PLUGIN/Tests/run-performance.php"
 echo "== Document layout smoke (documentos reales sin cortes ni overflow) =="
 docker exec -u www-data "$CONTAINER" php "$PLUGIN/Tests/run-document-layout.php"
 
+echo "== Bottom anchor (totales/recibos medidos contra el fondo útil) =="
+docker exec -u www-data "$CONTAINER" php "$PLUGIN/Tests/run-bottom-anchor.php"
+
 echo "== Fiscal QR blocks (TicketBAI/VERIFACTU, all templates, long invoices) =="
 docker exec -u www-data "$CONTAINER" php "$PLUGIN/Tests/run-fiscal-qr.php"
 

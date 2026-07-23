@@ -25,7 +25,7 @@ Perfiles visuales que debe cubrir BeplyPDFStudio:
 
 | Perfil Beply propuesto | Equivalencia de migración | Rasgos a reproducir de forma propia |
 | --- | --- | --- |
-| `legacy_standard` | `Template1` | Refinado 2026-06. Membrete: título + nº/fecha y emisor a la izquierda, logo a la derecha; cliente en caja clara; filete; tabla de cabecera negra; totales desglosados a la derecha. |
+| `legacy_standard` | `Template1` | Refinado 2026-07. Cabecera de dos bloques alineados arriba: bloque fiscal (título + nº/fecha + emisor) y logo; al cambiar el logo de lado se intercambian los bloques. Cliente en caja clara; filete; tabla de cabecera negra; totales desglosados a la derecha. |
 | `legacy_summary` | `Template2` | Refinado 2026-06. Emisor + logo y, debajo, banda resumen a todo el ancho (documento · fecha · total) con el total destacado; cliente en caja; tabla; caja de TOTAL resaltada al pie. |
 | `legacy_boxes` | `Template3` | Refinado 2026-06. Membrete + dos cajas con cabecera negra (documento y cliente), tabla con rejilla completa y banda fiscal de totales (Neto · Impuestos · … · Total). |
 | `legacy_framed` | `Template4` | Refinado 2026-06. Membrete + marco fino que engloba dos columnas (documento | cliente) con cabecera clara y divisor; tabla con rejilla; caja de TOTAL resaltada. |
