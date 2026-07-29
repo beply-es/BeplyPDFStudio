@@ -36,7 +36,7 @@ class BeplyPdfPreviewService
     private const SUBDIR = 'beplypdf';
 
     /** Se incrementa cuando cambia la lógica de generación, para invalidar cachés antiguas. */
-    private const VERSION = '70';
+    private const VERSION = '71';
 
     /** Resolución de las miniaturas WebP usadas en galerías y listados. */
     private const THUMBNAIL_DENSITY = 160;
@@ -45,6 +45,13 @@ class BeplyPdfPreviewService
 
     /** @var bool evita repetir la limpieza de previews obsoletas en la misma petición. */
     private static $designCleanupDone = false;
+
+    private BeplyPdfLogoPathResolver $logoPathResolver;
+
+    public function __construct(?BeplyPdfLogoPathResolver $logoPathResolver = null)
+    {
+        $this->logoPathResolver = $logoPathResolver ?? new BeplyPdfLogoPathResolver();
+    }
 
     /** Devuelve la URL servida (con token) de la preview del estilo, o '' si falla. */
     public function urlFor(BeplyPdfStyle $style): string
@@ -485,8 +492,7 @@ class BeplyPdfPreviewService
 
         // Logo por defecto: usuario -> marca blanca -> Beply, embebido como data-URI.
         $assets = FS_FOLDER . '/Dinamic/Assets/Images';
-        $userLogo = (!empty($cfg->logoAsset) && is_file(FS_FOLDER . '/MyFiles/' . $cfg->logoAsset))
-            ? FS_FOLDER . '/MyFiles/' . $cfg->logoAsset : null;
+        $userLogo = $this->logoPathResolver->resolve($cfg->idlogo, $cfg->logoAsset);
         $branding = new BeplyPdfBrandingLogoService();
         $logoMainPath = $userLogo ?? $branding->logoPath(false) ?? ($assets . '/beplypdf_logo_main.png');
         $logoWhitePath = $userLogo ?? $branding->logoPath(true) ?? ($assets . '/beplypdf_logo_white.png');

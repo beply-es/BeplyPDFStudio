@@ -1,5 +1,10 @@
 # Changelog
 
+## v2.2 - 2026-07-29
+
+- Uses the selected `AttachedFile` logo in the SVG fallback preview shown by the style editor, before tenant-branding or packaged Beply fallbacks.
+- Invalidates cached style previews so previously generated Beply-logo thumbnails are rebuilt with the selected logo.
+
 ## v2.1 - 2026-07-29
 
 - Shows `.jpeg` uploads in the style logo library and automatically selects the newly uploaded file.
