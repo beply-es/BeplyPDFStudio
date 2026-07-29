@@ -1,5 +1,10 @@
 # Changelog
 
+## v2.1 - 2026-07-29
+
+- Shows `.jpeg` uploads in the style logo library and automatically selects the newly uploaded file.
+- Resolves the selected `AttachedFile` logo in the real PDF header before legacy, tenant-branding and packaged fallbacks, while rejecting paths outside `MyFiles`.
+
 ## v2.0 - 2026-07-23
 
 - Reorganiza la cabecera de Clásico en dos bloques alineados desde el borde superior: logo y bloque fiscal completo, intercambiando ambos al mover el logo.

@@ -97,6 +97,7 @@ namespace {
         \FacturaScripts\Test\Plugins\BeplyPDFStudio\BeplyPdfDocumentExtensionRegistryTest::class,
         \FacturaScripts\Test\Plugins\BeplyPDFStudio\BeplyPdfDocumentCacheServiceTest::class,
         \FacturaScripts\Test\Plugins\BeplyPDFStudio\BeplyPdfInternalFormatPolicyTest::class,
+        \FacturaScripts\Test\Plugins\BeplyPDFStudio\BeplyPdfLogoPathResolverTest::class,
         \FacturaScripts\Test\Plugins\BeplyPDFStudio\BeplyPdfPaymentDateResolverTest::class,
         \FacturaScripts\Test\Plugins\BeplyPDFStudio\ReleaseWorkflowContractTest::class,
         \FacturaScripts\Test\Plugins\BeplyPDFStudio\BeplyPdfRichTextLiteTest::class,
