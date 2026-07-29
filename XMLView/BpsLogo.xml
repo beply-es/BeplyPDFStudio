@@ -7,7 +7,7 @@
     <columns>
         <group name="logo" title="group-logo" icon="fa-solid fa-image" numcolumns="12">
             <column name="logo" numcolumns="12" order="100">
-                <widget type="library" fieldname="idlogo" icon="fa-solid fa-image" accept=".gif,.jpg,.png"/>
+                <widget type="library" fieldname="idlogo" icon="fa-solid fa-image" accept=".gif,.jpg,.jpeg,.png"/>
             </column>
             <column name="logo-position" numcolumns="6" order="110">
                 <widget type="select" fieldname="logo_position" translate="true">

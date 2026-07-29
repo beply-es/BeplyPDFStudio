@@ -22,6 +22,7 @@ namespace FacturaScripts\Plugins\BeplyPDFStudio\Lib\PdfEngine\Render;
 use FacturaScripts\Core\Tools;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\BeplyPdfBrandingLogoService;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\BeplyPdfConfig;
+use FacturaScripts\Plugins\BeplyPDFStudio\Lib\BeplyPdfLogoPathResolver;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\PdfEngine\BeplyPdfDraw;
 
 /**
@@ -899,11 +900,9 @@ class HeaderRenderer
      */
     private function logoPath(BeplyPdfConfig $cfg, bool $white): ?string
     {
-        if (!empty($cfg->logoAsset)) {
-            $userPath = FS_FOLDER . '/MyFiles/' . $cfg->logoAsset;
-            if (is_file($userPath)) {
-                return $userPath;
-            }
+        $userPath = (new BeplyPdfLogoPathResolver())->resolve($cfg->idlogo, $cfg->logoAsset);
+        if ($userPath !== null) {
+            return $userPath;
         }
 
         $branding = (new BeplyPdfBrandingLogoService())->logoPath($white);
