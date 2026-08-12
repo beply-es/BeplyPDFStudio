@@ -31,7 +31,29 @@ abstract class AbstractBeplyPdfLayout implements BeplyPdfLayoutInterface
         return $c;
     }
 
-    /** @return array<string, BeplyPdfLayoutInterface> */
+    /** Por defecto todos los diseños se ofrecen en la galería. */
+    public function selectable(): bool
+    {
+        return true;
+    }
+
+    /**
+     * Solo los diseños que se pueden elegir hoy. Es lo que debe ver el usuario.
+     * @return array<string, BeplyPdfLayoutInterface>
+     */
+    public static function selectableRegistry(): array
+    {
+        return array_filter(
+            self::registry(),
+            static fn(BeplyPdfLayoutInterface $layout): bool => $layout->selectable()
+        );
+    }
+
+    /**
+     * TODOS los diseños, incluidos los retirados. Se usa para renderizar documentos de
+     * empresas que ya tenían asignado un diseño que ya no se ofrece.
+     * @return array<string, BeplyPdfLayoutInterface>
+     */
     public static function registry(): array
     {
         $out = [];

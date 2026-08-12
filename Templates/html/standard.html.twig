@@ -165,10 +165,11 @@
     {% set logo_block %}{% if logo %}<img src="{{ logo }}" alt=""/>{% else %}<span class="logo-text">{{ company.name }}</span>{% endif %}{% endset %}
 
     {% if logo_position == 'center' %}
-      <table class="l-header"><tr>
-        <td style="width:62%; vertical-align:top;">{{ company_block }}</td>
-        <td class="logo-cell" style="width:38%; text-align:center; vertical-align:top;">{{ logo_block }}</td>
-      </tr></table>
+      {# Centrado sobre el ancho útil de la página, no dentro de su columna. #}
+      <table class="l-header">
+        <tr><td class="logo-cell" style="width:100%; text-align:center; vertical-align:top;">{{ logo_block }}</td></tr>
+        <tr><td style="width:100%; vertical-align:top;">{{ company_block }}</td></tr>
+      </table>
     {% elseif logo_position == 'left' %}
       <table class="l-header"><tr>
         <td class="logo-cell" style="width:38%; text-align:left; vertical-align:top;">{{ logo_block }}</td>

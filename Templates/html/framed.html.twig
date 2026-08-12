@@ -125,11 +125,9 @@
 
 <div class="sheet">
 
-  {# ---------- CABECERA: título (color1, bold) izq · empresa+logo der ---------- #}
+  {# ---------- CABECERA: título (color1, bold) · empresa+logo según logo_position ---------- #}
   {% set logo_block %}{% if logo %}<img src="{{ logo }}" alt=""/>{% else %}<span class="logo-text">{{ company.name }}</span>{% endif %}{% endset %}
-
-  <table class="l-header"><tr>
-    <td style="width:60%; vertical-align:top;">
+  {% set company_block %}
       <div class="doc-title">{{ doc.title }}{% if doc.code %} {{ doc.code }}{% endif %}</div>
       <div class="company-name">{{ company.name }}</div>
       <div class="company-info">
@@ -138,9 +136,24 @@
       </div>
       {% if company.contact %}<div class="company-contact">{{ company.contact }}</div>{% endif %}
       {% set slot = slots.PARTY_COMPANY_AFTER %}{% include '_slot.html.twig' %}
-    </td>
-    <td class="logo-cell" style="width:40%; vertical-align:top;">{{ logo_block }}</td>
-  </tr></table>
+  {% endset %}
+
+  {% if logo_position == 'center' %}
+    <table class="l-header">
+      <tr><td class="logo-cell" style="width:100%; text-align:center; vertical-align:top;">{{ logo_block }}</td></tr>
+      <tr><td style="width:100%; vertical-align:top;">{{ company_block }}</td></tr>
+    </table>
+  {% elseif logo_position == 'left' %}
+    <table class="l-header"><tr>
+      <td class="logo-cell" style="width:40%; text-align:left; vertical-align:top;">{{ logo_block }}</td>
+      <td style="width:60%; text-align:right; vertical-align:top;">{{ company_block }}</td>
+    </tr></table>
+  {% else %}
+    <table class="l-header"><tr>
+      <td style="width:60%; vertical-align:top;">{{ company_block }}</td>
+      <td class="logo-cell" style="width:40%; text-align:right; vertical-align:top;">{{ logo_block }}</td>
+    </tr></table>
+  {% endif %}
 
   {# ---------- INFO BOX: borde rojo, izq=meta, der=dirección empresa (solo documentos) ---------- #}
   {% if is_document %}

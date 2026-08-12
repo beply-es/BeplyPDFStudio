@@ -285,24 +285,36 @@
 
   <div class="top">
 
-    {# ---------- BANDA SUPERIOR: logo izquierda · nombre+contacto derecha ---------- #}
-    <div class="l-banner">
-      <table class="l-banner-inner">
-        <tr>
-          <td style="width:40%;">
+    {# ---------- BANDA SUPERIOR: logo · nombre+contacto según logo_position ---------- #}
+    {% set banner_logo_block %}
             {% if logo_white %}
               <img class="banner-logo" src="{{ logo_white }}" alt=""/>
             {% else %}
               <span class="banner-logo-text">{{ company.name }}</span>
             {% endif %}
-          </td>
-          <td style="width:60%; text-align:right;">
+    {% endset %}
+    {% set banner_name_block %}
             <div class="banner-name">{{ company.name }}</div>
             {% if company.contact %}
             <div class="banner-contact">{{ company.contact }}</div>
             {% endif %}
-          </td>
+    {% endset %}
+    <div class="l-banner">
+      <table class="l-banner-inner">
+        {% if logo_position == 'center' %}
+        <tr><td style="width:100%; text-align:center;">{{ banner_logo_block }}</td></tr>
+        <tr><td style="width:100%; text-align:center;">{{ banner_name_block }}</td></tr>
+        {% elseif logo_position == 'right' %}
+        <tr>
+          <td style="width:60%; text-align:left;">{{ banner_name_block }}</td>
+          <td style="width:40%; text-align:right;">{{ banner_logo_block }}</td>
         </tr>
+        {% else %}
+        <tr>
+          <td style="width:40%; text-align:left;">{{ banner_logo_block }}</td>
+          <td style="width:60%; text-align:right;">{{ banner_name_block }}</td>
+        </tr>
+        {% endif %}
       </table>
     </div>
 

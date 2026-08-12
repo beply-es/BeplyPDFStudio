@@ -159,7 +159,9 @@ class AdminBeplyPdf extends ListController
             'studio_quote' => 'Presupuesto creativo minimalista con marca tipográfica y firma.',
         ];
         $preview = new BeplyPdfPreviewService();
-        foreach (AbstractBeplyPdfLayout::registry() as $key => $layout) {
+        // Solo los diseños vigentes: un diseño retirado sigue renderizando para quien ya
+        // lo tenga, pero no debe ofrecerse en la galería.
+        foreach (AbstractBeplyPdfLayout::selectableRegistry() as $key => $layout) {
             $this->designs[$key] = [
                 'key' => $key,
                 'name' => $layout->name(),
