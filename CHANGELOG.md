@@ -1,5 +1,16 @@
 # Changelog
 
+## v2.3 - 2026-08-12
+
+- Applies the configured logo position (left / center / right) in every template. Boxes, Framed and Banner were locked to the right, while Corporate, Azure, Prisma and Studio were locked to the left, so the setting was silently ignored in 7 of 9 designs.
+- Centers the logo over the printable width instead of inside its own column, so "center" no longer looks right-aligned in the Classic design.
+- Stops the Prisma totals from being clipped on the right: the totals column was pinned to 45% of a fixed-layout table while the amount was `nowrap`, pushing the currency outside the right margin.
+- Keeps the Prisma header contact columns inside the sheet on narrow paper (A5), where the auto-layout table could not shrink below its minimum width and overflowed the page.
+- Retires the Studio design from the gallery without removing it: companies that already use it keep rendering, but it is no longer offered.
+- Logs a warning when the HTML engine returns nothing and a document falls back to the drawing engine, which flattens line markdown to plain text. This used to happen silently.
+- Adds `Tests/run-contract.php`, a visual contract suite that measures the real PDF geometry (logo placement, margin overflow, blank pages, markdown bold/italic/lists in lines, observations and footer, across A4/A5 and both orientations).
+- Wires `run-contract.php` and the previously orphaned `run-visual.php` into `scripts/run-tests.sh`, so a green suite now means the documents actually look right.
+
 ## v2.2 - 2026-07-29
 
 - Uses the selected `AttachedFile` logo in the SVG fallback preview shown by the style editor, before tenant-branding or packaged Beply fallbacks.

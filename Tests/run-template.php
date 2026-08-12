@@ -385,6 +385,19 @@ final class BeplyTemplateSuite
                     $body
                 )
             );
+            if ($position === 'center') {
+                // Centrado = centrado en la PÁGINA, no dentro de su columna. Eso obliga a
+                // que el logo ocupe su propia fila a todo el ancho; el bloque fiscal baja.
+                $this->assert(
+                    'logo centrado ocupa fila propia a todo el ancho (center)',
+                    (bool) preg_match(
+                        '#<table class="l-header">\s*<tr><td class="logo-cell" style="width:100%; text-align:center;[^"]*">.*?</td></tr>#s',
+                        $body
+                    )
+                );
+                continue;
+            }
+
             $this->assert(
                 'logo y bloque fiscal comparten fila (' . $position . ')',
                 (bool) preg_match(

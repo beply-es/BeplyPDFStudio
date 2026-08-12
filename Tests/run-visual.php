@@ -59,7 +59,9 @@ $soft = ['colorSecondary'];
 
 $total = 0;
 $failed = 0;
-foreach (AbstractBeplyPdfLayout::registry() as $key => $layout) {
+// Solo diseños vigentes: a uno retirado no se le exige el contrato de personalización,
+// solo que siga renderizando (eso lo cubre run-contract.php).
+foreach (AbstractBeplyPdfLayout::selectableRegistry() as $key => $layout) {
     echo "== {$layout->name()} ({$key}) ==\n";
     $base = rasterHash($svc, $layout->defaultConfig());
     if ($base === 'RENDERFAIL' || $base === 'NOPPM') {
