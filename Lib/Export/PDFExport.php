@@ -159,6 +159,15 @@ class PDFExport extends CorePDFExport
                             $this->beplyHtmlPdfs[] = $finalPdf;
                             return false; // el documento se sirve vía getDoc()
                         }
+
+                        // Si llegamos aquí, WeasyPrint no devolvió nada y el documento va a
+                        // salir por el motor de dibujo, que aplana el markdown de las líneas
+                        // (sin negritas ni listas) y no respeta el diseño HTML. Antes esto
+                        // ocurría en silencio: el cliente veía otro PDF y nadie se enteraba.
+                        Tools::log()->warning(
+                            'beplypdf-html-render-empty: diseño ' . $config->diseno
+                            . ' cae al motor de dibujo; el markdown de líneas se imprimirá en texto plano'
+                        );
                     }
 
                     // si el motor de dibujo propio está disponible, renderizamos con él

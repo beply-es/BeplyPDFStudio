@@ -29,4 +29,12 @@ interface BeplyPdfLayoutInterface
     public function name(): string;
 
     public function defaultConfig(): BeplyPdfConfig;
+
+    /**
+     * Si el diseño puede ELEGIRSE desde la galería.
+     *
+     * Un diseño retirado devuelve false: deja de ofrecerse a nuevos usuarios, pero sigue
+     * registrado y se sigue renderizando para las empresas que ya lo tenían asignado.
+     */
+    public function selectable(): bool;
 }

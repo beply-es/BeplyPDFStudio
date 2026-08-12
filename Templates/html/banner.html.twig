@@ -188,19 +188,16 @@
 
   <div class="top">
 
-    {# ========== BANNER ROJO SUPERIOR: empresa izquierda · logo en caja blanca derecha ========== #}
-    <div class="l-banner">
-      <table>
-        <tr>
-          <td style="width:62%; vertical-align:middle;">
+    {# ========== BANNER SUPERIOR: empresa · logo en caja blanca según logo_position ========== #}
+    {% set banner_company_block %}
             <div class="banner-company-name">{{ company.name }}</div>
             <div class="banner-company-info">
               {% if company.cifnif %}{{ 'cifnif'|trans }}: {{ company.cifnif }}<br/>{% endif %}
               {% for l in company.lines %}{{ l }}{% if not loop.last %}<br/>{% endif %}{% endfor %}
             </div>
             {% if company.contact %}<div class="banner-company-contact">{{ company.contact }}</div>{% endif %}
-          </td>
-          <td style="width:38%; vertical-align:middle; text-align:right;">
+    {% endset %}
+    {% set banner_logo_block %}
             <div class="logo-box">
               {% if logo_white %}
                 <img src="{{ logo_white }}" alt=""/>
@@ -208,8 +205,23 @@
                 <span class="logo-box-text" style="color:{{ color2 }};">{{ company.name }}</span>
               {% endif %}
             </div>
-          </td>
+    {% endset %}
+    <div class="l-banner">
+      <table>
+        {% if logo_position == 'center' %}
+        <tr><td style="width:100%; vertical-align:middle; text-align:center;">{{ banner_logo_block }}</td></tr>
+        <tr><td style="width:100%; vertical-align:middle;">{{ banner_company_block }}</td></tr>
+        {% elseif logo_position == 'left' %}
+        <tr>
+          <td style="width:38%; vertical-align:middle; text-align:left;">{{ banner_logo_block }}</td>
+          <td style="width:62%; vertical-align:middle; text-align:right;">{{ banner_company_block }}</td>
         </tr>
+        {% else %}
+        <tr>
+          <td style="width:62%; vertical-align:middle;">{{ banner_company_block }}</td>
+          <td style="width:38%; vertical-align:middle; text-align:right;">{{ banner_logo_block }}</td>
+        </tr>
+        {% endif %}
       </table>
     </div>
 

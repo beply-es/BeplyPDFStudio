@@ -84,9 +84,21 @@ function cssInt(string $html, string $pattern): int
     return preg_match($pattern, $html, $matches) ? (int) $matches[1] : -1;
 }
 
+/**
+ * Hueco reservado antes del bloque inferior.
+ *
+ * `.bottom` lo expresa de dos formas segun `bottom_anchor_transform`: con `padding-top`
+ * o con `transform: translateY(...)`. Mirar solo el padding daba -1 (no encontrado) en los
+ * disenos con anclaje preciso, y el test lo reportaba como fallo sin que hubiera nada roto.
+ */
 function bottomAnchorGap(string $html): int
 {
-    return cssInt($html, '/\.bottom\s*\{[^}]*padding-top:\s*(\d+)px/s');
+    $padding = cssInt($html, '/\.bottom\s*\{[^}]*padding-top:\s*(-?\d+)px/s');
+    if ($padding !== -1) {
+        return $padding;
+    }
+
+    return cssInt($html, '/\.bottom\s*\{[^}]*transform:\s*translateY\((-?\d+)px\)/s');
 }
 
 $svc = new BeplyHtmlRenderService();

@@ -93,6 +93,7 @@ final class BeplyFormatTemplateSuite
         $this->deleteTempSeries();
 
         $this->globalStyle = $this->globalStyle();
+        $this->warmUpRenderEngine();
         $this->originalGlobalConfig = $this->globalStyle->buildConfig();
         $this->originalGlobalName = (string) $this->globalStyle->nombre;
         $this->originalGlobalActive = (bool) $this->globalStyle->activo;
@@ -477,6 +478,30 @@ final class BeplyFormatTemplateSuite
         }
     }
 
+    /**
+     * Primer render de calentamiento, fuera de toda medicion.
+     *
+     * El primer PDF del proceso paga la compilacion de las plantillas Twig y el arranque de
+     * WeasyPrint (~1s). Sin esto, el guard de "render < 2s" se lo comia siempre el primer
+     * diseno de la lista y fallaba por el arranque, no por el render. Se usa el motor HTML
+     * directamente con un documento de muestra para no tocar la cache de documentos, que
+     * falsearia la medicion posterior.
+     */
+    private function warmUpRenderEngine(): void
+    {
+        $layout = AbstractBeplyPdfLayout::find('legacy_summary');
+        if ($layout === null) {
+            return;
+        }
+
+        (new BeplyHtmlRenderService())->render($layout->defaultConfig(), new BeplyPdfSampleDoc(null));
+    }
+
+    /**
+     * Estilo global de trabajo. Si no existe se crea aqui: el seed de Init solo corre al
+     * instalar el plugin, y sin esto la suite reventaba con un fatal en cualquier entorno
+     * recien creado, que es justo cuando mas falta hace poder ejecutarla.
+     */
     private function globalStyle(): BeplyPdfStyle
     {
         foreach (BeplyPdfStyle::all([], ['id' => 'ASC'], 0, 0) as $style) {
@@ -484,7 +509,19 @@ final class BeplyFormatTemplateSuite
                 return $style;
             }
         }
-        throw new RuntimeException('No global BeplyPdfStyle found');
+
+        $style = new BeplyPdfStyle();
+        $style->nombre = 'Beply Summary (global)';
+        $style->diseno = 'legacy_summary';
+        $style->idformato = null;
+        $style->idempresa = null;
+        $style->activo = true;
+        if (!$style->save()) {
+            throw new RuntimeException('No global BeplyPdfStyle found and it could not be created');
+        }
+        $style->rebuildColumnsFromConfig($style->buildConfig());
+
+        return $style;
     }
 
     private function resetRenderServiceCache(): void

@@ -217,24 +217,39 @@
 
   <div class="top">
 
-    {# ===== CABECERA: logo izq · empresa/contacto der ===== #}
-    <table class="l-header"><tr>
-      <td class="logo-cell-az" style="width:40%; vertical-align:middle;">
+    {# ===== CABECERA: logo · empresa/contacto según logo_position ===== #}
+    {% set logo_block_az %}
         {% if logo %}
           <img src="{{ logo }}" alt=""/>
         {% else %}
           <span class="logo-text-az">{{ company.name }}</span>
         {% endif %}
-      </td>
-      <td class="company-block-az" style="width:60%; vertical-align:middle; text-align:right;">
+    {% endset %}
+    {% set company_block_az %}
         <div class="company-name-az">{{ company.name }}</div>
         <div class="company-info-az">
           {% if company.cifnif %}{{ 'cifnif'|trans }}: {{ company.cifnif }}<br/>{% endif %}
           {% for l in company.lines %}{{ l }}{% if not loop.last %}<br/>{% endif %}{% endfor %}
         </div>
         {% if company.contact %}<div class="company-contact-az">{{ company.contact }}</div>{% endif %}
-      </td>
+    {% endset %}
+
+    {% if logo_position == 'center' %}
+    <table class="l-header">
+      <tr><td class="logo-cell-az" style="width:100%; text-align:center; vertical-align:middle;">{{ logo_block_az }}</td></tr>
+      <tr><td class="company-block-az" style="width:100%; vertical-align:middle; text-align:center;">{{ company_block_az }}</td></tr>
+    </table>
+    {% elseif logo_position == 'right' %}
+    <table class="l-header"><tr>
+      <td class="company-block-az" style="width:60%; vertical-align:middle; text-align:left;">{{ company_block_az }}</td>
+      <td class="logo-cell-az" style="width:40%; vertical-align:middle; text-align:right;">{{ logo_block_az }}</td>
     </tr></table>
+    {% else %}
+    <table class="l-header"><tr>
+      <td class="logo-cell-az" style="width:40%; vertical-align:middle; text-align:left;">{{ logo_block_az }}</td>
+      <td class="company-block-az" style="width:60%; vertical-align:middle; text-align:right;">{{ company_block_az }}</td>
+    </tr></table>
+    {% endif %}
 
     {# ===== TÍTULO GRANDE (con barra acento izquierda) ===== #}
     <div class="az-title-wrap">

@@ -42,4 +42,13 @@ docker exec -u www-data "$CONTAINER" php "$PLUGIN/Tests/run-fiscal-qr.php"
 echo "== Generic core prints (misma plantilla para listados/fichas: is_document) =="
 docker exec -u www-data "$CONTAINER" php "$PLUGIN/Tests/run-generic.php"
 
+# Las dos suites siguientes son las que responden "¿se ve bien de verdad?". Estuvieron
+# escritas pero sin ejecutar, y por eso se colaron a produccion fallos visibles por el
+# cliente (logo que no se mueve, totales cortados). No quitarlas de aqui.
+echo "== Contrato visual (mide el PDF real: logo, margenes, markdown, paginacion) =="
+docker exec -u www-data "$CONTAINER" php "$PLUGIN/Tests/run-contract.php"
+
+echo "== Auditoria visual (cada campo de configuracion cambia el render de cada diseno) =="
+docker exec -u www-data "$CONTAINER" php "$PLUGIN/Tests/run-visual.php"
+
 echo "OK"

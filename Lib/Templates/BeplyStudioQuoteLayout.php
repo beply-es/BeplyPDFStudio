@@ -26,6 +26,15 @@ class BeplyStudioQuoteLayout extends BeplyLegacyStandardLayout
         return 'Estudio';
     }
 
+    /**
+     * Retirado de la galería: el diseño no cumple el contrato visual (logo y maquetación).
+     * Se conserva registrado para no romper a las empresas que ya lo tienen asignado.
+     */
+    public function selectable(): bool
+    {
+        return false;
+    }
+
     public function defaultConfig(): BeplyPdfConfig
     {
         $c = $this->baseConfig();
