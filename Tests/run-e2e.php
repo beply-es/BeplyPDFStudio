@@ -573,6 +573,11 @@ final class BeplyPdfE2E
         );
     }
 
+    /**
+     * Estilo global de trabajo. Si no existe se crea aqui: el seed de Init solo corre al
+     * instalar el plugin, y sin esto la suite reventaba con un fatal en cualquier entorno
+     * recien creado, que es justo cuando mas falta hace poder ejecutarla.
+     */
     private function globalStyle(): BeplyPdfStyle
     {
         foreach (BeplyPdfStyle::all([], ['id' => 'ASC'], 0, 0) as $style) {
@@ -580,7 +585,19 @@ final class BeplyPdfE2E
                 return $style;
             }
         }
-        throw new RuntimeException('No global BeplyPdfStyle found');
+
+        $style = new BeplyPdfStyle();
+        $style->nombre = 'Beply Summary (global)';
+        $style->diseno = 'legacy_summary';
+        $style->idformato = null;
+        $style->idempresa = null;
+        $style->activo = true;
+        if (!$style->save()) {
+            throw new RuntimeException('No global BeplyPdfStyle found and it could not be created');
+        }
+        $style->rebuildColumnsFromConfig($style->buildConfig());
+
+        return $style;
     }
 
     private function deleteTempStyles(): void

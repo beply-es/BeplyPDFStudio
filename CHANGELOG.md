@@ -10,6 +10,7 @@
 - Logs a warning when the HTML engine returns nothing and a document falls back to the drawing engine, which flattens line markdown to plain text. This used to happen silently.
 - Adds `Tests/run-contract.php`, a visual contract suite that measures the real PDF geometry (logo placement, margin overflow, blank pages, markdown bold/italic/lists in lines, observations and footer, across A4/A5 and both orientations).
 - Wires `run-contract.php` and the previously orphaned `run-visual.php` into `scripts/run-tests.sh`, so a green suite now means the documents actually look right.
+- Fixes three long-standing false failures that made the suite unusable as a signal: the A5 bottom-anchor probe only understood `padding-top` and reported `-1` for designs using `translateY`; `run-e2e` and `run-format-template` aborted with a fatal error on any environment where the global style had not been seeded; and the "render under 2s" guard charged the first design with the one-off Twig/WeasyPrint warm-up.
 
 ## v2.2 - 2026-07-29
 
