@@ -300,6 +300,9 @@
         {% for row in totals.rows %}
         <div class="studio-total-row">{{ row.label }} <b>{{ row.value }}</b></div>
         {% endfor %}
+        {% if totals.units %}
+        <div class="studio-total-row" data-beply-total-units="true">{{ totals.units.label }} <b>{{ totals.units.value }}</b></div>
+        {% endif %}
         <div class="studio-grand-total">{{ totals.total }}</div>
         {% set slot = slots.TOTALS_AFTER %}{% include '_slot.html.twig' %}
       </td>

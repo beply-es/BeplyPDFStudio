@@ -98,6 +98,8 @@
   .tax-table td { font-size: {{ font_size }}px; padding-right: 38px; color: {{ muted_color }}; line-height: 1.7; white-space: nowrap; }
   .tax-table .head td { font-weight: 800; color: {{ text_color }}; padding-bottom: 4px; }
   .total-cell { text-align: right; }
+  .total-units-box { margin-bottom: 5px; font-size: {{ font_size }}px; color: {{ muted_color }}; white-space: nowrap; }
+  .total-units-box strong { margin-left: 8px; color: {{ text_color }}; font-weight: 800; }
   .total-box { display: inline-block; background: {{ color1 }}; color: {{ color2 }}; font-weight: 800; font-size: {{ title_font_size }}px; padding: 14px 26px; white-space: nowrap; }
 
   /* ===================== OBSERVACIONES / RECIBOS / TEXTOS ===================== */
@@ -236,6 +238,9 @@
       </td>
       <td style="width:42%;" class="total-cell">
         {% set slot = slots.TOTALS_BEFORE %}{% include '_slot.html.twig' %}
+        {% if totals.units %}
+        <div class="total-units-box" data-beply-total-units="true">{{ totals.units.label }} <strong>{{ totals.units.value }}</strong></div>
+        {% endif %}
         <span class="total-box">{{ 'total'|trans|upper }}: {{ totals.total }}</span>
         {% set slot = slots.TOTALS_AFTER %}{% include '_slot.html.twig' %}
       </td>

@@ -49,6 +49,7 @@ $fields = [
     'marginTop'           => fn($c) => $c->marginTop = 45,
     'paperSize'           => fn($c) => $c->paperSize = 'A5',
     'orientation'         => fn($c) => $c->orientation = 'landscape',
+    'showTotalUnits'      => fn($c) => $c->showTotalUnits = true,
     'footerText'          => fn($c) => $c->footerText = 'TEXTO PIE VISIBLE XYZ',
     'thanksTitle'         => fn($c) => $c->thanksTitle = 'GRACIAS XYZ',
     'pageFooterText'      => fn($c) => $c->pageFooterText = 'PIE PAGINA XYZ',

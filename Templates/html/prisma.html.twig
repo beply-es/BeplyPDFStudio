@@ -391,6 +391,12 @@
                 <td class="sub-value">{{ t.cuota }}</td>
               </tr>
               {% endfor %}
+              {% if totals.units %}
+              <tr data-beply-total-units="true">
+                <td class="sub-label">{{ totals.units.label }}</td>
+                <td class="sub-value">{{ totals.units.value }}</td>
+              </tr>
+              {% endif %}
             </table>
             <div class="grand-total-box">{{ 'beplypdf-grand-total'|trans|upper }}: {{ totals.total }}</div>
           </div>

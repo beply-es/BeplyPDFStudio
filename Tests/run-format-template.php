@@ -134,6 +134,7 @@ final class BeplyFormatTemplateSuite
         $this->bodyPresent('showDraftWarning=true', fn($c) => $c->showDraftWarning = true, 'E2E_FORMAT_MATRIX BOCETO');
         $this->bodyAbsent('showDraftWarning=false', fn($c) => $c->showDraftWarning = false, 'E2E_FORMAT_MATRIX BOCETO');
         $this->bodyPresent('showParentDocs', fn($c) => $c->showParentDocs = true, '2025/0099');
+        $this->bodyPresent('showTotalUnits', fn($c) => $c->showTotalUnits = true, 'data-beply-total-units="true"');
         $this->bodyPresent('hideShippingAddress=false', fn($c) => $c->hideShippingAddress = false, 'E2E_SHIPPING_VISIBLE');
         $this->bodyAbsent('hideShippingAddress=true', fn($c) => $c->hideShippingAddress = true, 'E2E_SHIPPING_VISIBLE');
         $this->bodyAbsent('hideInvoiceNumber=true code', fn($c) => $c->hideInvoiceNumber = true, 'E2E_CODE_SHOULD_HIDE');

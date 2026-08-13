@@ -25,6 +25,7 @@ final class BeplyPdfConfigTest extends TestCase
         $c->marginTop = 25;
         $c->lineColumns = ['descripcion', 'pvptotal'];
         $c->showAgent = true;
+        $c->showTotalUnits = true;
         $c->showWithoutVat = true;
         $c->applyCustomerLanguage = true;
         $c->printAttachments = true;
@@ -36,6 +37,7 @@ final class BeplyPdfConfigTest extends TestCase
         $this->assertSame(25, $restored->marginTop);
         $this->assertSame(['descripcion', 'pvptotal'], $restored->lineColumns);
         $this->assertTrue($restored->showAgent);
+        $this->assertTrue($restored->showTotalUnits);
         $this->assertTrue($restored->showWithoutVat);
         $this->assertTrue($restored->applyCustomerLanguage);
         $this->assertTrue($restored->printAttachments);

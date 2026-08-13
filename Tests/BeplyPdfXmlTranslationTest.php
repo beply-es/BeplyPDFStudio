@@ -60,6 +60,8 @@ final class BeplyPdfXmlTranslationTest extends TestCase
             'beplypdf-print-in-document',
             'beplypdf-grand-total',
             'beplypdf-quantity-short',
+            'beplypdf-total-units',
+            'show-total-units',
             'beplypdf-draft-suffix',
             'beplypdf-draft-title-FacturaCliente',
             'beplypdf-draft-title-FacturaProveedor',

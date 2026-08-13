@@ -426,6 +426,12 @@
             <td class="t-value">{{ t.cuota }}</td>
           </tr>
           {% endfor %}
+          {% if totals.units %}
+          <tr data-beply-total-units="true">
+            <td class="t-label">{{ totals.units.label }}</td>
+            <td class="t-value">{{ totals.units.value }}</td>
+          </tr>
+          {% endif %}
           <tr class="t-total-row">
             <td class="t-label">{{ 'total'|trans }} {{ doc.title }}</td>
             <td class="t-value">{{ totals.total }}</td>
