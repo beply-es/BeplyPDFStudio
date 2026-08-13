@@ -144,6 +144,7 @@ foreach (array_keys(AbstractBeplyPdfLayout::registry()) as $key) {
     $cfg->marginBottom = 8;
     $cfg->marginLeft = 8;
     $cfg->marginRight = 8;
+    $cfg->showTotalUnits = true;
 
     $doc = new BeplyPdfSampleDoc(null);
     $html = $svc->buildHtml($cfg, $doc);
@@ -151,8 +152,8 @@ foreach (array_keys(AbstractBeplyPdfLayout::registry()) as $key) {
     $pages = $pdf === '' ? 0 : pageCount($pdf);
     $gap = bottomAnchorGap($html);
 
-    $assert("{$name} A5+QR: sin hueco artificial", $gap === 0, 'gap=' . $gap);
-    $assert("{$name} A5+QR: no fabrica tercera pagina", $pages > 0 && $pages <= 2, 'pages=' . $pages);
+    $assert("{$name} A5+QR+unidades: sin hueco artificial", $gap === 0, 'gap=' . $gap);
+    $assert("{$name} A5+QR+unidades: no fabrica tercera pagina", $pages > 0 && $pages <= 2, 'pages=' . $pages);
 }
 
 $cfg = AbstractBeplyPdfLayout::find('legacy_summary')->defaultConfig();
