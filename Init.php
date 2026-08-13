@@ -140,6 +140,7 @@ class Init extends InitClass
             'show_without_vat' => 'BOOLEAN DEFAULT false',
             'apply_customer_language' => 'BOOLEAN DEFAULT false',
             'print_attachments' => 'BOOLEAN DEFAULT false',
+            'show_total_units' => 'BOOLEAN DEFAULT false',
             'id_footer_image' => 'INTEGER',
             'footer_image_asset' => 'VARCHAR(255)',
             'footer_image_width' => 'INTEGER DEFAULT 520',

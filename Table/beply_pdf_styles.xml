@@ -48,6 +48,7 @@
     <column><name>show_agent</name><type>boolean</type><default>false</default></column>
     <column><name>show_draft_warning</name><type>boolean</type><default>true</default></column>
     <column><name>show_parent_docs</name><type>boolean</type><default>false</default></column>
+    <column><name>show_total_units</name><type>boolean</type><default>false</default></column>
     <column><name>hide_shipping_address</name><type>boolean</type><default>false</default></column>
     <column><name>hide_invoice_number</name><type>boolean</type><default>false</default></column>
     <column><name>hide_series</name><type>boolean</type><default>false</default></column>
