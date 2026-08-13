@@ -211,6 +211,7 @@ class BeplyPdfRenderService
         $config->showAgent = $overlay->showAgent;
         $config->showDraftWarning = $overlay->showDraftWarning;
         $config->showParentDocs = $overlay->showParentDocs;
+        $config->showTotalUnits = $overlay->showTotalUnits;
         $config->hideShippingAddress = $overlay->hideShippingAddress;
         $config->hideInvoiceNumber = $overlay->hideInvoiceNumber;
         $config->hideSeries = $overlay->hideSeries;
