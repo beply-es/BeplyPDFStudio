@@ -555,7 +555,7 @@ class BeplyHtmlRenderService
             $columns = $this->columnsMeta($cfg, $docContext, $rawLines, $coddivisa);
             $lines = $this->linesData($cfg, $model, $coddivisa, $docContext, $columns, $rawLines);
             $taxes = $this->taxData($cfg, $model, $coddivisa);
-            $totals = $this->totalsData($cfg, $model, $coddivisa);
+            $totals = $this->totalsData($cfg, $model, $coddivisa, $rawLines);
             $observations = $cfg->hideNotes ? '' : $this->richTextHtml($model->observaciones ?? '');
             $receipts = $this->receiptsData($cfg, $model, $coddivisa, $docContext);
             $shipping = $cfg->hideShippingAddress ? [] : $this->shippingData($model);
@@ -566,7 +566,7 @@ class BeplyHtmlRenderService
             $customer = ['label' => '', 'name' => '', 'cifnif' => '', 'code' => '', 'lines' => [], 'phones' => '', 'email' => '', 'agent' => ''];
             [$columns, $lines] = $this->genericTable($generic);
             $taxes = [];
-            $totals = ['total' => ''];
+            $totals = ['total' => '', 'units' => null];
             $observations = '';
             $receipts = [];
             $shipping = [];
@@ -726,7 +726,7 @@ class BeplyHtmlRenderService
         $clientH = ($fs + 1) + 4 + $clientLines * $tline + $gapClient;
         $tableH = $this->estimateLinesTableHeight($lines, $fs, $row, $tline);
 
-        $taxRows = 1 + count($taxes);
+        $taxRows = 1 + count($taxes) + ($cfg->showTotalUnits ? 1 : 0);
         $taxBlockH = max($taxRows * ($fs + 8), 56);
         $obsText = $this->metricText($obs);
         $footerText = $this->metricText($footerText);
@@ -1541,10 +1541,11 @@ class BeplyHtmlRenderService
         ];
     }
 
-    private function totalsData(BeplyPdfConfig $cfg, $model, string $coddivisa): array
+    private function totalsData(BeplyPdfConfig $cfg, $model, string $coddivisa, array $lines): array
     {
         $num = static fn($p) => isset($model->{$p}) ? (float) $model->{$p} : 0.0;
         $net = Tools::money($num('neto'), $coddivisa);
+        $units = $this->totalUnitsData($cfg, $lines);
         if ($cfg->showWithoutVat) {
             return [
                 'rows' => [
@@ -1552,6 +1553,7 @@ class BeplyHtmlRenderService
                 ],
                 'net' => $net,
                 'total' => $net,
+                'units' => $units,
             ];
         }
         $rows = [
@@ -1570,6 +1572,30 @@ class BeplyHtmlRenderService
             'rows' => $rows,
             'net' => $net,
             'total' => Tools::money($num('total'), $coddivisa),
+            'units' => $units,
+        ];
+    }
+
+    private function totalUnitsData(BeplyPdfConfig $cfg, array $lines): ?array
+    {
+        if (!$cfg->showTotalUnits) {
+            return null;
+        }
+
+        $quantity = 0.0;
+        foreach ($lines as $line) {
+            $value = is_object($line)
+                ? ($line->cantidad ?? null)
+                : (is_array($line) ? ($line['cantidad'] ?? null) : null);
+            if (is_numeric($value)) {
+                $quantity += (float) $value;
+            }
+        }
+
+        return [
+            'label' => Tools::lang()->trans('beplypdf-total-units'),
+            'value' => Tools::number($quantity),
+            'raw' => $quantity,
         ];
     }
 

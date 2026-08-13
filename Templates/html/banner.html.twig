@@ -128,6 +128,8 @@
 
   /* ===================== TOTAL (label + regla + importe) ===================== */
   .total-section { margin-top: {{ (font_size * 1)|round }}px; }
+  .total-units-banner { margin-bottom: 5px; text-align: right; font-size: {{ font_size }}px; color: {{ muted_color }}; white-space: nowrap; }
+  .total-units-banner strong { margin-left: 8px; color: {{ text_color }}; font-weight: 800; }
   .total-rule {
     border: none;
     border-top: 2px solid {{ color1 }};
@@ -293,6 +295,9 @@
     {# ========== TOTAL: label en color1, regla horizontal, luego importe grande (solo documentos) ========== #}
     {% if is_document %}
     <div class="total-section">
+      {% if totals.units %}
+      <div class="total-units-banner" data-beply-total-units="true">{{ totals.units.label }} <strong>{{ totals.units.value }}</strong></div>
+      {% endif %}
       <div class="total-label">{{ 'total'|trans|upper }}</div>
       <hr class="total-rule"/>
       <div class="total-amount">{{ totals.total }}</div>

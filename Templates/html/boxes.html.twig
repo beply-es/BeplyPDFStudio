@@ -233,14 +233,15 @@
 
     {% include '_fiscal-landscape-columns-open.html.twig' %}
 
-    {# ---------- DIVISA | TOTAL (solo documentos) ---------- #}
+    {# ---------- DIVISA | TOTAL | TOTAL UNIDADES (solo documentos) ---------- #}
     {% if is_document %}
     <div class="l-bottom-table">
-      <table class="box-table">
+      <table class="box-table"{% if totals.units %} data-beply-total-units="true"{% endif %}>
         <thead>
           <tr>
-            <th style="text-align:center; width:40%;">{{ 'currency'|trans }}</th>
-            <th style="text-align:center; width:60%;">{{ 'total'|trans }}</th>
+            <th style="text-align:center; width:{% if totals.units %}25{% else %}40{% endif %}%;">{{ 'currency'|trans }}</th>
+            <th style="text-align:center; width:{% if totals.units %}40{% else %}60{% endif %}%;">{{ 'total'|trans }}</th>
+            {% if totals.units %}<th style="text-align:center; width:35%;">{{ totals.units.label }}</th>{% endif %}
           </tr>
         </thead>
         <tbody>
@@ -248,6 +249,7 @@
             <td style="text-align:center;">EUR</td>
             {% set slot = slots.TOTALS_BEFORE %}{% include '_slot.html.twig' %}
             <td style="text-align:center; font-weight:800; color:{{ text_color }};">{{ totals.total }}</td>
+            {% if totals.units %}<td style="text-align:center; font-weight:800; color:{{ text_color }};">{{ totals.units.value }}</td>{% endif %}
             {% set slot = slots.TOTALS_AFTER %}{% include '_slot.html.twig' %}
           </tr>
         </tbody>
