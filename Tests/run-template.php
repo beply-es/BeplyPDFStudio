@@ -166,6 +166,18 @@ final class BeplyTemplateRealSampleDoc extends BeplyPdfSampleDoc
     }
 }
 
+final class BeplyTemplateTotalUnitsDoc extends BeplyPdfSampleDoc
+{
+    public function getLines(): array
+    {
+        $lines = parent::getLines();
+        $lines[0]->cantidad = 1.25;
+        $lines[1]->cantidad = 2.50;
+        $lines[2]->cantidad = -0.25;
+        return $lines;
+    }
+}
+
 final class BeplyTemplateSuite
 {
     private int $total = 0;
@@ -286,6 +298,7 @@ final class BeplyTemplateSuite
         $this->bodyAbsentForModel('showDraftWarning=false', fn($c) => $c->showDraftWarning = false, 'FACTURA BOCETO', new BeplyTemplateRealSampleDoc(null));
         $this->bodyPresent('hideShippingAddress=false', fn($c) => $c->hideShippingAddress = false, 'Avenida de Entrega, 25');
         $this->bodyAbsent('hideShippingAddress=true', fn($c) => $c->hideShippingAddress = true, 'Avenida de Entrega, 25');
+        $this->totalUnits();
         $this->draftWarningDocuments();
         $this->bottomPinned();
         $this->extensionSlots();
@@ -452,6 +465,34 @@ final class BeplyTemplateSuite
     private function bodyMatches(string $name, callable $mut, string $pattern): void
     {
         $this->assert($name, (bool) preg_match($pattern, $this->bodyOf($this->html($this->cfg($mut)))));
+    }
+
+    private function totalUnits(): void
+    {
+        $model = new BeplyTemplateTotalUnitsDoc(null);
+        $hidden = $this->bodyOf($this->htmlForModel(
+            $this->cfg(fn($c) => $c->showTotalUnits = false),
+            $model
+        ));
+        $this->assert(
+            'showTotalUnits=false oculta el total de unidades',
+            strpos($hidden, 'data-beply-total-units="true"') === false
+        );
+
+        $shown = $this->bodyOf($this->htmlForModel(
+            $this->cfg(fn($c) => $c->showTotalUnits = true),
+            $model
+        ));
+        $label = Tools::lang()->trans('beplypdf-total-units');
+        $value = Tools::number(3.50);
+        $this->assert(
+            'showTotalUnits=true suma todas las cantidades',
+            (bool) preg_match(
+                '#data-beply-total-units="true"[^>]*>.*?'
+                    . preg_quote($label, '#') . '.*?' . preg_quote($value, '#') . '#s',
+                $shown
+            )
+        );
     }
 
     private function bottomPinned(): void
