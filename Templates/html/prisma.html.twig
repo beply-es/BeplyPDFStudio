@@ -381,7 +381,13 @@
           <div class="subtotals-wrap">
             <table class="subtotals-table">
               {# Sub Total + impuestos por tramo #}
-              <tr>
+              {% if totals.units %}
+              <tr data-beply-total-units="true">
+                <td class="sub-label">{{ totals.units.label }}</td>
+                <td class="sub-value">{{ totals.units.value }}</td>
+              </tr>
+              {% endif %}
+              <tr data-beply-total-breakdown="true">
                 <td class="sub-label" style="font-weight:800; color:{{ text_color }};">{{ 'subtotal'|trans }}</td>
                 <td class="sub-value" style="font-weight:800; color:{{ text_color }};">{{ totals.net }}</td>
               </tr>
@@ -391,14 +397,8 @@
                 <td class="sub-value">{{ t.cuota }}</td>
               </tr>
               {% endfor %}
-              {% if totals.units %}
-              <tr data-beply-total-units="true">
-                <td class="sub-label">{{ totals.units.label }}</td>
-                <td class="sub-value">{{ totals.units.value }}</td>
-              </tr>
-              {% endif %}
             </table>
-            <div class="grand-total-box">{{ 'beplypdf-grand-total'|trans|upper }}: {{ totals.total }}</div>
+            <div class="grand-total-box" data-beply-total-euros="true">{{ 'beplypdf-grand-total'|trans|upper }}: {{ totals.total }}</div>
           </div>
         </td>
       </tr>

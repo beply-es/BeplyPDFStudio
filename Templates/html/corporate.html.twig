@@ -416,7 +416,13 @@
       <div class="totals-divider"></div>
       <div class="totals-outer">
         <table class="totals-inner">
-          <tr>
+          {% if totals.units %}
+          <tr data-beply-total-units="true">
+            <td class="t-label">{{ totals.units.label }}</td>
+            <td class="t-value">{{ totals.units.value }}</td>
+          </tr>
+          {% endif %}
+          <tr data-beply-total-breakdown="true">
             <td class="t-label">{{ 'subtotal'|trans }}</td>
             <td class="t-value">{{ totals.net }}</td>
           </tr>
@@ -426,13 +432,7 @@
             <td class="t-value">{{ t.cuota }}</td>
           </tr>
           {% endfor %}
-          {% if totals.units %}
-          <tr data-beply-total-units="true">
-            <td class="t-label">{{ totals.units.label }}</td>
-            <td class="t-value">{{ totals.units.value }}</td>
-          </tr>
-          {% endif %}
-          <tr class="t-total-row">
+          <tr class="t-total-row" data-beply-total-euros="true">
             <td class="t-label">{{ 'total'|trans }} {{ doc.title }}</td>
             <td class="t-value">{{ totals.total }}</td>
           </tr>
