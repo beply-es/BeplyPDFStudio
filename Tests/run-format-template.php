@@ -490,7 +490,9 @@ final class BeplyFormatTemplateSuite
      */
     private function warmUpRenderEngine(): void
     {
-        $layout = AbstractBeplyPdfLayout::find('legacy_summary');
+        // La matriz empieza por legacy_standard. Calentar otra plantilla deja la primera
+        // medición pagando la compilación y convierte el límite de 2 s en un falso rojo.
+        $layout = AbstractBeplyPdfLayout::find('legacy_standard');
         if ($layout === null) {
             return;
         }
