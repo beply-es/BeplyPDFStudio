@@ -42,6 +42,9 @@ docker exec -u www-data "$CONTAINER" php "$PLUGIN/Tests/run-fiscal-qr.php"
 echo "== Generic core prints (misma plantilla para listados/fichas: is_document) =="
 docker exec -u www-data "$CONTAINER" php "$PLUGIN/Tests/run-generic.php"
 
+echo "== Mixed accounting report export (parametros + tablas en el mismo PDF) =="
+docker exec -u www-data "$CONTAINER" php "$PLUGIN/Tests/run-report-export.php"
+
 # Las dos suites siguientes son las que responden "¿se ve bien de verdad?". Estuvieron
 # escritas pero sin ejecutar, y por eso se colaron a produccion fallos visibles por el
 # cliente (logo que no se mueve, totales cortados). No quitarlas de aqui.
