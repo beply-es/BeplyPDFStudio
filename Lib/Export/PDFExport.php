@@ -353,7 +353,11 @@ class PDFExport extends CorePDFExport
                     continue; // ficha: omitimos campos vacíos para no llenar de filas en blanco
                 }
                 $rows[] = [
-                    ['align' => 'left', 'value' => $this->fixValue((string) $label)],
+                    [
+                        'align' => 'left',
+                        'fieldname' => (string) ($widget->fieldname ?? ''),
+                        'value' => $this->fixValue((string) $label),
+                    ],
                     ['align' => 'left', 'value' => $this->fixValue($value)],
                 ];
             }
@@ -375,6 +379,9 @@ class PDFExport extends CorePDFExport
                     'kind' => 'model',
                     'title' => '',
                     'columns' => $cols,
+                    'primary_description_field' => method_exists($model, 'primaryDescriptionColumn')
+                        ? (string) $model->primaryDescriptionColumn()
+                        : '',
                     'rows' => $rows,
                 ]
             );
@@ -675,20 +682,36 @@ class PDFExport extends CorePDFExport
 
     private function renderFastReportModelSection(BeplyPdfConfig $config, array $section): void
     {
-        $rows = [];
+        $items = [];
+        $primaryDescriptionField = (string) ($section['primary_description_field'] ?? '');
         foreach ($section['rows'] ?? [] as $row) {
+            $sourceField = is_array($row[0] ?? null) ? (string) ($row[0]['fieldname'] ?? '') : '';
+            if ($primaryDescriptionField !== '' && $sourceField === $primaryDescriptionField) {
+                continue;
+            }
+
             $label = $this->genericReportCellValue($row[0] ?? '');
             $value = $this->genericReportCellValue($row[1] ?? '');
             if (trim($label . $value) === '') {
                 continue;
             }
-            $rows[] = [
-                'field' => '<b>' . strip_tags($label) . '</b>',
-                'value' => $value,
-            ];
+            $items[] = '<b>' . strip_tags($label) . '</b>: ' . $value;
         }
-        if (empty($rows)) {
+        if (empty($items)) {
             return;
+        }
+
+        // FacturaScripts presenta los parámetros de los informes en paralelo: dos
+        // pares campo/valor por fila. Mantener ese patrón reduce la altura a la mitad
+        // y deja el espacio vertical para la tabla contable, que es el contenido útil.
+        $rows = [];
+        foreach ($items as $item) {
+            $last = count($rows) - 1;
+            if ($last >= 0 && $rows[$last]['data2'] === '') {
+                $rows[$last]['data2'] = $item;
+                continue;
+            }
+            $rows[] = ['data1' => $item, 'data2' => ''];
         }
 
         $text = BeplyPdfDraw::rgb($this->fastBodyTextHex($config), [0.13, 0.15, 0.16]);
@@ -700,15 +723,15 @@ class PDFExport extends CorePDFExport
             'gridlines' => 0,
             'lineCol' => [1.0, 1.0, 1.0],
             'textCol' => $text,
-            'rowGap' => 2.5,
+            'rowGap' => 2.0,
             'colGap' => 3.5,
             'cols' => [
-                'field' => ['justification' => 'left', 'width' => $this->tableWidth * 0.32],
-                'value' => ['justification' => 'left', 'width' => $this->tableWidth * 0.68],
+                'data1' => ['justification' => 'left', 'width' => $this->tableWidth * 0.5],
+                'data2' => ['justification' => 'left', 'width' => $this->tableWidth * 0.5],
             ],
         ];
-        $this->pdf->ezTable($rows, ['field' => '', 'value' => ''], '', $tableOptions);
-        $this->pdf->y -= 7.0;
+        $this->pdf->ezTable($rows, ['data1' => '', 'data2' => ''], '', $tableOptions);
+        $this->pdf->y -= 5.0;
     }
 
     private function renderFastReportTableSection(BeplyPdfConfig $config, array $section): void
