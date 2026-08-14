@@ -164,61 +164,52 @@ foreach ($scenarios as $key => $scenario) {
         && mb_stripos($text, '</b>') === false;
 }
 
-// Matriz visual/funcional del renderer nativo: el informe debe conservar parámetros,
-// datos y markup interpretado en cada una de las plantillas publicadas.
-$matrixPayload = [
-    'title' => 'Informes contables: BALANCEMATRIX14',
-    'idempresa' => 1,
-    'sections' => [
-        [
-            'kind' => 'model',
-            'rows' => [
-                [
-                    ['align' => 'left', 'value' => 'Nombre'],
-                    ['align' => 'left', 'value' => 'PARAMETROMATRIX14'],
-                ],
-            ],
-        ],
-        [
-            'kind' => 'table',
-            'title' => '',
-            'native_headers' => [
-                'account' => 'Cuenta',
-                'description' => 'Descripcion',
-                'debit' => 'Debe',
-                'credit' => 'Haber',
-                'balance' => 'Saldo',
-            ],
-            'native_rows' => [[
-                'account' => '<b>4</b>',
-                'description' => '<b>SALDOMATRIX14</b>',
-                'debit' => '<b>3388,00</b>',
-                'credit' => '<b>0,00</b>',
-                'balance' => '<b>3388,00</b>',
-            ]],
-            'native_options' => [
-                'debit' => ['display' => 'right'],
-                'credit' => ['display' => 'right'],
-                'balance' => ['display' => 'right'],
-            ],
-        ],
-    ],
-];
+// Matriz completa del renderer nativo: los tres informes contables exportables deben
+// conservar parámetros, datos, orientación y markup en las nueve plantillas publicadas.
 $renderNativeReport = new ReflectionMethod(PDFExport::class, 'renderFastReportInto');
 $renderNativeReport->setAccessible(true);
 foreach (AbstractBeplyPdfLayout::registry() as $layoutKey => $layout) {
-    $export = new PDFExport();
-    $export->newDoc('BALANCEMATRIX14', 0, '');
-    $rendered = $renderNativeReport->invoke($export, $layout->defaultConfig(), $matrixPayload);
-    $pdf = (string) $export->getDoc();
-    $text = reportExportPdfText($pdf);
+    foreach ($scenarios as $scenarioKey => $scenario) {
+        $matrixPayload = [
+            'title' => 'Informes contables: ' . $scenario['title'],
+            'idempresa' => 1,
+            'sections' => [
+                [
+                    'kind' => 'model',
+                    'rows' => [
+                        [
+                            ['align' => 'left', 'value' => 'Nombre'],
+                            ['align' => 'left', 'value' => $scenario['parameter']],
+                        ],
+                        [
+                            ['align' => 'left', 'value' => 'Nivel'],
+                            ['align' => 'left', 'value' => 'LEVELMATRIX14'],
+                        ],
+                    ],
+                ],
+                [
+                    'kind' => 'table',
+                    'title' => '',
+                    'native_headers' => $scenario['headers'],
+                    'native_rows' => [$scenario['row']],
+                    'native_options' => $scenario['options'],
+                ],
+            ],
+        ];
+        $export = new PDFExport();
+        $export->newDoc($scenario['title'], 0, '');
+        $rendered = $renderNativeReport->invoke($export, $layout->defaultConfig(), $matrixPayload);
+        $pdf = (string) $export->getDoc();
+        $text = reportExportPdfText($pdf);
+        $prefix = $layoutKey . ':' . $scenarioKey;
 
-    $checks[$layoutKey . ':informe-nativo-pdf-valido'] = $rendered === true
-        && strncmp($pdf, '%PDF', 4) === 0;
-    $checks[$layoutKey . ':informe-nativo-parametros-y-datos'] = mb_stripos($text, 'PARAMETROMATRIX14') !== false
-        && mb_stripos($text, 'SALDOMATRIX14') !== false;
-    $checks[$layoutKey . ':informe-nativo-html-no-literal'] = mb_stripos($text, '<b>') === false
-        && mb_stripos($text, '</b>') === false;
+        $checks[$prefix . ':informe-nativo-pdf-valido'] = $rendered === true
+            && strncmp($pdf, '%PDF', 4) === 0;
+        $checks[$prefix . ':informe-nativo-parametros-y-datos'] = mb_stripos($text, $scenario['parameter']) !== false
+            && mb_stripos($text, $scenario['marker']) !== false;
+        $checks[$prefix . ':informe-nativo-html-no-literal'] = mb_stripos($text, '<b>') === false
+            && mb_stripos($text, '</b>') === false;
+    }
 }
 
 $failed = 0;

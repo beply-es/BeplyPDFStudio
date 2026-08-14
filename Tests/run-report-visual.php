@@ -156,6 +156,7 @@ $companyNeedle = reportVisualCompanyNeedle();
 $smallPayload = reportVisualPayload(8);
 $densePayload = reportVisualPayload(100);
 $layoutHashes = [];
+$onlyLayout = trim((string) getenv('BEPDF_ONLY'));
 $outputDir = trim((string) getenv('BEPDF_REPORT_VISUAL_OUTPUT'));
 if ($outputDir !== '' && !is_dir($outputDir)) {
     mkdir($outputDir, 0o777, true);
@@ -184,6 +185,9 @@ $mutations = [
 ];
 
 foreach (AbstractBeplyPdfLayout::registry() as $key => $layout) {
+    if ($onlyLayout !== '' && $onlyLayout !== $key) {
+        continue;
+    }
     echo '== ' . $layout->name() . ' (' . $key . ') ==' . PHP_EOL;
     $config = $layout->defaultConfig();
     $config->idlogo = 0;
@@ -210,7 +214,11 @@ foreach (AbstractBeplyPdfLayout::registry() as $key => $layout) {
     foreach (BeplyPdfConfig::POSICIONES as $position) {
         $positionConfig = clone $config;
         $positionConfig->logoPosition = $position;
-        $positionProbe = BeplyPdfProbe::fromBytes(reportVisualRender($positionConfig, $smallPayload));
+        $positionPdf = reportVisualRender($positionConfig, $smallPayload);
+        if ($outputDir !== '') {
+            file_put_contents($outputDir . '/' . $key . '-logo-' . $position . '.pdf', $positionPdf);
+        }
+        $positionProbe = BeplyPdfProbe::fromBytes($positionPdf);
         $logo = $positionProbe->largestImage(1);
         $companyWords = $companyNeedle === '' ? [] : $positionProbe->findWords($companyNeedle, 1);
         $overlaps = $logo === null || $companyWords === [];
@@ -249,11 +257,13 @@ foreach (AbstractBeplyPdfLayout::registry() as $key => $layout) {
     $check($key . ':config-password', strpos($protected, '/Encrypt') !== false);
 }
 
-$check(
-    'nueve-identidades-visuales',
-    count(array_filter(array_unique($layoutHashes))) === count(AbstractBeplyPdfLayout::registry()),
-    'hashes-unicos=' . count(array_filter(array_unique($layoutHashes)))
-);
+if ($onlyLayout === '') {
+    $check(
+        'nueve-identidades-visuales',
+        count(array_filter(array_unique($layoutHashes))) === count(AbstractBeplyPdfLayout::registry()),
+        'hashes-unicos=' . count(array_filter(array_unique($layoutHashes)))
+    );
+}
 
 @unlink(FS_FOLDER . '/MyFiles/' . $logoAsset);
 echo "REPORT_VISUAL total={$total} failed={$failed}" . PHP_EOL;
