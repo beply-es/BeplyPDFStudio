@@ -120,6 +120,26 @@ function reportVisualHash(string $pdf): string
     return $hash;
 }
 
+function reportVisualBoxesOverlap(array $a, array $b, float $gap = 1.0): bool
+{
+    return $a['x0'] < ($b['x1'] + $gap)
+        && $a['x1'] > ($b['x0'] - $gap)
+        && $a['y0'] < ($b['y1'] + $gap)
+        && $a['y1'] > ($b['y0'] - $gap);
+}
+
+function reportVisualCompanyNeedle(): string
+{
+    $company = new \FacturaScripts\Dinamic\Model\Empresa();
+    if (!$company->load(1)) {
+        return '';
+    }
+
+    $tokens = preg_split('/\s+/u', trim((string) $company->nombre)) ?: [];
+    usort($tokens, static fn(string $a, string $b): int => mb_strlen($b) <=> mb_strlen($a));
+    return (string) ($tokens[0] ?? '');
+}
+
 $total = 0;
 $failed = 0;
 $check = static function (string $name, bool $ok, string $detail = '') use (&$total, &$failed): void {
@@ -132,9 +152,14 @@ $check = static function (string $name, bool $ok, string $detail = '') use (&$to
 };
 
 $logoAsset = reportVisualLogoAsset();
+$companyNeedle = reportVisualCompanyNeedle();
 $smallPayload = reportVisualPayload(8);
 $densePayload = reportVisualPayload(100);
 $layoutHashes = [];
+$outputDir = trim((string) getenv('BEPDF_REPORT_VISUAL_OUTPUT'));
+if ($outputDir !== '' && !is_dir($outputDir)) {
+    mkdir($outputDir, 0o777, true);
+}
 $mutations = [
     'logo-size' => static fn(BeplyPdfConfig $c) => $c->logoSize = 45,
     'logo-position' => static fn(BeplyPdfConfig $c) => $c->logoPosition = $c->logoPosition === 'left' ? 'right' : 'left',
@@ -168,6 +193,9 @@ foreach (AbstractBeplyPdfLayout::registry() as $key => $layout) {
         $config->pageFooterText = '{PAGENO} / {nbpg}';
     }
     $pdf = reportVisualRender($config, $smallPayload);
+    if ($outputDir !== '') {
+        file_put_contents($outputDir . '/' . $key . '.pdf', $pdf);
+    }
     $probe = BeplyPdfProbe::fromBytes($pdf);
     $baselineHash = reportVisualHash($pdf);
     $layoutHashes[$key] = $baselineHash;
@@ -178,6 +206,28 @@ foreach (AbstractBeplyPdfLayout::registry() as $key => $layout) {
     $check($key . ':sin-html-literal', strpos($probe->text(), '<b>') === false);
     $check($key . ':sin-paginas-vacias', empty($probe->blankPages()));
     $check($key . ':raster', $baselineHash !== '');
+
+    foreach (BeplyPdfConfig::POSICIONES as $position) {
+        $positionConfig = clone $config;
+        $positionConfig->logoPosition = $position;
+        $positionProbe = BeplyPdfProbe::fromBytes(reportVisualRender($positionConfig, $smallPayload));
+        $logo = $positionProbe->largestImage(1);
+        $companyWords = $companyNeedle === '' ? [] : $positionProbe->findWords($companyNeedle, 1);
+        $overlaps = $logo === null || $companyWords === [];
+        foreach ($companyWords as $companyWord) {
+            $overlaps = $overlaps || reportVisualBoxesOverlap($logo, $companyWord);
+        }
+        $check($key . ':logo-' . $position . '-sin-solape-empresa', !$overlaps);
+
+        $logoCenter = $logo === null ? 0.0 : ($logo['x0'] + $logo['x1']) / 2.0;
+        $pageWidth = $positionProbe->pageWidth(1);
+        $positionOk = $position === 'left'
+            ? $logoCenter < ($pageWidth * 0.42)
+            : ($position === 'right'
+                ? $logoCenter > ($pageWidth * 0.58)
+                : $logoCenter >= ($pageWidth * 0.42) && $logoCenter <= ($pageWidth * 0.58));
+        $check($key . ':logo-' . $position . '-posicion-real', $logo !== null && $positionOk);
+    }
 
     $denseProbe = BeplyPdfProbe::fromBytes(reportVisualRender($config, $densePayload));
     $check(
