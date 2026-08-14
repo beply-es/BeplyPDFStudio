@@ -1,0 +1,30 @@
+{% if not is_document and generic_sections|default([]) %}
+  {% for section in generic_sections %}
+    <div class="beply-generic-report-section" data-beply-report-section="{{ section.kind }}" style="margin-top:8px; break-inside:auto;">
+      {% if section.title %}
+        <div style="color:{{ color1 }}; font-weight:800; margin:0 0 4px; text-transform:uppercase;">{{ section.title }}</div>
+      {% endif %}
+      <table class="desc-table studio-lines">
+        <thead>
+          <tr>
+            {% for c in section.columns %}
+              <th style="text-align:{{ c.align }};width:{{ c.width }}%;white-space:normal;overflow-wrap:anywhere;word-break:break-word;">{{ c.label }}</th>
+            {% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in section.lines %}
+            <tr>
+              {% for cell in row %}
+                {% set c = section.columns[loop.index0]|default({}) %}
+                <td style="text-align:{{ cell.align }};width:{{ c.width|default(0) }}%;white-space:normal;overflow-wrap:anywhere;word-break:break-word;">
+                  {% if cell.html|default(false) %}{{ cell.value|raw }}{% else %}{{ cell.value }}{% endif %}
+                </td>
+              {% endfor %}
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% endfor %}
+{% endif %}

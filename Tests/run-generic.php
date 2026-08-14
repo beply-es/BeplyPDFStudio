@@ -91,7 +91,7 @@ $reportPayload = [
                 ['label' => 'Valor', 'align' => 'left', 'width' => 68],
             ],
             'rows' => [
-                [['align' => 'left', 'value' => 'Nombre'], ['align' => 'left', 'value' => 'PARAMETRO-REPORT-20260814']],
+                [['align' => 'left', 'value' => 'Nombre'], ['align' => 'left', 'value' => 'PARAMETROVISIBLE14']],
                 [['align' => 'left', 'value' => 'Desde la fecha'], ['align' => 'left', 'value' => '01-01-2026']],
                 [['align' => 'left', 'value' => 'Hasta'], ['align' => 'left', 'value' => '31-12-2026']],
             ],
@@ -108,7 +108,7 @@ $reportPayload = [
             'rows' => [
                 [
                     ['align' => 'left', 'value' => '430'],
-                    ['align' => 'left', 'value' => 'SALDO-REPORT-20260814'],
+                    ['align' => 'left', 'value' => 'SALDOVISIBLE14'],
                     ['align' => 'right', 'value' => '3.388,00'],
                     ['align' => 'right', 'value' => '0,00'],
                     ['align' => 'right', 'value' => '3.388,00'],
@@ -167,14 +167,14 @@ foreach (array_keys(AbstractBeplyPdfLayout::registry()) as $key) {
     $reportHtml = $svc->buildHtml($cfg, null, $reportPayload);
     $reportPdf = $svc->renderGeneric($cfg, $reportPayload);
     $reportText = $reportPdf === '' ? '' : gPdfText($reportPdf);
-    $paramPos = mb_stripos($reportHtml, 'PARAMETRO-REPORT-20260814');
-    $dataPos = mb_stripos($reportHtml, 'SALDO-REPORT-20260814');
+    $paramPos = mb_stripos($reportHtml, 'PARAMETROVISIBLE14');
+    $dataPos = mb_stripos($reportHtml, 'SALDOVISIBLE14');
     $reportChecks = [
         'informe-parametros-visibles' => $paramPos !== false,
         'informe-datos-visibles' => $dataPos !== false,
         'informe-orden-parametros-datos' => $paramPos !== false && $dataPos !== false && $paramPos < $dataPos,
-        'informe-pdf-completo' => mb_stripos($reportText, 'PARAMETRO-REPORT-20260814') !== false
-            && mb_stripos($reportText, 'SALDO-REPORT-20260814') !== false,
+        'informe-pdf-completo' => mb_stripos($reportText, 'PARAMETROVISIBLE14') !== false
+            && mb_stripos($reportText, 'SALDOVISIBLE14') !== false,
         'informe-muestra-1-pagina' => $reportPdf !== '' && gPageCount($reportPdf) === 1,
     ];
     foreach ($reportChecks as $label => $ok) {
