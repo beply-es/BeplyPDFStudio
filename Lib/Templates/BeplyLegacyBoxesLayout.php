@@ -26,6 +26,11 @@ class BeplyLegacyBoxesLayout extends BeplyLegacyStandardLayout
         return 'Cajas';
     }
 
+    public function reportLayout(): BeplyPdfReportLayout
+    {
+        return $this->compactReportLayout('boxes', 'boxes', 0.80, 0.75, 3.2);
+    }
+
     public function defaultConfig(): BeplyPdfConfig
     {
         $c = $this->baseConfig();

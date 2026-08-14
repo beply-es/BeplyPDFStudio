@@ -26,6 +26,11 @@ class BeplyCorporateLayout extends BeplyLegacyStandardLayout
         return 'Corporativo';
     }
 
+    public function reportLayout(): BeplyPdfReportLayout
+    {
+        return $this->compactReportLayout('corporate', 'corporate', 0.78, 0.74, 2.8);
+    }
+
     public function defaultConfig(): BeplyPdfConfig
     {
         $c = $this->baseConfig();

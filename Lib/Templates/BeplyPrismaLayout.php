@@ -26,6 +26,11 @@ class BeplyPrismaLayout extends BeplyLegacyStandardLayout
         return 'Prisma';
     }
 
+    public function reportLayout(): BeplyPdfReportLayout
+    {
+        return $this->compactReportLayout('prisma', 'prisma', 0.78, 0.62, 3.0);
+    }
+
     public function defaultConfig(): BeplyPdfConfig
     {
         $c = $this->baseConfig();

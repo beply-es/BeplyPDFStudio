@@ -26,6 +26,11 @@ class BeplyLegacyFramedLayout extends BeplyLegacyStandardLayout
         return 'Marco';
     }
 
+    public function reportLayout(): BeplyPdfReportLayout
+    {
+        return $this->compactReportLayout('framed', 'framed', 0.80, 0.75, 3.0);
+    }
+
     public function defaultConfig(): BeplyPdfConfig
     {
         $c = $this->baseConfig();

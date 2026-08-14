@@ -30,6 +30,9 @@ interface BeplyPdfLayoutInterface
 
     public function defaultConfig(): BeplyPdfConfig;
 
+    /** Variante de informe de alta densidad propia de esta plantilla. */
+    public function reportLayout(): BeplyPdfReportLayout;
+
     /**
      * Si el diseño puede ELEGIRSE desde la galería.
      *
