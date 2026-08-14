@@ -136,13 +136,15 @@ $smallPayload = reportVisualPayload(8);
 $densePayload = reportVisualPayload(100);
 $layoutHashes = [];
 $mutations = [
-    'logo-size' => static fn(BeplyPdfConfig $c) => $c->logoSize = 72,
+    'logo-size' => static fn(BeplyPdfConfig $c) => $c->logoSize = 45,
     'logo-position' => static fn(BeplyPdfConfig $c) => $c->logoPosition = $c->logoPosition === 'left' ? 'right' : 'left',
     'color-primary' => static fn(BeplyPdfConfig $c) => $c->colorPrimary = '#139B63',
     'color-secondary' => static fn(BeplyPdfConfig $c) => $c->colorSecondary = '#7A32A8',
     'color-tertiary' => static fn(BeplyPdfConfig $c) => $c->colorTertiary = '#FFE3A8',
     'color-text' => static fn(BeplyPdfConfig $c) => $c->colorText = '#1239A6',
-    'font-family' => static fn(BeplyPdfConfig $c) => $c->fontFamily = 'courier',
+    'font-family' => static fn(BeplyPdfConfig $c) => $c->fontFamily = $c->fontFamily === 'DejaVu Sans'
+        ? 'Raleway'
+        : 'DejaVu Sans',
     'font-size' => static fn(BeplyPdfConfig $c) => $c->fontSize = 16,
     'title-font-size' => static fn(BeplyPdfConfig $c) => $c->titleFontSize = 34,
     'margin-top' => static fn(BeplyPdfConfig $c) => $c->marginTop = 28,
