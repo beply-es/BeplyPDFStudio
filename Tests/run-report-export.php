@@ -10,6 +10,7 @@ require FS_FOLDER . '/config.php';
 \FacturaScripts\Core\Kernel::init();
 
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Export\PDFExport;
+use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Templates\AbstractBeplyPdfLayout;
 
 final class ReportExportWidgetStub
 {
@@ -129,6 +130,63 @@ foreach ($scenarios as $key => $scenario) {
         && $balancePos !== false
         && $parameterPos < $balancePos;
     $checks[$key . ':html-de-formato-no-literal'] = mb_stripos($text, '<b>') === false
+        && mb_stripos($text, '</b>') === false;
+}
+
+// Matriz visual/funcional del renderer nativo: el informe debe conservar parámetros,
+// datos y markup interpretado en cada una de las plantillas publicadas.
+$matrixPayload = [
+    'title' => 'Informes contables: BALANCEMATRIX14',
+    'idempresa' => 1,
+    'sections' => [
+        [
+            'kind' => 'model',
+            'rows' => [
+                [
+                    ['align' => 'left', 'value' => 'Nombre'],
+                    ['align' => 'left', 'value' => 'PARAMETROMATRIX14'],
+                ],
+            ],
+        ],
+        [
+            'kind' => 'table',
+            'title' => '',
+            'native_headers' => [
+                'account' => 'Cuenta',
+                'description' => 'Descripcion',
+                'debit' => 'Debe',
+                'credit' => 'Haber',
+                'balance' => 'Saldo',
+            ],
+            'native_rows' => [[
+                'account' => '<b>4</b>',
+                'description' => '<b>SALDOMATRIX14</b>',
+                'debit' => '<b>3388,00</b>',
+                'credit' => '<b>0,00</b>',
+                'balance' => '<b>3388,00</b>',
+            ]],
+            'native_options' => [
+                'debit' => ['display' => 'right'],
+                'credit' => ['display' => 'right'],
+                'balance' => ['display' => 'right'],
+            ],
+        ],
+    ],
+];
+$renderNativeReport = new ReflectionMethod(PDFExport::class, 'renderFastReportInto');
+$renderNativeReport->setAccessible(true);
+foreach (AbstractBeplyPdfLayout::registry() as $layoutKey => $layout) {
+    $export = new PDFExport();
+    $export->newDoc('BALANCEMATRIX14', 0, '');
+    $rendered = $renderNativeReport->invoke($export, $layout->defaultConfig(), $matrixPayload);
+    $pdf = (string) $export->getDoc();
+    $text = reportExportPdfText($pdf);
+
+    $checks[$layoutKey . ':informe-nativo-pdf-valido'] = $rendered === true
+        && strncmp($pdf, '%PDF', 4) === 0;
+    $checks[$layoutKey . ':informe-nativo-parametros-y-datos'] = mb_stripos($text, 'PARAMETROMATRIX14') !== false
+        && mb_stripos($text, 'SALDOMATRIX14') !== false;
+    $checks[$layoutKey . ':informe-nativo-html-no-literal'] = mb_stripos($text, '<b>') === false
         && mb_stripos($text, '</b>') === false;
 }
 
