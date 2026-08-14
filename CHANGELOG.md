@@ -1,5 +1,12 @@
 # Changelog
 
+## v2.6 - 2026-08-14
+
+- Preserves every table section when FacturaScripts reports combine a parameter page with tabular results, instead of returning only the styled report header.
+- Renders trial balance, balance sheet and general ledger reports inside the active PDFStudio design, keeping its logo, colors and table styling.
+- Keeps report sections in their original order and automatically uses landscape orientation for wide accounting tables such as the general ledger.
+- Adds end-to-end PDF text assertions for all three BeplyInformes accounting report flows across the complete template gallery.
+
 ## v2.5 - 2026-08-14
 
 - Places the optional total-units value before every monetary subtotal, tax breakdown and grand total in all nine PDF layouts.
