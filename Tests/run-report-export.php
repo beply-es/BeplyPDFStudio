@@ -47,7 +47,9 @@ final class ReportExportColumnStub
 
 final class ReportExportModelStub
 {
+    public string $enddate = '31-12-2026';
     public int $idempresa = 1;
+    public string $level = 'LEVELVALUE14';
     public string $name;
     public string $startdate = '01-01-2026';
     private string $description;
@@ -60,7 +62,12 @@ final class ReportExportModelStub
 
     public function primaryDescription(): string
     {
-        return $this->description;
+        return $this->name;
+    }
+
+    public function primaryDescriptionColumn(): string
+    {
+        return 'name';
     }
 }
 
@@ -75,9 +82,27 @@ function reportExportPdfText(string $pdf): string
     return $text;
 }
 
+function reportExportPdfWordY(string $pdf, string $word): ?float
+{
+    $base = sys_get_temp_dir() . '/report_export_bbox_' . bin2hex(random_bytes(6));
+    file_put_contents($base . '.pdf', $pdf);
+    @exec('pdftotext -bbox ' . escapeshellarg($base . '.pdf') . ' ' . escapeshellarg($base . '.html') . ' 2>/dev/null');
+    $html = is_file($base . '.html') ? (string) file_get_contents($base . '.html') : '';
+    @unlink($base . '.pdf');
+    @unlink($base . '.html');
+
+    $quoted = preg_quote($word, '/');
+    if (!preg_match('/<word[^>]*yMin="([0-9.]+)"[^>]*>' . $quoted . '<\/word>/', $html, $match)) {
+        return null;
+    }
+    return (float) $match[1];
+}
+
 $columns = [
     new ReportExportColumnStub('name', 'name'),
+    new ReportExportColumnStub('level', 'level'),
     new ReportExportColumnStub('startdate', 'start-date'),
+    new ReportExportColumnStub('enddate', 'end-date'),
 ];
 $scenarios = [
     'sumas-saldos' => [
@@ -121,10 +146,16 @@ foreach ($scenarios as $key => $scenario) {
         file_put_contents($outputPath, $pdf);
     }
     $text = reportExportPdfText($pdf);
+    $levelY = reportExportPdfWordY($pdf, 'LEVELVALUE14');
+    $startDateY = reportExportPdfWordY($pdf, '01-01-2026');
     $parameterPos = mb_stripos($text, $scenario['parameter']);
     $balancePos = mb_stripos($text, $scenario['marker']);
     $checks[$key . ':pdf-valido'] = strncmp($pdf, '%PDF', 4) === 0;
     $checks[$key . ':parametros-visibles'] = $parameterPos !== false;
+    $checks[$key . ':nombre-sin-duplicar'] = mb_substr_count($text, $scenario['parameter']) === 1;
+    $checks[$key . ':parametros-en-paralelo'] = $levelY !== null
+        && $startDateY !== null
+        && abs($levelY - $startDateY) < 1.0;
     $checks[$key . ':datos-contables-visibles'] = $balancePos !== false;
     $checks[$key . ':orden-parametros-datos'] = $parameterPos !== false
         && $balancePos !== false
