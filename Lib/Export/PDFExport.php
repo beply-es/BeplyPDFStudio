@@ -456,6 +456,12 @@ class PDFExport extends CorePDFExport
             'title' => $title,
             'columns' => $columns,
             'rows' => $outRows,
+            // El motor específico de informes conserva el contrato nativo de Cezpdf.
+            // Informes usa markup como <b> para las filas de agrupación; convertirlo a
+            // celdas HTML genéricas hace que Twig lo escape y lo imprima literalmente.
+            'native_headers' => $headers,
+            'native_rows' => $rows,
+            'native_options' => $options,
         ];
     }
 
@@ -470,6 +476,22 @@ class PDFExport extends CorePDFExport
         $this->beplyPendingGenericConfig = null;
         if ($payload === null || $config === null) {
             return false;
+        }
+
+        // Los informes del core no son fichas/documentos normales: componen una tabla
+        // de parámetros seguida de una o varias tablas Cezpdf, que además interpretan
+        // su markup de formato. Mantener ese renderer específico conserva densidad,
+        // saltos de página, negritas y toda la información, aplicando encima la marca.
+        if ($this->hasNativeReportTables($payload)) {
+            $previousPdf = $this->pdf;
+            try {
+                if ($this->renderFastReportInto($config, $payload)) {
+                    return true;
+                }
+            } catch (\Throwable $e) {
+                $this->pdf = $previousPdf;
+                Tools::log()->warning('beplypdf-native-report-fallback: ' . $e->getMessage());
+            }
         }
 
         $service = new BeplyHtmlRenderService();
@@ -503,6 +525,16 @@ class PDFExport extends CorePDFExport
         }
         array_push($this->beplyHtmlPdfs, ...$parts);
         return true;
+    }
+
+    private function hasNativeReportTables(array $payload): bool
+    {
+        foreach ($payload['sections'] ?? [] as $section) {
+            if (($section['kind'] ?? '') === 'table' && !empty($section['native_headers'])) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /** Resuelve el estilo Beply activo (empresa → global) para impresiones genéricas sin FormatoDocumento. */
@@ -600,6 +632,123 @@ class PDFExport extends CorePDFExport
         $this->pdf->ezTable($rows, $headers, '', $tableOptions);
         $this->stampBeplyMarker();
         return true;
+    }
+
+    /**
+     * Renderer compacto para el flujo real de Informes:
+     * parámetros del modelo + tablas contables dentro del mismo documento Cezpdf.
+     */
+    private function renderFastReportInto(BeplyPdfConfig $config, array $payload): bool
+    {
+        $sections = $payload['sections'] ?? [];
+        $columnCount = 0;
+        foreach ($sections as $section) {
+            if (($section['kind'] ?? '') === 'table') {
+                $columnCount = max($columnCount, count($section['native_headers'] ?? []));
+            }
+        }
+        if ($columnCount === 0) {
+            return false;
+        }
+
+        $orientation = $this->fastGenericOrientation($config, $columnCount);
+        $this->startFastGenericPage(
+            $config,
+            $orientation,
+            $this->nativeReportTitle((string) ($payload['title'] ?? '')),
+            isset($payload['idempresa']) ? (int) $payload['idempresa'] : null
+        );
+
+        foreach ($sections as $section) {
+            if (($section['kind'] ?? '') === 'model') {
+                $this->renderFastReportModelSection($config, $section);
+                continue;
+            }
+            if (($section['kind'] ?? '') === 'table') {
+                $this->renderFastReportTableSection($config, $section);
+            }
+        }
+
+        $this->stampBeplyMarker();
+        return true;
+    }
+
+    private function renderFastReportModelSection(BeplyPdfConfig $config, array $section): void
+    {
+        $rows = [];
+        foreach ($section['rows'] ?? [] as $row) {
+            $label = $this->genericReportCellValue($row[0] ?? '');
+            $value = $this->genericReportCellValue($row[1] ?? '');
+            if (trim($label . $value) === '') {
+                continue;
+            }
+            $rows[] = [
+                'field' => '<b>' . strip_tags($label) . '</b>',
+                'value' => $value,
+            ];
+        }
+        if (empty($rows)) {
+            return;
+        }
+
+        $text = BeplyPdfDraw::rgb($this->fastBodyTextHex($config), [0.13, 0.15, 0.16]);
+        $tableOptions = [
+            'width' => $this->tableWidth,
+            'fontSize' => $this->fastTableFontSize($config, 2),
+            'showHeadings' => 0,
+            'shaded' => 0,
+            'gridlines' => 0,
+            'lineCol' => [1.0, 1.0, 1.0],
+            'textCol' => $text,
+            'rowGap' => 2.5,
+            'colGap' => 3.5,
+            'cols' => [
+                'field' => ['justification' => 'left', 'width' => $this->tableWidth * 0.32],
+                'value' => ['justification' => 'left', 'width' => $this->tableWidth * 0.68],
+            ],
+        ];
+        $this->pdf->ezTable($rows, ['field' => '', 'value' => ''], '', $tableOptions);
+        $this->pdf->y -= 7.0;
+    }
+
+    private function renderFastReportTableSection(BeplyPdfConfig $config, array $section): void
+    {
+        $headers = $section['native_headers'] ?? [];
+        if (empty($headers)) {
+            return;
+        }
+
+        $displayHeaders = [];
+        foreach ($headers as $key => $label) {
+            $displayHeaders[$key] = mb_strtoupper(Tools::lang()->trans((string) $label));
+        }
+
+        $rows = $section['native_rows'] ?? [];
+        $options = $section['native_options'] ?? [];
+        $tableOptions = ['cols' => []];
+        foreach (array_keys($headers) as $key) {
+            $tableOptions['cols'][$key]['justification'] = $this->tableColAlign($key, $options);
+        }
+        $this->applyFastTableOptions($config, $tableOptions, count($headers));
+        $this->addFastBodyColors($rows, array_keys($headers), $config);
+        $this->pdf->ezTable($rows, $displayHeaders, (string) ($section['title'] ?? ''), $tableOptions);
+        $this->pdf->y -= 5.0;
+    }
+
+    private function nativeReportTitle(string $title): string
+    {
+        $separator = mb_strpos($title, ':');
+        if ($separator === false) {
+            return trim($title);
+        }
+
+        $specific = trim(mb_substr($title, $separator + 1));
+        return $specific !== '' ? $specific : trim($title);
+    }
+
+    private function genericReportCellValue($cell): string
+    {
+        return is_array($cell) ? (string) ($cell['value'] ?? '') : (string) $cell;
     }
 
     private function startFastGenericPage(BeplyPdfConfig $config, string $orientation, string $title, ?int $idempresa): void

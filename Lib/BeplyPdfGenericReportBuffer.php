@@ -36,7 +36,12 @@ final class BeplyPdfGenericReportBuffer
             && ($section['kind'] ?? 'table') === 'table'
             && ($this->payload['sections'][$last]['columns'] ?? []) === $section['columns']
         ) {
-            array_push($this->payload['sections'][$last]['rows'], ...($section['rows'] ?? []));
+            foreach ($section['rows'] ?? [] as $row) {
+                $this->payload['sections'][$last]['rows'][] = $row;
+            }
+            foreach ($section['native_rows'] ?? [] as $row) {
+                $this->payload['sections'][$last]['native_rows'][] = $row;
+            }
             return true;
         }
 
