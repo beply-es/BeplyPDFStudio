@@ -84,7 +84,7 @@ $scenarios = [
         'parameter' => 'PARAMETROAMOUNT14',
         'marker' => 'SALDOAMOUNT14',
         'headers' => ['account' => 'Cuenta', 'description' => 'Descripcion', 'debit' => 'Debe', 'credit' => 'Haber', 'balance' => 'Saldo'],
-        'row' => ['account' => '430', 'description' => 'SALDOAMOUNT14', 'debit' => '3388,00', 'credit' => '0,00', 'balance' => '3388,00'],
+        'row' => ['account' => '<b>4</b>', 'description' => '<b>SALDOAMOUNT14</b>', 'debit' => '<b>3388,00</b>', 'credit' => '<b>0,00</b>', 'balance' => '<b>3388,00</b>'],
         'options' => ['debit' => ['display' => 'right'], 'credit' => ['display' => 'right'], 'balance' => ['display' => 'right']],
     ],
     'balance' => [
@@ -128,6 +128,8 @@ foreach ($scenarios as $key => $scenario) {
     $checks[$key . ':orden-parametros-datos'] = $parameterPos !== false
         && $balancePos !== false
         && $parameterPos < $balancePos;
+    $checks[$key . ':html-de-formato-no-literal'] = mb_stripos($text, '<b>') === false
+        && mb_stripos($text, '</b>') === false;
 }
 
 $failed = 0;
