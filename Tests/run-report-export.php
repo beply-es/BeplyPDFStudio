@@ -10,6 +10,7 @@ require FS_FOLDER . '/config.php';
 \FacturaScripts\Core\Kernel::init();
 
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Export\PDFExport;
+use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Templates\AbstractBeplyPdfLayout;
 
 final class ReportExportWidgetStub
 {
@@ -46,7 +47,9 @@ final class ReportExportColumnStub
 
 final class ReportExportModelStub
 {
+    public string $enddate = '31-12-2026';
     public int $idempresa = 1;
+    public string $level = 'LEVELVALUE14';
     public string $name;
     public string $startdate = '01-01-2026';
     private string $description;
@@ -59,7 +62,12 @@ final class ReportExportModelStub
 
     public function primaryDescription(): string
     {
-        return $this->description;
+        return $this->name;
+    }
+
+    public function primaryDescriptionColumn(): string
+    {
+        return 'name';
     }
 }
 
@@ -74,9 +82,27 @@ function reportExportPdfText(string $pdf): string
     return $text;
 }
 
+function reportExportPdfWordY(string $pdf, string $word): ?float
+{
+    $base = sys_get_temp_dir() . '/report_export_bbox_' . bin2hex(random_bytes(6));
+    file_put_contents($base . '.pdf', $pdf);
+    @exec('pdftotext -bbox ' . escapeshellarg($base . '.pdf') . ' ' . escapeshellarg($base . '.html') . ' 2>/dev/null');
+    $html = is_file($base . '.html') ? (string) file_get_contents($base . '.html') : '';
+    @unlink($base . '.pdf');
+    @unlink($base . '.html');
+
+    $quoted = preg_quote($word, '/');
+    if (!preg_match('/<word[^>]*yMin="([0-9.]+)"[^>]*>' . $quoted . '<\/word>/', $html, $match)) {
+        return null;
+    }
+    return (float) $match[1];
+}
+
 $columns = [
     new ReportExportColumnStub('name', 'name'),
+    new ReportExportColumnStub('level', 'level'),
     new ReportExportColumnStub('startdate', 'start-date'),
+    new ReportExportColumnStub('enddate', 'end-date'),
 ];
 $scenarios = [
     'sumas-saldos' => [
@@ -84,7 +110,7 @@ $scenarios = [
         'parameter' => 'PARAMETROAMOUNT14',
         'marker' => 'SALDOAMOUNT14',
         'headers' => ['account' => 'Cuenta', 'description' => 'Descripcion', 'debit' => 'Debe', 'credit' => 'Haber', 'balance' => 'Saldo'],
-        'row' => ['account' => '430', 'description' => 'SALDOAMOUNT14', 'debit' => '3388,00', 'credit' => '0,00', 'balance' => '3388,00'],
+        'row' => ['account' => '<b>4</b>', 'description' => '<b>SALDOAMOUNT14</b>', 'debit' => '<b>3388,00</b>', 'credit' => '<b>0,00</b>', 'balance' => '<b>3388,00</b>'],
         'options' => ['debit' => ['display' => 'right'], 'credit' => ['display' => 'right'], 'balance' => ['display' => 'right']],
     ],
     'balance' => [
@@ -120,14 +146,70 @@ foreach ($scenarios as $key => $scenario) {
         file_put_contents($outputPath, $pdf);
     }
     $text = reportExportPdfText($pdf);
+    $levelY = reportExportPdfWordY($pdf, 'LEVELVALUE14');
+    $startDateY = reportExportPdfWordY($pdf, '01-01-2026');
     $parameterPos = mb_stripos($text, $scenario['parameter']);
     $balancePos = mb_stripos($text, $scenario['marker']);
     $checks[$key . ':pdf-valido'] = strncmp($pdf, '%PDF', 4) === 0;
     $checks[$key . ':parametros-visibles'] = $parameterPos !== false;
+    $checks[$key . ':nombre-sin-duplicar'] = mb_substr_count($text, $scenario['parameter']) === 1;
+    $checks[$key . ':parametros-en-paralelo'] = $levelY !== null
+        && $startDateY !== null
+        && abs($levelY - $startDateY) < 1.0;
     $checks[$key . ':datos-contables-visibles'] = $balancePos !== false;
     $checks[$key . ':orden-parametros-datos'] = $parameterPos !== false
         && $balancePos !== false
         && $parameterPos < $balancePos;
+    $checks[$key . ':html-de-formato-no-literal'] = mb_stripos($text, '<b>') === false
+        && mb_stripos($text, '</b>') === false;
+}
+
+// Matriz completa del renderer nativo: los tres informes contables exportables deben
+// conservar parámetros, datos, orientación y markup en las nueve plantillas publicadas.
+$renderNativeReport = new ReflectionMethod(PDFExport::class, 'renderFastReportInto');
+$renderNativeReport->setAccessible(true);
+foreach (AbstractBeplyPdfLayout::registry() as $layoutKey => $layout) {
+    foreach ($scenarios as $scenarioKey => $scenario) {
+        $matrixPayload = [
+            'title' => 'Informes contables: ' . $scenario['title'],
+            'idempresa' => 1,
+            'sections' => [
+                [
+                    'kind' => 'model',
+                    'rows' => [
+                        [
+                            ['align' => 'left', 'value' => 'Nombre'],
+                            ['align' => 'left', 'value' => $scenario['parameter']],
+                        ],
+                        [
+                            ['align' => 'left', 'value' => 'Nivel'],
+                            ['align' => 'left', 'value' => 'LEVELMATRIX14'],
+                        ],
+                    ],
+                ],
+                [
+                    'kind' => 'table',
+                    'title' => '',
+                    'native_headers' => $scenario['headers'],
+                    'native_rows' => [$scenario['row']],
+                    'native_options' => $scenario['options'],
+                ],
+            ],
+        ];
+        $export = new PDFExport();
+        $export->newDoc($scenario['title'], 0, '');
+        $rendered = $renderNativeReport->invoke($export, $layout->defaultConfig(), $matrixPayload);
+        $pdf = (string) $export->getDoc();
+        $text = reportExportPdfText($pdf);
+        $prefix = $layoutKey . ':' . $scenarioKey;
+
+        $checks[$prefix . ':informe-nativo-pdf-valido'] = $rendered === true
+            && strncmp($pdf, '%PDF', 4) === 0;
+        $checks[$prefix . ':informe-nativo-parametros-y-datos'] = mb_stripos($text, $scenario['parameter']) !== false
+            && mb_stripos($text, $scenario['marker']) !== false;
+        $checks[$prefix . ':informe-nativo-html-no-literal'] = mb_stripos($text, '<b>') === false
+            && mb_stripos($text, '</b>') === false;
+    }
 }
 
 $failed = 0;

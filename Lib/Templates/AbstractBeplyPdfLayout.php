@@ -24,6 +24,23 @@ use FacturaScripts\Plugins\BeplyPDFStudio\Lib\BeplyPdfConfig;
 /** Base común de los diseños propios. */
 abstract class AbstractBeplyPdfLayout implements BeplyPdfLayoutInterface
 {
+    protected function compactReportLayout(
+        string $header,
+        string $table,
+        float $fontScale,
+        float $titleScale,
+        float $rowGap
+    ): BeplyPdfReportLayout {
+        return new BeplyPdfReportLayout(
+            $this->key(),
+            $header,
+            $table,
+            max(0.5, min(1.0, $fontScale)),
+            max(0.4, min(1.0, $titleScale)),
+            max(1.5, min(4.5, $rowGap))
+        );
+    }
+
     protected function baseConfig(): BeplyPdfConfig
     {
         $c = new BeplyPdfConfig();

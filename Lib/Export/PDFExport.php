@@ -35,6 +35,9 @@ use FacturaScripts\Plugins\BeplyPDFStudio\Lib\BeplyPdfRenderService;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Html\BeplyHtmlRenderService;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\PdfEngine\BeplyPdfDraw;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\PdfEngine\BeplyPdfSampleDoc;
+use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Templates\AbstractBeplyPdfLayout;
+use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Templates\BeplyLegacyStandardLayout;
+use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Templates\BeplyPdfReportLayout;
 
 /**
  * Override del exportador PDF del core. Al llamarse exactamente "PDFExport" dentro de
@@ -353,7 +356,11 @@ class PDFExport extends CorePDFExport
                     continue; // ficha: omitimos campos vacíos para no llenar de filas en blanco
                 }
                 $rows[] = [
-                    ['align' => 'left', 'value' => $this->fixValue((string) $label)],
+                    [
+                        'align' => 'left',
+                        'fieldname' => (string) ($widget->fieldname ?? ''),
+                        'value' => $this->fixValue((string) $label),
+                    ],
                     ['align' => 'left', 'value' => $this->fixValue($value)],
                 ];
             }
@@ -375,6 +382,9 @@ class PDFExport extends CorePDFExport
                     'kind' => 'model',
                     'title' => '',
                     'columns' => $cols,
+                    'primary_description_field' => method_exists($model, 'primaryDescriptionColumn')
+                        ? (string) $model->primaryDescriptionColumn()
+                        : '',
                     'rows' => $rows,
                 ]
             );
@@ -456,6 +466,12 @@ class PDFExport extends CorePDFExport
             'title' => $title,
             'columns' => $columns,
             'rows' => $outRows,
+            // El motor específico de informes conserva el contrato nativo de Cezpdf.
+            // Informes usa markup como <b> para las filas de agrupación; convertirlo a
+            // celdas HTML genéricas hace que Twig lo escape y lo imprima literalmente.
+            'native_headers' => $headers,
+            'native_rows' => $rows,
+            'native_options' => $options,
         ];
     }
 
@@ -470,6 +486,22 @@ class PDFExport extends CorePDFExport
         $this->beplyPendingGenericConfig = null;
         if ($payload === null || $config === null) {
             return false;
+        }
+
+        // Los informes del core no son fichas/documentos normales: componen una tabla
+        // de parámetros seguida de una o varias tablas Cezpdf, que además interpretan
+        // su markup de formato. Mantener ese renderer específico conserva densidad,
+        // saltos de página, negritas y toda la información, aplicando encima la marca.
+        if ($this->hasNativeReportTables($payload)) {
+            $previousPdf = $this->pdf;
+            try {
+                if ($this->renderFastReportInto($config, $payload)) {
+                    return true;
+                }
+            } catch (\Throwable $e) {
+                $this->pdf = $previousPdf;
+                Tools::log()->warning('beplypdf-native-report-fallback: ' . $e->getMessage());
+            }
         }
 
         $service = new BeplyHtmlRenderService();
@@ -503,6 +535,16 @@ class PDFExport extends CorePDFExport
         }
         array_push($this->beplyHtmlPdfs, ...$parts);
         return true;
+    }
+
+    private function hasNativeReportTables(array $payload): bool
+    {
+        foreach ($payload['sections'] ?? [] as $section) {
+            if (($section['kind'] ?? '') === 'table' && !empty($section['native_headers'])) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /** Resuelve el estilo Beply activo (empresa → global) para impresiones genéricas sin FormatoDocumento. */
@@ -602,6 +644,156 @@ class PDFExport extends CorePDFExport
         return true;
     }
 
+    /**
+     * Renderer compacto para el flujo real de Informes:
+     * parámetros del modelo + tablas contables dentro del mismo documento Cezpdf.
+     */
+    private function renderFastReportInto(BeplyPdfConfig $config, array $payload): bool
+    {
+        $sections = $payload['sections'] ?? [];
+        $columnCount = 0;
+        foreach ($sections as $section) {
+            if (($section['kind'] ?? '') === 'table') {
+                $columnCount = max($columnCount, count($section['native_headers'] ?? []));
+            }
+        }
+        if ($columnCount === 0) {
+            return false;
+        }
+
+        $orientation = $this->fastGenericOrientation($config, $columnCount);
+        $this->startFastGenericPage(
+            $config,
+            $orientation,
+            $this->nativeReportTitle((string) ($payload['title'] ?? '')),
+            isset($payload['idempresa']) ? (int) $payload['idempresa'] : null
+        );
+
+        foreach ($sections as $section) {
+            if (($section['kind'] ?? '') === 'model') {
+                $this->renderFastReportModelSection($config, $section);
+                continue;
+            }
+            if (($section['kind'] ?? '') === 'table') {
+                $this->renderFastReportTableSection($config, $section);
+            }
+        }
+
+        $this->stampBeplyMarker();
+        // Cezpdf materializa la paginación al cerrar el documento usando el color activo.
+        // Dejamos explícitamente el texto configurado para que el pie no herede blanco de
+        // una cabecera de tabla oscura y desaparezca en algunas plantillas.
+        BeplyPdfDraw::font($this->pdf, false);
+        BeplyPdfDraw::setFill($this->pdf, $this->fastBodyTextHex($config));
+        return true;
+    }
+
+    private function renderFastReportModelSection(BeplyPdfConfig $config, array $section): void
+    {
+        $items = [];
+        $primaryDescriptionField = (string) ($section['primary_description_field'] ?? '');
+        foreach ($section['rows'] ?? [] as $row) {
+            $sourceField = is_array($row[0] ?? null) ? (string) ($row[0]['fieldname'] ?? '') : '';
+            if ($primaryDescriptionField !== '' && $sourceField === $primaryDescriptionField) {
+                continue;
+            }
+
+            $label = $this->genericReportCellValue($row[0] ?? '');
+            $value = $this->genericReportCellValue($row[1] ?? '');
+            if (trim($label . $value) === '') {
+                continue;
+            }
+            $items[] = '<b>' . strip_tags($label) . '</b>: ' . $value;
+        }
+        if (empty($items)) {
+            return;
+        }
+
+        // FacturaScripts presenta los parámetros de los informes en paralelo: dos
+        // pares campo/valor por fila. Mantener ese patrón reduce la altura a la mitad
+        // y deja el espacio vertical para la tabla contable, que es el contenido útil.
+        $rows = [];
+        foreach ($items as $item) {
+            $last = count($rows) - 1;
+            if ($last >= 0 && $rows[$last]['data2'] === '') {
+                $rows[$last]['data2'] = $item;
+                continue;
+            }
+            $rows[] = ['data1' => $item, 'data2' => ''];
+        }
+
+        $text = BeplyPdfDraw::rgb($this->fastBodyTextHex($config), [0.13, 0.15, 0.16]);
+        $tableOptions = [
+            'width' => $this->tableWidth,
+            'fontSize' => $this->fastTableFontSize($config, 2),
+            'showHeadings' => 0,
+            'shaded' => 0,
+            'gridlines' => 0,
+            'lineCol' => [1.0, 1.0, 1.0],
+            'textCol' => $text,
+            'rowGap' => max(1.5, $this->fastReportLayout($config)->rowGap - 1.0),
+            'colGap' => 3.5,
+            'cols' => [
+                'data1' => ['justification' => 'left', 'width' => $this->tableWidth * 0.5],
+                'data2' => ['justification' => 'left', 'width' => $this->tableWidth * 0.5],
+            ],
+        ];
+        $this->pdf->ezTable($rows, ['data1' => '', 'data2' => ''], '', $tableOptions);
+        $left = (float) ($this->pdf->ez['leftMargin'] ?? $this->marginPt($config->marginLeft));
+        $pageWidth = (float) ($this->pdf->ez['pageWidth'] ?? 595.28);
+        $right = $pageWidth - (float) ($this->pdf->ez['rightMargin'] ?? $this->marginPt($config->marginRight));
+        BeplyPdfDraw::line(
+            $this->pdf,
+            $left,
+            $this->pdf->y - 1.0,
+            $right,
+            $this->pdf->y - 1.0,
+            $this->fastHex($config->colorSecondary, $config->colorPrimary),
+            0.55
+        );
+        $this->pdf->y -= 5.0;
+    }
+
+    private function renderFastReportTableSection(BeplyPdfConfig $config, array $section): void
+    {
+        $headers = $section['native_headers'] ?? [];
+        if (empty($headers)) {
+            return;
+        }
+
+        $displayHeaders = [];
+        foreach ($headers as $key => $label) {
+            $displayHeaders[$key] = mb_strtoupper(Tools::lang()->trans((string) $label));
+        }
+
+        $rows = $section['native_rows'] ?? [];
+        $options = $section['native_options'] ?? [];
+        $tableOptions = ['cols' => []];
+        foreach (array_keys($headers) as $key) {
+            $tableOptions['cols'][$key]['justification'] = $this->tableColAlign($key, $options);
+        }
+        $this->applyFastTableOptions($config, $tableOptions, count($headers));
+        $this->addFastBodyColors($rows, array_keys($headers), $config);
+        $this->pdf->ezTable($rows, $displayHeaders, (string) ($section['title'] ?? ''), $tableOptions);
+        $this->pdf->y -= 5.0;
+    }
+
+    private function nativeReportTitle(string $title): string
+    {
+        $separator = mb_strpos($title, ':');
+        if ($separator === false) {
+            return trim($title);
+        }
+
+        $specific = trim(mb_substr($title, $separator + 1));
+        return $specific !== '' ? $specific : trim($title);
+    }
+
+    private function genericReportCellValue($cell): string
+    {
+        return is_array($cell) ? (string) ($cell['value'] ?? '') : (string) $cell;
+    }
+
     private function startFastGenericPage(BeplyPdfConfig $config, string $orientation, string $title, ?int $idempresa): void
     {
         $cfg = BeplyPdfConfig::fromArray($config->toArray());
@@ -646,8 +838,17 @@ class PDFExport extends CorePDFExport
 
     private function fastTableFontSize(BeplyPdfConfig $config, int $columnCount): int
     {
-        $base = max(9, min(10, (int) $config->fontSize));
-        return $columnCount > 7 ? max(8, $base - 1) : $base;
+        $profile = $this->fastReportLayout($config);
+        $base = max(7, min(11, (int) round($config->fontSize * $profile->fontScale)));
+        return $columnCount > 7 ? max(7, $base - 1) : $base;
+    }
+
+    private function fastReportLayout(BeplyPdfConfig $config): BeplyPdfReportLayout
+    {
+        $layout = AbstractBeplyPdfLayout::find($config->diseno);
+        return $layout === null
+            ? (new BeplyLegacyStandardLayout())->reportLayout()
+            : $layout->reportLayout();
     }
 
     private function fastGenericOrientation(BeplyPdfConfig $config, int $columnCount): string
@@ -678,6 +879,7 @@ class PDFExport extends CorePDFExport
      */
     private function fastTableStyle(BeplyPdfConfig $config): array
     {
+        $profile = $this->fastReportLayout($config);
         $primary = $this->fastHex($config->colorPrimary, '#1A1A2E');
         $tertiary = $this->fastHex($config->colorTertiary, '#F8F9FA');
         $text = $this->fastBodyTextHex($config);
@@ -690,30 +892,27 @@ class PDFExport extends CorePDFExport
             'line' => '#DEE2E6',
             'gridlines' => 6, // EZ_GRIDLINE_HEADERONLY + EZ_GRIDLINE_ROWS
             'shaded' => 1,
-            'rowGap' => 4.0,
+            'rowGap' => $profile->rowGap,
             'innerLineThickness' => 0.35,
             'outerLineThickness' => 0.45,
         ];
 
-        switch ($config->diseno) {
-            case 'legacy_standard':
+        switch ($profile->table) {
+            case 'classic':
                 $style['headingBg'] = $primary;
                 $style['headingText'] = $onPrimary;
                 $style['line'] = '#D6DEE8';
-                $style['rowGap'] = 4.5;
                 $style['outerLineThickness'] = 0.65;
                 break;
 
-            case 'legacy_summary':
+            case 'summary':
                 $style['headingBg'] = $primary;
                 $style['headingText'] = $onPrimary;
                 $style['line'] = $tertiary;
                 $style['shaded'] = 1;
-                $style['rowGap'] = 3.0;
                 break;
 
-            case 'legacy_boxes':
-            case 'legacy_framed':
+            case 'boxes':
                 $style['headingBg'] = $primary;
                 $style['headingText'] = $onPrimary;
                 $style['line'] = $primary;
@@ -721,12 +920,19 @@ class PDFExport extends CorePDFExport
                 $style['outerLineThickness'] = 0.75;
                 break;
 
-            case 'legacy_banner':
-            case 'modern':
+            case 'framed':
+                $style['headingBg'] = $primary;
+                $style['headingText'] = $onPrimary;
+                $style['line'] = $primary;
+                $style['gridlines'] = 31;
+                $style['innerLineThickness'] = 0.2;
+                $style['outerLineThickness'] = 1.0;
+                break;
+
+            case 'banner':
                 $style['headingBg'] = $primary;
                 $style['headingText'] = $onPrimary;
                 $style['line'] = '#CBD5E1';
-                $style['rowGap'] = 5.0;
                 $style['outerLineThickness'] = 0.65;
                 break;
 
@@ -734,22 +940,29 @@ class PDFExport extends CorePDFExport
                 $style['headingBg'] = $tertiary;
                 $style['headingText'] = $text;
                 $style['line'] = '#CCD1D6';
-                $style['rowGap'] = 4.25;
                 break;
 
-            case 'azure':
+            case 'modern':
                 $style['headingBg'] = $primary;
                 $style['headingText'] = $onPrimary;
-                $style['line'] = '#D7E3EF';
-                $style['rowGap'] = 4.5;
+                $style['line'] = $this->fastHex($config->colorSecondary, '#D7E3EF');
+                $style['outerLineThickness'] = 0.7;
                 break;
 
             case 'prisma':
                 $style['headingBg'] = $tertiary;
                 $style['headingText'] = $primary;
                 $style['line'] = $primary;
-                $style['rowGap'] = 4.5;
                 $style['outerLineThickness'] = 0.65;
+                break;
+
+            case 'studio':
+                $style['headingBg'] = '#FFFFFF';
+                $style['headingText'] = $primary;
+                $style['stripe'] = $tertiary;
+                $style['line'] = $primary;
+                $style['gridlines'] = 6;
+                $style['outerLineThickness'] = 0.8;
                 break;
         }
 
@@ -781,22 +994,24 @@ class PDFExport extends CorePDFExport
     {
         $ctx = $this->fastHeaderContext($config, $title, $idempresa);
 
-        switch ($config->diseno) {
-            case 'legacy_summary':
+        switch ($this->fastReportLayout($config)->header) {
+            case 'summary':
                 $this->drawFastSummaryHeader($config, $ctx);
                 return;
 
-            case 'legacy_standard':
+            case 'classic':
                 $this->drawFastStandardHeader($config, $ctx);
                 return;
 
-            case 'legacy_boxes':
-            case 'legacy_framed':
+            case 'boxes':
                 $this->drawFastBoxedHeader($config, $ctx);
                 return;
 
-            case 'legacy_banner':
-            case 'modern':
+            case 'framed':
+                $this->drawFastFramedHeader($config, $ctx);
+                return;
+
+            case 'banner':
                 $this->drawFastBannerHeader($config, $ctx);
                 return;
 
@@ -804,12 +1019,16 @@ class PDFExport extends CorePDFExport
                 $this->drawFastCorporateHeader($config, $ctx);
                 return;
 
-            case 'azure':
+            case 'modern':
                 $this->drawFastAzureHeader($config, $ctx);
                 return;
 
             case 'prisma':
                 $this->drawFastPrismaHeader($config, $ctx);
+                return;
+
+            case 'studio':
+                $this->drawFastStudioHeader($config, $ctx);
                 return;
         }
 
@@ -837,7 +1056,9 @@ class PDFExport extends CorePDFExport
             'company' => $this->fastCompanyData($idempresa),
             'title' => mb_strtoupper(trim($title !== '' ? $title : Tools::lang()->trans('list'))),
             'fontSize' => $this->fastTableFontSize($config, 1),
-            'titleSize' => max(13, min(17, (int) $config->titleFontSize)),
+            'titleSize' => max(12, min(22, (int) round(
+                $config->titleFontSize * $this->fastReportLayout($config)->titleScale
+            ))),
             'primary' => $primary,
             'secondary' => $secondary,
             'tertiary' => $this->fastHex($config->colorTertiary, '#F8F9FA'),
@@ -855,19 +1076,19 @@ class PDFExport extends CorePDFExport
         $top = $ctx['top'];
         $width = $ctx['width'];
         $right = $ctx['right'];
-        $logo = $this->drawFastLogo($config, $left, $top - 8, min(110.0, $width * 0.28));
-        $companyY = $this->drawFastCompanyBlock(
+        $row = $this->drawFastLogoCompanyRow(
+            $config,
             $ctx['company'],
-            $left + ($width * 0.52),
+            $left,
+            $top - 8,
+            $width,
             $top - 17,
             $ctx['fontSize'],
             $ctx['text'],
-            $ctx['muted'],
-            'right',
-            $width * 0.48
+            $ctx['muted']
         );
 
-        $barTop = min($top - 52, $logo['bottom'] - 10, $companyY - 2);
+        $barTop = min($top - 52, $row['bottom'] - 7);
         $barH = 26.0;
         BeplyPdfDraw::box($this->pdf, $left, $barTop - $barH, $width, $barH, $ctx['primary']);
         BeplyPdfDraw::text($this->pdf, $left + 10, $barTop - 18, $ctx['titleSize'], $ctx['title'], $ctx['onPrimary'], 'left', $width - 20, true);
@@ -884,9 +1105,18 @@ class PDFExport extends CorePDFExport
         BeplyPdfDraw::text($this->pdf, $left, $top - 21, $ctx['titleSize'], $ctx['title'], $ctx['primary'], 'left', $width * 0.62, true);
         BeplyPdfDraw::line($this->pdf, $left, $top - 30, $right, $top - 30, $ctx['primary'], 1.1);
 
-        $logo = $this->drawFastLogo($config, $right - min(105.0, $width * 0.25), $top - 39, min(105.0, $width * 0.25));
-        $companyY = $this->drawFastCompanyBlock($ctx['company'], $left, $top - 47, $ctx['fontSize'], $ctx['text'], $ctx['muted'], 'left', $width * 0.58);
-        $bottom = min($top - 76, $companyY - 4, $logo['bottom'] - 8);
+        $row = $this->drawFastLogoCompanyRow(
+            $config,
+            $ctx['company'],
+            $left,
+            $top - 39,
+            $width,
+            $top - 47,
+            $ctx['fontSize'],
+            $ctx['text'],
+            $ctx['muted']
+        );
+        $bottom = min($top - 76, $row['bottom'] - 7);
         BeplyPdfDraw::line($this->pdf, $left, $bottom, $right, $bottom, $ctx['line'], 0.6);
         $this->pdf->y = $bottom - 12;
     }
@@ -902,10 +1132,47 @@ class PDFExport extends CorePDFExport
 
         BeplyPdfDraw::text($this->pdf, $left + 9, $top - 19, $ctx['titleSize'], $ctx['title'], $ctx['primary'], 'left', $width * 0.58, true);
         BeplyPdfDraw::line($this->pdf, $left + 9, $top - 28, $left + ($width * 0.58), $top - 28, $ctx['primary'], 1.0);
-        $this->drawFastCompanyBlock($ctx['company'], $left + 9, $boxTop - 14, $ctx['fontSize'], $ctx['text'], $ctx['muted'], 'left', $width * 0.55);
-        $this->drawFastLogo($config, $right - min(115.0, $width * 0.28), $boxTop - 7, min(115.0, $width * 0.28));
-        $this->drawFastRect($left, $bottom, $width, $boxTop - $bottom, $ctx['primary'], $config->diseno === 'legacy_framed' ? 0.8 : 0.65);
+        $row = $this->drawFastLogoCompanyRow(
+            $config,
+            $ctx['company'],
+            $left + 8,
+            $boxTop - 7,
+            $width - 16,
+            $boxTop - 14,
+            $ctx['fontSize'],
+            $ctx['text'],
+            $ctx['muted']
+        );
+        $bottom = min($bottom, $row['bottom'] - 7);
+        $this->drawFastRect($left, $bottom, $width, $boxTop - $bottom, $ctx['primary'], 0.65);
         $this->pdf->y = $bottom - 13;
+    }
+
+    private function drawFastFramedHeader(BeplyPdfConfig $config, array $ctx): void
+    {
+        $left = $ctx['left'];
+        $top = $ctx['top'];
+        $right = $ctx['right'];
+        $width = $ctx['width'];
+        $frameTop = $top - 5;
+        $bottom = $top - 91;
+
+        BeplyPdfDraw::text($this->pdf, $left + 10, $top - 23, $ctx['titleSize'], $ctx['title'], $ctx['primary'], 'left', $width * 0.58, true);
+        BeplyPdfDraw::line($this->pdf, $left + 10, $top - 31, $right - 10, $top - 31, $ctx['tertiary'], 0.8);
+        $row = $this->drawFastLogoCompanyRow(
+            $config,
+            $ctx['company'],
+            $left + 10,
+            $top - 42,
+            $width - 20,
+            $top - 47,
+            $ctx['fontSize'],
+            $ctx['text'],
+            $ctx['muted']
+        );
+        $bottom = min($bottom, $row['bottom'] - 7);
+        $this->drawFastRect($left, $bottom, $width, $frameTop - $bottom, $ctx['primary'], 1.0);
+        $this->pdf->y = $bottom - 12;
     }
 
     private function drawFastBannerHeader(BeplyPdfConfig $config, array $ctx): void
@@ -913,20 +1180,23 @@ class PDFExport extends CorePDFExport
         $left = $ctx['left'];
         $top = $ctx['top'];
         $width = $ctx['width'];
-        $bandH = 64.0;
+        $bandH = $this->fastLogoPosition($config) === 'center' ? 108.0 : 64.0;
         BeplyPdfDraw::box($this->pdf, $left, $top - $bandH, $width, $bandH, $ctx['primary']);
-        $this->drawFastBandCompanyBlock(
+        $this->drawFastLogoCompanyRow(
+            $config,
             $ctx['company'],
-            $left + 12,
+            $left + 10,
+            $top - 13,
+            $width - 20,
             $top - 17,
             $ctx['fontSize'],
             $ctx['onPrimary'],
             $ctx['onPrimary'],
-            'left',
-            $width * 0.62,
+            true,
+            36.0,
+            true,
             true
         );
-        $this->drawFastLogo($config, $left + ($width * 0.72), $top - 13, min(125.0, $width * 0.26), true, 36.0);
 
         BeplyPdfDraw::text($this->pdf, $left, $top - $bandH - 22, $ctx['titleSize'], $ctx['title'], $ctx['primary'], 'left', $width, true);
         BeplyPdfDraw::line($this->pdf, $left, $top - $bandH - 29, $left + $width, $top - $bandH - 29, $ctx['primary'], 0.8);
@@ -938,18 +1208,21 @@ class PDFExport extends CorePDFExport
         $left = $ctx['left'];
         $top = $ctx['top'];
         $width = $ctx['width'];
-        $bandH = 56.0;
+        $bandH = $this->fastLogoPosition($config) === 'center' ? 82.0 : 56.0;
         BeplyPdfDraw::box($this->pdf, $left, $top - $bandH, $width, $bandH, $ctx['primary']);
-        $this->drawFastLogo($config, $left + 12, $top - 13, min(130.0, $width * 0.31), true, 34.0);
-        $this->drawFastBandCompanyBlock(
+        $this->drawFastLogoCompanyRow(
+            $config,
             $ctx['company'],
-            $left + ($width * 0.48),
+            $left + 12,
+            $top - 13,
+            $width - 24,
             $top - 20,
             $ctx['fontSize'],
             $ctx['onPrimary'],
             $ctx['onPrimary'],
-            'right',
-            $width * 0.50,
+            true,
+            34.0,
+            true,
             false
         );
 
@@ -965,10 +1238,19 @@ class PDFExport extends CorePDFExport
         $width = $ctx['width'];
         $right = $ctx['right'];
         BeplyPdfDraw::box($this->pdf, $left, $top - 7, $width, 7, $ctx['primary']);
-        $logo = $this->drawFastLogo($config, $left, $top - 18, min(105.0, $width * 0.25));
-        $companyY = $this->drawFastCompanyBlock($ctx['company'], $left + ($width * 0.52), $top - 22, $ctx['fontSize'], $ctx['text'], $ctx['muted'], 'right', $width * 0.48);
+        $row = $this->drawFastLogoCompanyRow(
+            $config,
+            $ctx['company'],
+            $left,
+            $top - 18,
+            $width,
+            $top - 22,
+            $ctx['fontSize'],
+            $ctx['text'],
+            $ctx['muted']
+        );
 
-        $titleY = min($top - 62, $logo['bottom'] - 12, $companyY - 8);
+        $titleY = min($top - 62, $row['bottom'] - 9);
         BeplyPdfDraw::box($this->pdf, $left, $titleY - 10, 5, 26, $ctx['primary']);
         BeplyPdfDraw::text($this->pdf, $left + 13, $titleY, $ctx['titleSize'], $ctx['title'], $ctx['primary'], 'left', $width - 13, true);
         BeplyPdfDraw::line($this->pdf, $left, $titleY - 17, $right, $titleY - 17, $ctx['line'], 0.7);
@@ -981,14 +1263,50 @@ class PDFExport extends CorePDFExport
         $top = $ctx['top'];
         $width = $ctx['width'];
         $leftW = $width * 0.42;
-        $bandH = 54.0;
+        $position = $this->fastLogoPosition($config);
+        $bandH = $position === 'center' ? 86.0 : 54.0;
 
-        BeplyPdfDraw::box($this->pdf, $left, $top - $bandH, $leftW, $bandH, $ctx['primary']);
-        BeplyPdfDraw::box($this->pdf, $left + $leftW, $top - $bandH, $width - $leftW, $bandH, $ctx['secondary']);
-        $logo = $this->drawFastLogo($config, $left + 10, $top - 9, min(76.0, $leftW * 0.36), true, 31.0);
-        $nameX = $left + 20 + ($logo['width'] > 0 ? $logo['width'] : 0);
-        BeplyPdfDraw::text($this->pdf, $nameX, $top - 27, max(10, $ctx['fontSize'] + 2), (string) ($ctx['company']['name'] ?? ''), $ctx['onPrimary'], 'left', max(30.0, $leftW - ($nameX - $left) - 8), true);
-        $this->drawFastCompanyBlock($ctx['company'], $left + $leftW + 12, $top - 17, max(8, $ctx['fontSize'] - 1), $ctx['onSecondary'], $ctx['onSecondary'], 'right', $width - $leftW - 20);
+        BeplyPdfDraw::box($this->pdf, $left, $top - 54, $leftW, 54.0, $ctx['primary']);
+        BeplyPdfDraw::box($this->pdf, $left + $leftW, $top - 54, $width - $leftW, 54.0, $ctx['secondary']);
+        $this->drawFastLogoAligned($config, $left + 10, $top - 9, $width - 20, true, 31.0);
+        if ($position === 'left') {
+            $this->drawFastBandCompanyBlock(
+                $ctx['company'],
+                $left + $leftW + 12,
+                $top - 17,
+                max(8, $ctx['fontSize'] - 1),
+                $ctx['onSecondary'],
+                $ctx['onSecondary'],
+                'right',
+                $width - $leftW - 24,
+                false
+            );
+        } elseif ($position === 'right') {
+            $this->drawFastBandCompanyBlock(
+                $ctx['company'],
+                $left + 10,
+                $top - 17,
+                max(8, $ctx['fontSize'] - 1),
+                $ctx['onPrimary'],
+                $ctx['onPrimary'],
+                'left',
+                $leftW - 20,
+                false
+            );
+        } else {
+            BeplyPdfDraw::box($this->pdf, $left, $top - $bandH, $width, $bandH - 54.0, $ctx['tertiary']);
+            $this->drawFastBandCompanyBlock(
+                $ctx['company'],
+                $left + 10,
+                $top - 68,
+                max(8, $ctx['fontSize'] - 1),
+                $ctx['text'],
+                $ctx['muted'],
+                'center',
+                $width - 20,
+                false
+            );
+        }
 
         $titleY = $top - $bandH - 24;
         BeplyPdfDraw::text($this->pdf, $left, $titleY, $ctx['titleSize'], $ctx['title'], $ctx['text'], 'left', $width, true);
@@ -1003,13 +1321,127 @@ class PDFExport extends CorePDFExport
         $right = $ctx['right'];
         $width = $ctx['width'];
         BeplyPdfDraw::line($this->pdf, $left, $top - 5, $right, $top - 5, $ctx['line'], 0.5);
-        $logo = $this->drawFastLogo($config, $left, $top - 11, $width * 0.28);
-        $titleX = $logo['width'] > 0 ? $left + $logo['width'] + 16 : $left;
-        BeplyPdfDraw::text($this->pdf, $titleX, $top - 27, $ctx['titleSize'], $ctx['title'], $ctx['text'], 'left', 0, true);
-        $companyY = $this->drawFastCompanyBlock($ctx['company'], $left + ($width * 0.52), $top - 17, $ctx['fontSize'], $ctx['text'], $ctx['muted'], 'right', $width * 0.48);
-        $bottom = min($top - 48, $companyY - 2, $logo['bottom'] - 8);
+        $row = $this->drawFastLogoCompanyRow(
+            $config,
+            $ctx['company'],
+            $left,
+            $top - 11,
+            $width,
+            $top - 17,
+            $ctx['fontSize'],
+            $ctx['text'],
+            $ctx['muted']
+        );
+        $titleY = min($top - 48, $row['bottom'] - 7);
+        BeplyPdfDraw::text($this->pdf, $left, $titleY, $ctx['titleSize'], $ctx['title'], $ctx['text'], 'left', $width, true);
+        $bottom = $titleY - 10;
         BeplyPdfDraw::line($this->pdf, $left, $bottom, $right, $bottom, $ctx['line'], 0.6);
         $this->pdf->y = $bottom - 12;
+    }
+
+    private function drawFastStudioHeader(BeplyPdfConfig $config, array $ctx): void
+    {
+        $left = $ctx['left'];
+        $top = $ctx['top'];
+        $right = $ctx['right'];
+        $width = $ctx['width'];
+        $row = $this->drawFastLogoCompanyRow(
+            $config,
+            $ctx['company'],
+            $left,
+            $top - 7,
+            $width,
+            $top - 12,
+            max(7, $ctx['fontSize'] - 1),
+            $ctx['text'],
+            $ctx['muted'],
+            false,
+            24.0
+        );
+
+        $titleY = min($top - 43, $row['bottom'] - 7);
+        BeplyPdfDraw::text($this->pdf, $left, $titleY, $ctx['titleSize'], $ctx['title'], $ctx['text'], 'left', $width, true);
+        BeplyPdfDraw::line($this->pdf, $left, $titleY - 10, $right, $titleY - 10, $ctx['primary'], 1.5);
+        $this->pdf->y = $titleY - 22;
+    }
+
+    /**
+     * Distribuye logo y datos fiscales en zonas excluyentes. Si el logo va centrado,
+     * apila el bloque de empresa debajo para que nunca quede tapado por la imagen.
+     *
+     * @return array{bottom: float, logo: array}
+     */
+    private function drawFastLogoCompanyRow(
+        BeplyPdfConfig $config,
+        array $company,
+        float $left,
+        float $logoTopY,
+        float $areaW,
+        float $companyStartY,
+        int $size,
+        string $nameColor,
+        string $bodyColor,
+        bool $logoWhite = false,
+        float $maxLogoHeight = 34.0,
+        bool $bandCompany = false,
+        bool $fullBandCompany = true
+    ): array {
+        $logo = $this->drawFastLogoAligned($config, $left, $logoTopY, $areaW, $logoWhite, $maxLogoHeight);
+        $position = $this->fastLogoPosition($config);
+        $right = $left + $areaW;
+
+        if ($logo['width'] <= 0.0) {
+            $companyX = $left;
+            $companyWidth = $areaW;
+            $companyAlign = 'center';
+        } elseif ($position === 'left') {
+            $companyX = max($left + ($areaW * 0.48), $logo['x'] + $logo['width'] + 12.0);
+            $companyWidth = max(60.0, $right - $companyX);
+            $companyAlign = 'right';
+        } elseif ($position === 'right') {
+            $companyX = $left;
+            $companyWidth = max(60.0, min($areaW * 0.60, $logo['x'] - $left - 12.0));
+            $companyAlign = 'left';
+        } else {
+            $companyX = $left;
+            $companyWidth = $areaW;
+            $companyAlign = 'center';
+            // La coordenada del texto es su línea base: reservamos también la altura
+            // de la primera línea para que esta no ascienda dentro de la imagen.
+            $companyStartY = min($companyStartY, $logo['bottom'] - $size - 12.0);
+        }
+
+        $companyBottom = $bandCompany
+            ? $this->drawFastBandCompanyBlock(
+                $company,
+                $companyX,
+                $companyStartY,
+                $size,
+                $nameColor,
+                $bodyColor,
+                $companyAlign,
+                $companyWidth,
+                $fullBandCompany
+            )
+            : $this->drawFastCompanyBlock(
+                $company,
+                $companyX,
+                $companyStartY,
+                $size,
+                $nameColor,
+                $bodyColor,
+                $companyAlign,
+                $companyWidth
+            );
+
+        return ['bottom' => min($logo['bottom'], $companyBottom), 'logo' => $logo];
+    }
+
+    private function fastLogoPosition(BeplyPdfConfig $config): string
+    {
+        return in_array($config->logoPosition, BeplyPdfConfig::POSICIONES, true)
+            ? $config->logoPosition
+            : 'left';
     }
 
     private function drawFastCompanyBlock(array $company, float $x, float $startY, int $size, string $nameColor, string $bodyColor, string $align, float $width): float
@@ -1024,8 +1456,7 @@ class PDFExport extends CorePDFExport
         $y = $startY;
         foreach (array_values($lines) as $i => $line) {
             $isName = $i === 0;
-            BeplyPdfDraw::text(
-                $this->pdf,
+            $this->drawFastFitText(
                 $x,
                 $y,
                 $isName ? $size : max(7, $size - 1),
@@ -1123,24 +1554,66 @@ class PDFExport extends CorePDFExport
     /** @return array{bottom: float, width: float} */
     private function drawFastLogo(BeplyPdfConfig $config, float $x, float $topY, float $areaW, bool $white = false, float $maxHeight = 34.0): array
     {
+        $metrics = $this->fastLogoMetrics($config, $areaW, $white, $maxHeight);
+        if ($metrics === null) {
+            return ['bottom' => $topY, 'width' => 0.0];
+        }
+        $y = $topY - $metrics['height'];
+        BeplyPdfDraw::image($this->pdf, $metrics['path'], $x, $y, $metrics['width'], $metrics['height']);
+        return ['bottom' => $y, 'width' => $metrics['width']];
+    }
+
+    /** @return array{bottom: float, width: float, x: float} */
+    private function drawFastLogoAligned(
+        BeplyPdfConfig $config,
+        float $left,
+        float $topY,
+        float $areaW,
+        bool $white = false,
+        float $maxHeight = 34.0
+    ): array {
+        $metrics = $this->fastLogoMetrics($config, $areaW, $white, $maxHeight);
+        if ($metrics === null) {
+            return ['bottom' => $topY, 'width' => 0.0, 'x' => $left];
+        }
+
+        $position = in_array($config->logoPosition, BeplyPdfConfig::POSICIONES, true)
+            ? $config->logoPosition
+            : 'left';
+        $x = $position === 'right'
+            ? $left + $areaW - $metrics['width']
+            : ($position === 'center' ? $left + (($areaW - $metrics['width']) / 2.0) : $left);
+        $y = $topY - $metrics['height'];
+        BeplyPdfDraw::image($this->pdf, $metrics['path'], $x, $y, $metrics['width'], $metrics['height']);
+        return ['bottom' => $y, 'width' => $metrics['width'], 'x' => $x];
+    }
+
+    /** @return array{path: string, width: float, height: float}|null */
+    private function fastLogoMetrics(
+        BeplyPdfConfig $config,
+        float $areaW,
+        bool $white,
+        float $maxHeight
+    ): ?array {
+        if ($config->logoSize <= 1) {
+            return null;
+        }
         $path = $this->fastLogoPath($config, $white);
         if ($path === null) {
-            return ['bottom' => $topY, 'width' => 0.0];
+            return null;
         }
 
         $info = @getimagesize($path);
         $natW = ($info && !empty($info[0])) ? (float) $info[0] : 200.0;
         $natH = ($info && !empty($info[1])) ? (float) $info[1] : 80.0;
         $ratio = $natH > 0 ? $natH / $natW : 0.4;
-        $w = min(max(40.0, (float) $config->logoSize), max(20.0, $areaW), 115.0);
-        $h = $w * $ratio;
-        if ($h > $maxHeight) {
-            $h = $maxHeight;
-            $w = $ratio > 0.0 ? $h / $ratio : $w;
+        $width = min(max(12.0, (float) $config->logoSize), max(12.0, $areaW), 130.0);
+        $height = $width * $ratio;
+        if ($height > $maxHeight) {
+            $height = $maxHeight;
+            $width = $ratio > 0.0 ? $height / $ratio : $width;
         }
-        $y = $topY - $h;
-        BeplyPdfDraw::image($this->pdf, $path, $x, $y, $w, $h);
-        return ['bottom' => $y, 'width' => $w];
+        return ['path' => $path, 'width' => $width, 'height' => $height];
     }
 
     private function fastLogoPath(BeplyPdfConfig $config, bool $white = false): ?string

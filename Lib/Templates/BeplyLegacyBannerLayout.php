@@ -26,6 +26,11 @@ class BeplyLegacyBannerLayout extends BeplyLegacyStandardLayout
         return 'Banda';
     }
 
+    public function reportLayout(): BeplyPdfReportLayout
+    {
+        return $this->compactReportLayout('banner', 'banner', 0.80, 0.68, 3.3);
+    }
+
     public function defaultConfig(): BeplyPdfConfig
     {
         $c = $this->baseConfig();

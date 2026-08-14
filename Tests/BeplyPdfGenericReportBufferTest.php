@@ -37,14 +37,18 @@ final class BeplyPdfGenericReportBufferTest extends TestCase
             'kind' => 'table',
             'columns' => [['label' => 'Cuenta'], ['label' => 'Saldo']],
             'rows' => [['430', '10']],
+            'native_rows' => [['account' => '430', 'balance' => '10']],
         ];
         $buffer->appendTable($section);
         $section['rows'] = [['400', '20']];
+        $section['native_rows'] = [['account' => '400', 'balance' => '20']];
         $buffer->appendTable($section);
 
         $payload = $buffer->peek();
         $this->assertCount(2, $payload['sections']);
         $this->assertCount(2, $payload['sections'][1]['rows']);
+        $this->assertCount(2, $payload['sections'][1]['native_rows']);
+        $this->assertSame('400', $payload['sections'][1]['native_rows'][1]['account']);
     }
 
     public function testWideReportSwitchesToLandscapeAndPullClearsTheBuffer(): void

@@ -26,6 +26,11 @@ class BeplyAzureLayout extends BeplyLegacyStandardLayout
         return 'Moderno';
     }
 
+    public function reportLayout(): BeplyPdfReportLayout
+    {
+        return $this->compactReportLayout('modern', 'modern', 0.80, 0.66, 3.0);
+    }
+
     public function defaultConfig(): BeplyPdfConfig
     {
         $c = $this->baseConfig();

@@ -26,6 +26,11 @@ class BeplyLegacySummaryLayout extends BeplyLegacyStandardLayout
         return 'Resumen';
     }
 
+    public function reportLayout(): BeplyPdfReportLayout
+    {
+        return $this->compactReportLayout('summary', 'summary', 0.72, 0.74, 1.9);
+    }
+
     public function defaultConfig(): BeplyPdfConfig
     {
         $c = $this->baseConfig();

@@ -26,6 +26,11 @@ class BeplyStudioQuoteLayout extends BeplyLegacyStandardLayout
         return 'Estudio';
     }
 
+    public function reportLayout(): BeplyPdfReportLayout
+    {
+        return $this->compactReportLayout('studio', 'studio', 0.78, 0.48, 2.6);
+    }
+
     /**
      * Retirado de la galería: el diseño no cumple el contrato visual (logo y maquetación).
      * Se conserva registrado para no romper a las empresas que ya lo tienen asignado.
