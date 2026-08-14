@@ -28,7 +28,7 @@ class BeplyLegacyStandardLayout extends AbstractBeplyPdfLayout
 
     public function reportLayout(): BeplyPdfReportLayout
     {
-        return $this->compactReportLayout('classic', 'classic', 0.82, 0.78, 3.2);
+        return $this->compactReportLayout('classic', 'classic', 0.72, 0.78, 2.1);
     }
 
     public function defaultConfig(): BeplyPdfConfig
