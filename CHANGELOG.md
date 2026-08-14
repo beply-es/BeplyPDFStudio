@@ -1,5 +1,11 @@
 # Changelog
 
+## v2.5 - 2026-08-14
+
+- Places the optional total-units value before every monetary subtotal, tax breakdown and grand total in all nine PDF layouts.
+- Keeps the grand total in euros as the final/rightmost summary value, including the horizontal Boxes layout.
+- Adds a semantic ordering contract across every template so future layout changes cannot silently move units behind monetary totals.
+
 ## v2.3 - 2026-08-12
 
 - Applies the configured logo position (left / center / right) in every template. Boxes, Framed and Banner were locked to the right, while Corporate, Azure, Prisma and Studio were locked to the left, so the setting was silently ignored in 7 of 9 designs.

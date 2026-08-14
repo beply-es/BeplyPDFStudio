@@ -493,6 +493,27 @@ final class BeplyTemplateSuite
                 $shown
             )
         );
+
+        $unitsPosition = strpos($shown, 'data-beply-total-units="true"');
+        $eurosPosition = strpos($shown, 'data-beply-total-euros="true"');
+        $this->assert(
+            'total de unidades aparece antes y total euros cierra el resumen',
+            $unitsPosition !== false
+                && $eurosPosition !== false
+                && $unitsPosition < $eurosPosition
+        );
+
+        if (in_array($this->design, ['azure', 'corporate', 'prisma', 'studio_quote'], true)) {
+            $breakdownPosition = strpos($shown, 'data-beply-total-breakdown="true"');
+            $this->assert(
+                'total de unidades precede base e impuestos',
+                $unitsPosition !== false
+                    && $breakdownPosition !== false
+                    && $eurosPosition !== false
+                    && $unitsPosition < $breakdownPosition
+                    && $breakdownPosition < $eurosPosition
+            );
+        }
     }
 
     private function bottomPinned(): void

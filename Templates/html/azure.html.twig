@@ -333,7 +333,13 @@
       <td style="width:50%;"></td>
       <td style="width:50%;">
         <table class="totals-stack">
-          <tr>
+          {% if totals.units %}
+          <tr data-beply-total-units="true">
+            <td class="ts-label">{{ totals.units.label }}</td>
+            <td class="ts-value">{{ totals.units.value }}</td>
+          </tr>
+          {% endif %}
+          <tr data-beply-total-breakdown="true">
             <td class="ts-label">{{ 'subtotal'|trans }}</td>
             <td class="ts-value">{{ totals.net }}</td>
           </tr>
@@ -343,13 +349,7 @@
             <td class="ts-value">{{ t.cuota }}</td>
           </tr>
           {% endfor %}
-          {% if totals.units %}
-          <tr data-beply-total-units="true">
-            <td class="ts-label">{{ totals.units.label }}</td>
-            <td class="ts-value">{{ totals.units.value }}</td>
-          </tr>
-          {% endif %}
-          <tr class="ts-total-row">
+          <tr class="ts-total-row" data-beply-total-euros="true">
             <td class="ts-label">{{ 'total'|trans }}</td>
             <td class="ts-value">{{ totals.total }}</td>
           </tr>

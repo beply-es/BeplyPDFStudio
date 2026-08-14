@@ -241,7 +241,7 @@
         {% if totals.units %}
         <div class="total-units-box" data-beply-total-units="true">{{ totals.units.label }} <strong>{{ totals.units.value }}</strong></div>
         {% endif %}
-        <span class="total-box">{{ 'total'|trans|upper }}: {{ totals.total }}</span>
+        <span class="total-box" data-beply-total-euros="true">{{ 'total'|trans|upper }}: {{ totals.total }}</span>
         {% set slot = slots.TOTALS_AFTER %}{% include '_slot.html.twig' %}
       </td>
     </tr></table>
