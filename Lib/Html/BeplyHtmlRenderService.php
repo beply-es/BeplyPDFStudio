@@ -544,6 +544,7 @@ class BeplyHtmlRenderService
     private function context(BeplyPdfConfig $cfg, $model, ?array $generic = null, ?FormatoDocumento $format = null): array
     {
         $isDoc = ($generic === null);
+        $genericSections = [];
         $coddivisa = (is_object($model) && isset($model->coddivisa)) ? (string) $model->coddivisa : '';
         $docContext = new BeplyPdfDocumentContext($cfg, is_object($model) ? $model : null, $format, $generic);
 
@@ -564,7 +565,14 @@ class BeplyHtmlRenderService
             // --- GENÉRICO del core (ficha / listado / informe): solo cabecera + tabla ---
             $company = $this->companyData((object) ['idempresa' => $generic['idempresa'] ?? null]);
             $customer = ['label' => '', 'name' => '', 'cifnif' => '', 'code' => '', 'lines' => [], 'phones' => '', 'email' => '', 'agent' => ''];
-            [$columns, $lines] = $this->genericTable($generic);
+            $genericSections = $this->genericSections($generic);
+            if (empty($genericSections)) {
+                [$columns, $lines] = $this->genericTable($generic);
+            } else {
+                $firstSection = array_shift($genericSections);
+                $columns = $firstSection['columns'];
+                $lines = $firstSection['lines'];
+            }
             $taxes = [];
             $totals = ['total' => '', 'units' => null];
             $observations = '';
@@ -635,6 +643,9 @@ class BeplyHtmlRenderService
             'shipping' => $shipping,
             'lines' => $lines,
             'columns' => $columns,
+            // En informes del core, la primera sección ocupa la tabla principal del diseño y
+            // las siguientes se imprimen justo debajo con la misma identidad visual.
+            'generic_sections' => $genericSections,
             'taxes' => $taxes,
             'totals' => $totals,
             'observations' => $observations,
@@ -1442,6 +1453,34 @@ class BeplyHtmlRenderService
             $rows[] = $cells;
         }
         return [$cols, $rows];
+    }
+
+    /**
+     * Normaliza las secciones heterogéneas de un informe (parámetros + una o más tablas).
+     * La primera sección se renderiza en la tabla principal de cada diseño y las demás mediante
+     * el parcial compartido, conservando columnas, alineación y orden.
+     *
+     * @return array<int,array{kind:string,title:string,columns:array,lines:array}>
+     */
+    private function genericSections(array $generic): array
+    {
+        $result = [];
+        foreach (($generic['sections'] ?? []) as $section) {
+            if (!is_array($section)) {
+                continue;
+            }
+            [$columns, $lines] = $this->genericTable($section);
+            if (empty($columns)) {
+                continue;
+            }
+            $result[] = [
+                'kind' => (string) ($section['kind'] ?? 'table'),
+                'title' => $this->plain($section['title'] ?? ''),
+                'columns' => $columns,
+                'lines' => $lines,
+            ];
+        }
+        return $result;
     }
 
     private function cell(string $key, string $type, $line, int $n, string $coddivisa): string

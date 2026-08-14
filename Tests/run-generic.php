@@ -37,6 +37,17 @@ function gPageCount(string $pdf): int
     return $n;
 }
 
+function gPdfText(string $pdf): string
+{
+    $base = sys_get_temp_dir() . '/gen_text_' . bin2hex(random_bytes(5));
+    file_put_contents($base . '.pdf', $pdf);
+    @exec('pdftotext -layout ' . escapeshellarg($base . '.pdf') . ' ' . escapeshellarg($base . '.txt') . ' 2>/dev/null');
+    $text = is_file($base . '.txt') ? (string) file_get_contents($base . '.txt') : '';
+    @unlink($base . '.pdf');
+    @unlink($base . '.txt');
+    return $text;
+}
+
 function footerImageAsset(): string
 {
     $relative = 'beplypdf/footer-image-generic-test.png';
@@ -64,6 +75,46 @@ $payload = [
         [['align' => 'left', 'value' => '001'], ['align' => 'left', 'value' => 'ACME Servicios S.L.'], ['align' => 'left', 'value' => 'B12345678'], ['align' => 'left', 'value' => 'Madrid'], ['align' => 'right', 'value' => '1.234,56 €']],
         [['align' => 'left', 'value' => '002'], ['align' => 'left', 'value' => 'Tecnologías del Norte SA'], ['align' => 'left', 'value' => 'A87654321'], ['align' => 'left', 'value' => 'Bilbao'], ['align' => 'right', 'value' => '0,00 €']],
         [['align' => 'left', 'value' => '003'], ['align' => 'left', 'value' => 'Gráficas Mediterráneo'], ['align' => 'left', 'value' => 'B11223344'], ['align' => 'left', 'value' => 'Valencia'], ['align' => 'right', 'value' => '-89,90 €']],
+    ],
+];
+
+$reportPayload = [
+    'title' => 'Balance de sumas y saldos',
+    'idempresa' => 1,
+    'kind' => 'report',
+    'orientation' => 'portrait',
+    'sections' => [
+        [
+            'kind' => 'model',
+            'columns' => [
+                ['label' => 'Campo', 'align' => 'left', 'width' => 32],
+                ['label' => 'Valor', 'align' => 'left', 'width' => 68],
+            ],
+            'rows' => [
+                [['align' => 'left', 'value' => 'Nombre'], ['align' => 'left', 'value' => 'PARAMETROVISIBLE14']],
+                [['align' => 'left', 'value' => 'Desde la fecha'], ['align' => 'left', 'value' => '01-01-2026']],
+                [['align' => 'left', 'value' => 'Hasta'], ['align' => 'left', 'value' => '31-12-2026']],
+            ],
+        ],
+        [
+            'kind' => 'table',
+            'columns' => [
+                ['label' => 'Cuenta', 'align' => 'left'],
+                ['label' => 'Descripcion', 'align' => 'left'],
+                ['label' => 'Debe', 'align' => 'right'],
+                ['label' => 'Haber', 'align' => 'right'],
+                ['label' => 'Saldo', 'align' => 'right'],
+            ],
+            'rows' => [
+                [
+                    ['align' => 'left', 'value' => '430'],
+                    ['align' => 'left', 'value' => 'SALDOVISIBLE14'],
+                    ['align' => 'right', 'value' => '3.388,00'],
+                    ['align' => 'right', 'value' => '0,00'],
+                    ['align' => 'right', 'value' => '3.388,00'],
+                ],
+            ],
+        ],
     ],
 ];
 
@@ -104,6 +155,29 @@ foreach (array_keys(AbstractBeplyPdfLayout::registry()) as $key) {
         'footer-image-align' => mb_stripos($genBody, 'text-align: right') !== false,
     ];
     foreach ($checks as $label => $ok) {
+        $total++;
+        if (!$ok) {
+            $failed++;
+        }
+        printf("%s [%s] %s\n", $ok ? 'PASS' : 'FAIL', $name, $label);
+    }
+
+    // 3) Los informes mixtos deben conservar, en el mismo PDF y en orden, tanto los
+    //    parámetros de addModelPage() como las tablas posteriores de addTablePage().
+    $reportHtml = $svc->buildHtml($cfg, null, $reportPayload);
+    $reportPdf = $svc->renderGeneric($cfg, $reportPayload);
+    $reportText = $reportPdf === '' ? '' : gPdfText($reportPdf);
+    $paramPos = mb_stripos($reportHtml, 'PARAMETROVISIBLE14');
+    $dataPos = mb_stripos($reportHtml, 'SALDOVISIBLE14');
+    $reportChecks = [
+        'informe-parametros-visibles' => $paramPos !== false,
+        'informe-datos-visibles' => $dataPos !== false,
+        'informe-orden-parametros-datos' => $paramPos !== false && $dataPos !== false && $paramPos < $dataPos,
+        'informe-pdf-completo' => mb_stripos($reportText, 'PARAMETROVISIBLE14') !== false
+            && mb_stripos($reportText, 'SALDOVISIBLE14') !== false,
+        'informe-muestra-1-pagina' => $reportPdf !== '' && gPageCount($reportPdf) === 1,
+    ];
+    foreach ($reportChecks as $label => $ok) {
         $total++;
         if (!$ok) {
             $failed++;

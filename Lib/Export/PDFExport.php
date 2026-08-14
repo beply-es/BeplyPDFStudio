@@ -30,6 +30,7 @@ use FacturaScripts\Dinamic\Model\FormatoDocumento;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\BeplyPdfBrandingLogoService;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\BeplyPdfConfig;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\BeplyPdfDocumentCacheService;
+use FacturaScripts\Plugins\BeplyPDFStudio\Lib\BeplyPdfGenericReportBuffer;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\BeplyPdfRenderService;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Html\BeplyHtmlRenderService;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\PdfEngine\BeplyPdfDraw;
@@ -71,6 +72,9 @@ class PDFExport extends CorePDFExport
     private bool $beplyEncryptionApplied = false;
     /** @var string[] PDFs generados por el motor HTML/WeasyPrint (uno por documento). */
     private array $beplyHtmlPdfs = [];
+    private ?int $beplyGenericCompanyId = null;
+    private ?BeplyPdfConfig $beplyPendingGenericConfig = null;
+    private ?BeplyPdfGenericReportBuffer $beplyGenericReport = null;
 
     protected function getDocumentFormat($model)
     {
@@ -119,8 +123,24 @@ class PDFExport extends CorePDFExport
         return $documentFormat;
     }
 
+    /**
+     * Los informes llaman setCompany() antes de addModelPage(). Si hay una plantilla HTML activa,
+     * conservamos la empresa para esa cabecera y evitamos crear una página Cezpdf redundante.
+     */
+    public function setCompany(int $idempresa): void
+    {
+        $this->beplyGenericCompanyId = $idempresa;
+        $config = $this->resolveGenericConfig($idempresa);
+        if ($config !== null && BeplyHtmlRenderService::handles($config->diseno)) {
+            return;
+        }
+
+        parent::setCompany($idempresa);
+    }
+
     public function addBusinessDocPage($model): bool
     {
+        $this->flushPendingGenericReport();
         $this->ensureCacheDir();
         $restoreLang = null;
 
@@ -265,6 +285,7 @@ class PDFExport extends CorePDFExport
      */
     public function addListModelPage($model, $where, $order, $offset, $columns, $title = ''): bool
     {
+        $this->flushPendingGenericReport();
         $this->setFileName($title);
         $idempresa = isset($model->idempresa) ? (int) $model->idempresa : null;
         $config = $this->resolveGenericConfig($idempresa);
@@ -311,7 +332,7 @@ class PDFExport extends CorePDFExport
      */
     public function addModelPage($model, $columns, $title = ''): bool
     {
-        $idempresa = isset($model->idempresa) ? (int) $model->idempresa : null;
+        $idempresa = isset($model->idempresa) ? (int) $model->idempresa : $this->beplyGenericCompanyId;
         $config = $this->resolveGenericConfig($idempresa);
         if ($config === null || !BeplyHtmlRenderService::handles($config->diseno)) {
             return parent::addModelPage($model, $columns, $title);
@@ -342,9 +363,22 @@ class PDFExport extends CorePDFExport
                 ['label' => Tools::lang()->trans('field'), 'align' => 'left', 'width' => 32],
                 ['label' => Tools::lang()->trans('value'), 'align' => 'left', 'width' => 68],
             ];
-            if ($this->renderGenericInto($config, $heading, $cols, $rows, $idempresa, 'model', 'portrait')) {
-                return true;
-            }
+            $this->flushPendingGenericReport();
+            $this->beplyPendingGenericConfig = $config;
+            $this->genericReportBuffer()->start(
+                [
+                    'title' => $heading,
+                    'idempresa' => $idempresa,
+                    'orientation' => 'portrait',
+                ],
+                [
+                    'kind' => 'model',
+                    'title' => '',
+                    'columns' => $cols,
+                    'rows' => $rows,
+                ]
+            );
+            return true;
         } catch (\Throwable $e) {
             Tools::log()->warning('beplypdf-generic-model-fallback: ' . $e->getMessage());
         }
@@ -357,7 +391,13 @@ class PDFExport extends CorePDFExport
      */
     public function addTablePage($headers, $rows, $options = [], $title = ''): bool
     {
-        $config = $this->resolveGenericConfig(null);
+        if ($this->genericReportBuffer()->hasPending()) {
+            return $this->genericReportBuffer()->appendTable(
+                $this->genericTableSection($headers, $rows, $options, (string) $title)
+            );
+        }
+
+        $config = $this->resolveGenericConfig($this->beplyGenericCompanyId);
         if ($config === null) {
             return parent::addTablePage($headers, $rows, $options, $title);
         }
@@ -368,20 +408,15 @@ class PDFExport extends CorePDFExport
                 return true;
             }
 
-            $keys = array_keys($headers);
-            $cols = [];
-            foreach ($headers as $key => $label) {
-                $cols[] = ['label' => (string) $label, 'align' => $this->tableColAlign($key, $options)];
-            }
-            $outRows = [];
-            foreach ($rows as $r) {
-                $cells = [];
-                foreach ($keys as $key) {
-                    $cells[] = ['align' => $this->tableColAlign($key, $options), 'value' => $this->fixValue((string) ($r[$key] ?? ''))];
-                }
-                $outRows[] = $cells;
-            }
-            if ($this->renderGenericInto($config, (string) $title, $cols, $outRows, null, 'table')) {
+            $section = $this->genericTableSection($headers, $rows, $options, (string) $title);
+            if ($this->renderGenericInto(
+                $config,
+                (string) $title,
+                $section['columns'],
+                $section['rows'],
+                $this->beplyGenericCompanyId,
+                'table'
+            )) {
                 return true;
             }
         } catch (\Throwable $e) {
@@ -389,6 +424,85 @@ class PDFExport extends CorePDFExport
         }
 
         return parent::addTablePage($headers, $rows, $options, $title);
+    }
+
+    private function genericReportBuffer(): BeplyPdfGenericReportBuffer
+    {
+        return $this->beplyGenericReport ??= new BeplyPdfGenericReportBuffer();
+    }
+
+    private function genericTableSection(array $headers, array $rows, array $options, string $title): array
+    {
+        $keys = array_keys($headers);
+        $columns = [];
+        foreach ($headers as $key => $label) {
+            $columns[] = ['label' => (string) $label, 'align' => $this->tableColAlign($key, $options)];
+        }
+
+        $outRows = [];
+        foreach ($rows as $row) {
+            $cells = [];
+            foreach ($keys as $key) {
+                $cells[] = [
+                    'align' => $this->tableColAlign($key, $options),
+                    'value' => $this->fixValue((string) ($row[$key] ?? '')),
+                ];
+            }
+            $outRows[] = $cells;
+        }
+
+        return [
+            'kind' => 'table',
+            'title' => $title,
+            'columns' => $columns,
+            'rows' => $outRows,
+        ];
+    }
+
+    private function flushPendingGenericReport(): bool
+    {
+        if (!$this->genericReportBuffer()->hasPending()) {
+            return true;
+        }
+
+        $payload = $this->genericReportBuffer()->pull();
+        $config = $this->beplyPendingGenericConfig;
+        $this->beplyPendingGenericConfig = null;
+        if ($payload === null || $config === null) {
+            return false;
+        }
+
+        $service = new BeplyHtmlRenderService();
+        $bytes = $service->renderGeneric($config, $payload);
+        if ($bytes !== '') {
+            $this->beplyHtmlPdfs[] = $bytes;
+            return true;
+        }
+
+        // Degradación segura: si la composición conjunta falla, conservar todas las secciones
+        // como PDFs separados antes que volver a perder silenciosamente las tablas contables.
+        $parts = [];
+        foreach ($payload['sections'] ?? [] as $section) {
+            $partPayload = $payload;
+            unset($partPayload['sections']);
+            $partPayload['kind'] = $section['kind'] ?? 'table';
+            $sectionTitle = (string) ($section['title'] ?? '');
+            $partPayload['title'] = $sectionTitle !== '' ? $sectionTitle : $payload['title'];
+            $partPayload['columns'] = $section['columns'] ?? [];
+            $partPayload['rows'] = $section['rows'] ?? [];
+            $part = $service->renderGeneric($config, $partPayload);
+            if ($part === '') {
+                Tools::log()->warning('beplypdf-generic-report-render-empty');
+                return false;
+            }
+            $parts[] = $part;
+        }
+
+        if (empty($parts)) {
+            return false;
+        }
+        array_push($this->beplyHtmlPdfs, ...$parts);
+        return true;
     }
 
     /** Resuelve el estilo Beply activo (empresa → global) para impresiones genéricas sin FormatoDocumento. */
@@ -1142,10 +1256,13 @@ class PDFExport extends CorePDFExport
      */
     public function getDoc()
     {
+        $this->flushPendingGenericReport();
         if (!empty($this->beplyHtmlPdfs)) {
-            return count($this->beplyHtmlPdfs) === 1
-                ? $this->beplyHtmlPdfs[0]
-                : $this->mergePdfs($this->beplyHtmlPdfs);
+            $parts = $this->beplyHtmlPdfs;
+            if ($this->pdf !== null) {
+                $parts[] = (string) parent::getDoc();
+            }
+            return count($parts) === 1 ? $parts[0] : $this->mergePdfs($parts);
         }
         return parent::getDoc();
     }
