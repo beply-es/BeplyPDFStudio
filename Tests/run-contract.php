@@ -27,6 +27,11 @@ require FS_FOLDER . '/config.php';
 require_once __DIR__ . '/Lib/BeplyPdfProbe.php';
 
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\BeplyPdfConfig;
+use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfDocumentBlock;
+use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfDocumentContext;
+use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfDocumentExtensionInterface;
+use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfDocumentExtensionRegistry;
+use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfDocumentSlot;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Html\BeplyHtmlRenderService;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\PdfEngine\BeplyPdfSampleDoc;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Templates\AbstractBeplyPdfLayout;
@@ -229,6 +234,55 @@ foreach (AbstractBeplyPdfLayout::registry() as $key => $layout) {
     $runner->check('nada-fuera-del-papel', empty($offPaper), implode(' | ', array_slice($offPaper, 0, 6)));
 
     if ($key === 'legacy_boxes') {
+        BeplyPdfDocumentExtensionRegistry::clear();
+        BeplyPdfDocumentExtensionRegistry::addExtension(new class implements BeplyPdfDocumentExtensionInterface {
+            public function blocks(BeplyPdfDocumentContext $context): array
+            {
+                return [BeplyPdfDocumentBlock::html(
+                    BeplyPdfDocumentSlot::PARTY_CUSTOMER_AFTER,
+                    '<strong>Matrícula:</strong> 7257KHH<br>'
+                        . '<strong>Marca:</strong> PEUGEOT<br>'
+                        . '<strong>Modelo:</strong> 2008<br>'
+                        . '<strong>Kilometraje:</strong> 140125',
+                    'VEHÍCULO'
+                )];
+            }
+        });
+        try {
+            $dyanCfg = $withLogo($layout->defaultConfig());
+            $dyanCfg->fontSize = 12;
+            $dyanCfg->marginLeft = 15;
+            $dyanCfg->marginRight = 15;
+            $dyanProbe = $render($dyanCfg);
+        } finally {
+            BeplyPdfDocumentExtensionRegistry::clear();
+        }
+
+        $dateWord = $dyanProbe->findWord(date('d-m-Y'));
+        $documentBoxRight = mmToPt(15.0)
+            + (($dyanProbe->pageWidth(1) - mmToPt(30.0)) * 0.24);
+        $runner->check(
+            'fecha-completa-dentro-de-caja-documento-con-vehiculo',
+            $dateWord !== null && $dateWord['x1'] <= $documentBoxRight - 1.0,
+            $dateWord === null
+                ? 'no se encontró la fecha completa'
+                : 'fecha x1=' . round($dateWord['x1'], 1) . ' limite=' . round($documentBoxRight - 1.0, 1)
+        );
+
+        $dyanOutside = [];
+        $dyanLeftLimit = mmToPt(15.0) - 2.0;
+        foreach ($dyanProbe->words() as $word) {
+            $dyanRightLimit = $dyanProbe->pageWidth($word['page']) - mmToPt(15.0) + 2.0;
+            if ($word['x1'] > $dyanRightLimit || $word['x0'] < $dyanLeftLimit) {
+                $dyanOutside[] = trim($word['text']);
+            }
+        }
+        $runner->check(
+            'tres-cajas-dentro-del-ancho-util-a4',
+            empty($dyanOutside),
+            implode(' | ', array_slice($dyanOutside, 0, 6))
+        );
+
         $legalCfg = $withLogo($layout->defaultConfig());
         $legalCfg->marginBottom = 40;
         $legalCfg->pageFooterAlign = 'left';

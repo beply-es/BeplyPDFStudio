@@ -84,7 +84,7 @@
   .box-body { padding: 0; }
   /* tabla interior de la caja (filas etiqueta-valor) */
   .box-rows { table-layout: auto; width: 100%; }
-  .box-rows td { font-size: {{ font_size }}px; padding: 5px 10px; vertical-align: middle; border: none; }
+  .box-rows td { font-size: {{ font_size }}px; padding: 5px 8px; vertical-align: middle; border: none; }
   .box-rows .bl { font-weight: 800; white-space: nowrap; padding-right: 6px; width: 1%; }
   .box-rows .br { text-align: right; white-space: nowrap; }
   /* contenido libre (cliente) */
@@ -179,7 +179,7 @@
       <table style="table-layout:fixed; width:100%; border-collapse:separate; border-spacing:0;">
         <tr>
           {# CAJA IZQUIERDA: datos del documento #}
-          <td class="box-cell" style="width:{% if has_party_extra %}21.2%{% else %}49%{% endif %};">
+          <td class="box-cell" style="width:{% if has_party_extra %}24%{% else %}49%{% endif %};">
             <div class="box-header">{{ doc.title }}{% if doc.code %} {{ doc.code }}{% endif %}</div>
             {% set slot = slots.DOCUMENT_TITLE_AFTER %}{% include '_slot.html.twig' %}
             <div class="box-body">
@@ -199,7 +199,7 @@
           {# separador #}
           <td class="box-separator"></td>
           {# CAJA DERECHA: datos del cliente #}
-          <td class="box-cell" style="width:{% if has_party_extra %}35.8%{% else %}49%{% endif %};">
+          <td class="box-cell" style="width:{% if has_party_extra %}34.5%{% else %}49%{% endif %};">
             {% set slot = slots.PARTY_CUSTOMER_BEFORE %}{% include '_slot.html.twig' %}
             <div class="box-header">{{ customer.label }}{% if customer.code %} {{ customer.code }}{% endif %}</div>
             <div class="box-content">
@@ -215,7 +215,7 @@
           </td>
           {% if has_party_extra %}
           <td class="box-separator"></td>
-          <td class="party-extra-box" style="width:42%;">
+          <td class="party-extra-box" style="width:39%;">
             {% set slot = party_extra_slot %}{% include '_slot.html.twig' %}
           </td>
           {% endif %}
