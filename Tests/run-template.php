@@ -532,13 +532,13 @@ final class BeplyTemplateSuite
             (bool) preg_match('#<div style="height:\s*[1-9]\d*px;"></div>#s', $this->bodyOf($html)) === false
         );
         $style = $this->styleOf($html);
-        if (in_array($this->design, ['legacy_standard', 'legacy_boxes'], true)) {
+        if ($this->design === 'legacy_standard') {
             $this->assert(
-                'diseño legacy usa anclaje inferior medido',
+                'Clásico usa anclaje inferior medido',
                 (bool) preg_match('/\.bottom\s*\{[^}]*transform:\s*translateY\([1-9]\d*px\)/s', $style)
             );
             $this->assert(
-                'diseño legacy no mezcla padding estimado con anclaje medido',
+                'Clásico no mezcla padding estimado con anclaje medido',
                 (bool) preg_match('/\.bottom\s*\{[^}]*padding-top:/s', $style) === false
             );
         } else {

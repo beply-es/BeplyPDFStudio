@@ -337,7 +337,7 @@ class BeplyHtmlRenderService
             return false;
         }
 
-        return $cfg !== null && in_array($cfg->diseno, ['legacy_standard', 'legacy_boxes'], true);
+        return $cfg !== null && $cfg->diseno === 'legacy_standard';
     }
 
     private function renderWithBottomAnchorGap(BeplyPdfConfig $cfg, $model, ?FormatoDocumento $format, int $gap): string
