@@ -299,6 +299,9 @@ final class BeplyTemplateSuite
         $this->bodyPresent('hideShippingAddress=false', fn($c) => $c->hideShippingAddress = false, 'Avenida de Entrega, 25');
         $this->bodyAbsent('hideShippingAddress=true', fn($c) => $c->hideShippingAddress = true, 'Avenida de Entrega, 25');
         $this->totalUnits();
+        if ($this->design === 'legacy_boxes') {
+            $this->legacyBoxesCompatibility();
+        }
         $this->draftWarningDocuments();
         $this->bottomPinned();
         $this->extensionSlots();
@@ -529,13 +532,13 @@ final class BeplyTemplateSuite
             (bool) preg_match('#<div style="height:\s*[1-9]\d*px;"></div>#s', $this->bodyOf($html)) === false
         );
         $style = $this->styleOf($html);
-        if ($this->design === 'legacy_standard') {
+        if (in_array($this->design, ['legacy_standard', 'legacy_boxes'], true)) {
             $this->assert(
-                'Clásico usa anclaje inferior medido',
+                'diseño legacy usa anclaje inferior medido',
                 (bool) preg_match('/\.bottom\s*\{[^}]*transform:\s*translateY\([1-9]\d*px\)/s', $style)
             );
             $this->assert(
-                'Clásico no mezcla padding estimado con anclaje medido',
+                'diseño legacy no mezcla padding estimado con anclaje medido',
                 (bool) preg_match('/\.bottom\s*\{[^}]*padding-top:/s', $style) === false
             );
         } else {
@@ -555,6 +558,34 @@ final class BeplyTemplateSuite
         $this->assert(
             'bottom no bloquea el flujo completo',
             (bool) preg_match('/\.bottom\s*\{[^}]*break-inside:\s*avoid/s', $style) === false
+        );
+    }
+
+    private function legacyBoxesCompatibility(): void
+    {
+        $legalText = 'LEGAL_START ' . str_repeat('texto de protección de datos ', 45) . ' LEGAL_END';
+        $html = $this->html($this->cfg(function ($c) use ($legalText): void {
+            $c->pageFooterText = $legalText;
+            $c->pageFooterAlign = 'left';
+            $c->pageFooterFontSize = 8;
+        }));
+        $style = $this->styleOf($html);
+        $body = $this->bodyOf($html);
+
+        $this->assert(
+            'Cajas renderiza el pie legal largo como elemento paginado',
+            strpos($style, 'content: element(pageFooter)') !== false
+                && strpos($body, 'class="page-footer-running"') !== false
+                && strpos($body, 'LEGAL_START') !== false
+                && strpos($body, 'LEGAL_END') !== false
+        );
+
+        $this->assert(
+            'Cajas conserva el resumen legacy MONEDA/NETO/IMPUESTOS/TOTAL',
+            strpos($body, 'data-beply-summary-currency="true"') !== false
+                && strpos($body, 'data-beply-summary-net="true"') !== false
+                && strpos($body, 'data-beply-summary-taxes="true"') !== false
+                && strpos($body, 'data-beply-summary-total="true"') !== false
         );
     }
 
