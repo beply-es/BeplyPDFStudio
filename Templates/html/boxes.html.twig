@@ -12,7 +12,13 @@
     /* En páginas 2+ el margen superior = marginTop configurado + banda para la sub-cabecera,
        de modo que el CONTENIDO siga respetando el marginTop configurado (la banda es extra). */
     margin: {{ page_mt + 13 }}mm {{ page_mr }}mm {{ page_mb }}mm {{ page_ml }}mm;
-    {% if page_footer_content %}
+    {% if page_footer_is_long %}
+    @{{ page_footer_box }} {
+      content: element(pageFooter);
+      vertical-align: bottom;
+      width: 100%;
+    }
+    {% elseif page_footer_content %}
     @{{ page_footer_box }} {
       content: {{ page_footer_content|raw }};
       font-family: '{{ font_family }}', Arial, sans-serif;
@@ -53,13 +59,16 @@
   /* Sub-cabecera de continuación (running element en el margen superior, solo páginas 2+) */
   .cont-info { position: running(contInfo); display: block; width: 100%; font-size: {{ font_size - 1 }}px; color: {{ muted_color }}; border-bottom: 1.5px solid {{ color1 }}; padding-bottom: 5px; margin-bottom: {{ page_mt }}mm; }
   .cont-info b { color: {{ color1 }}; font-weight: 800; }
+  {% if page_footer_is_long %}
+  .page-footer-running { position: running(pageFooter); display: block; width: 100%; font-family: '{{ font_family }}', Arial, sans-serif; font-size: {{ page_footer_size }}px; line-height: 1.18; color: {{ text_color }}; text-align: {{ page_footer_align }}; overflow-wrap: anywhere; }
+  {% endif %}
   /* Totales + extras fluyen tras las líneas; las piezas internas evitan partirse. */
   .bottom { {% if bottom_anchor_transform %}transform: translateY({{ bottom_anchor_gap }}px); transform-origin: top left;{% else %}padding-top: {{ bottom_anchor_gap }}px;{% endif %} }
 
   /* ===================== CABECERA: titulo+empresa izquierda · logo derecha ===================== */
-  .l-header { margin-bottom: {{ (font_size * 1.5)|round }}px; }
+  .l-header { margin-bottom: {{ (font_size * 4.75)|round }}px; }
   .doc-title-top { font-weight: 800; font-size: {{ title_font_size }}px; color: {{ color1 }}; margin-bottom: {{ (font_size * 0.6)|round }}px; }
-  .company-name { font-weight: 800; font-size: {{ font_size }}px; letter-spacing: .3px; margin-bottom: 2px; text-transform: uppercase; }
+  .company-name { font-weight: 800; font-size: {{ font_size }}px; letter-spacing: .3px; margin-bottom: 2px; }
   .company-info { font-size: {{ font_size }}px; line-height: 1.3; color: {{ muted_color }}; }
   .company-contact { font-size: {{ font_size }}px; color: {{ muted_color }}; margin-top: {{ (font_size * 0.6)|round }}px; }
   .logo-cell { text-align: right; vertical-align: top; }
@@ -86,7 +95,10 @@
   .party-extra-box .beply-slot-body { padding: 6px 10px; font-size: {{ font_size }}px; line-height: 1.3; color: {{ muted_color }}; }
 
   /* ===================== TABLA DE LÍNEAS con marco rojo ===================== */
-  .l-items { border: 1px solid {{ color1 }}; margin-bottom: {{ (font_size * 1.5)|round }}px; }
+  .l-items { border: 1px solid {{ color1 }}; margin-bottom: {{ (font_size * 1.5)|round }}px; position: relative; }
+  {% if lines_border_fill > 0 %}
+  .l-items::after { content: ""; position: absolute; top: 100%; left: -1px; right: -1px; height: {{ lines_border_fill }}px; border-left: 1px solid {{ color1 }}; border-right: 1px solid {{ color1 }}; border-bottom: 1px solid {{ color1 }}; }
+  {% endif %}
   .desc-table { table-layout: fixed; border-collapse: collapse; width: 100%; }
   .desc-table th, .desc-table td { white-space: nowrap; }
   .desc-table th:first-child, .desc-table td:first-child { white-space: normal; overflow-wrap: anywhere; word-break: break-word; }
@@ -110,13 +122,14 @@
   /* ===================== OBSERVACIONES / TEXTOS ===================== */
   .obs { margin-top: {{ (font_size * 1.5)|round }}px; font-size: {{ font_size }}px; color: {{ muted_color }}; line-height: 1.5; }
   .obs .t { font-weight: 800; }
-  .end-text { margin-top: {{ (font_size * 1.3)|round }}px; font-size: {{ font_size - 1 }}px; color: {{ muted_color }}; }
+  .end-text { margin-top: {{ (font_size * 1.3)|round }}px; font-size: {{ font_size - 3 }}px; color: {{ muted_color }}; }
   .thanks { margin-top: {{ (font_size * 1.5)|round }}px; text-align: center; }
   .thanks-title { font-size: {{ title_font_size }}px; font-weight: 800; color: {{ color1 }}; }
   .thanks-text { font-size: {{ font_size }}px; color: {{ muted_color }}; margin-top: 3px; }
 </style>
 </head>
 <body>
+{% if page_footer_is_long %}<div class="page-footer-running">{{ page_footer_text }}</div>{% endif %}
 {% include '_draft-warning.html.twig' %}
 <div class="sheet">
   {% set slot = slots.DOCUMENT_TITLE_BEFORE %}{% include '_slot.html.twig' %}
@@ -129,10 +142,10 @@
     {# ---------- CABECERA: título doc + empresa · logo según logo_position ---------- #}
     {% set logo_block %}{% if logo %}<img src="{{ logo }}" alt=""/>{% else %}<span class="logo-text">{{ company.name }}</span>{% endif %}{% endset %}
     {% set company_block %}
-        <div class="doc-title-top">{{ doc.title }}{% if doc.code %} {{ doc.code }}{% endif %}</div>
+        <div class="doc-title-top">{{ doc.title|title }}{% if doc.code %} {{ doc.code }}{% endif %}</div>
         <div class="company-name">{{ company.name }}</div>
         <div class="company-info">
-          {% if company.cifnif %}{{ 'cifnif'|trans }}: {{ company.cifnif }}<br/>{% endif %}
+          {% if company.cifnif %}NIF: {{ company.cifnif }}<br/>{% endif %}
           {% for l in company.lines %}{{ l }}{% if not loop.last %}<br/>{% endif %}{% endfor %}
         </div>
         {% if company.contact %}<div class="company-contact">{{ company.contact }}</div>{% endif %}
@@ -166,7 +179,7 @@
       <table style="table-layout:fixed; width:100%; border-collapse:separate; border-spacing:0;">
         <tr>
           {# CAJA IZQUIERDA: datos del documento #}
-          <td class="box-cell" style="width:{% if has_party_extra %}32%{% else %}49%{% endif %};">
+          <td class="box-cell" style="width:{% if has_party_extra %}21.2%{% else %}49%{% endif %};">
             <div class="box-header">{{ doc.title }}{% if doc.code %} {{ doc.code }}{% endif %}</div>
             {% set slot = slots.DOCUMENT_TITLE_AFTER %}{% include '_slot.html.twig' %}
             <div class="box-body">
@@ -186,7 +199,7 @@
           {# separador #}
           <td class="box-separator"></td>
           {# CAJA DERECHA: datos del cliente #}
-          <td class="box-cell" style="width:{% if has_party_extra %}32%{% else %}49%{% endif %};">
+          <td class="box-cell" style="width:{% if has_party_extra %}35.8%{% else %}49%{% endif %};">
             {% set slot = slots.PARTY_CUSTOMER_BEFORE %}{% include '_slot.html.twig' %}
             <div class="box-header">{{ customer.label }}{% if customer.code %} {{ customer.code }}{% endif %}</div>
             <div class="box-content">
@@ -202,7 +215,7 @@
           </td>
           {% if has_party_extra %}
           <td class="box-separator"></td>
-          <td class="party-extra-box" style="width:32%;">
+          <td class="party-extra-box" style="width:42%;">
             {% set slot = party_extra_slot %}{% include '_slot.html.twig' %}
           </td>
           {% endif %}
@@ -234,15 +247,17 @@
 
     {% include '_fiscal-landscape-columns-open.html.twig' %}
 
-    {# ---------- TOTAL UNIDADES | DIVISA | TOTAL (solo documentos) ---------- #}
+    {# ---------- TOTAL UNIDADES | DIVISA | NETO | IMPUESTOS | TOTAL (solo documentos) ---------- #}
     {% if is_document %}
     <div class="l-bottom-table">
       <table class="box-table">
         <thead>
           <tr>
-            {% if totals.units %}<th data-beply-total-units="true" style="text-align:center; width:35%;">{{ totals.units.label }}</th>{% endif %}
-            <th style="text-align:center; width:{% if totals.units %}25{% else %}40{% endif %}%;">{{ 'currency'|trans }}</th>
-            <th data-beply-total-euros="true" style="text-align:center; width:{% if totals.units %}40{% else %}60{% endif %}%;">{{ 'total'|trans }}</th>
+            {% if totals.units %}<th data-beply-total-units="true" style="text-align:center; width:20%;">{{ totals.units.label }}</th>{% endif %}
+            <th data-beply-summary-currency="true" style="text-align:center; width:{% if show_without_vat %}30{% elseif totals.units %}16{% else %}21.1{% endif %}%;">{% if html_lang starts with 'es' %}MONEDA{% else %}{{ 'currency'|trans }}{% endif %}</th>
+            <th data-beply-summary-net="true" style="text-align:center; width:{% if show_without_vat %}35{% elseif totals.units %}21{% else %}22.9{% endif %}%;">{{ 'net'|trans }}</th>
+            {% if not show_without_vat %}<th data-beply-summary-taxes="true" style="text-align:center; width:28%;">{{ 'taxes'|trans }}</th>{% endif %}
+            <th data-beply-summary-total="true" data-beply-total-euros="true" style="text-align:center; width:{% if show_without_vat %}35{% else %}28{% endif %}%;">{{ 'total'|trans }}</th>
           </tr>
         </thead>
         <tbody>
@@ -250,6 +265,8 @@
             {% if totals.units %}<td style="text-align:center; font-weight:800; color:{{ text_color }};">{{ totals.units.value }}</td>{% endif %}
             <td style="text-align:center;">EUR</td>
             {% set slot = slots.TOTALS_BEFORE %}{% include '_slot.html.twig' %}
+            <td style="text-align:center;">{{ totals.net }}</td>
+            {% if not show_without_vat %}<td style="text-align:center;">{{ totals.taxes }}</td>{% endif %}
             <td style="text-align:center; font-weight:800; color:{{ text_color }};">{{ totals.total }}</td>
             {% set slot = slots.TOTALS_AFTER %}{% include '_slot.html.twig' %}
           </tr>
@@ -258,15 +275,16 @@
     </div>
 
     {# ---------- IMPUESTO | BASE IMPONIBLE | PORCENTAJE | IMPORTE ---------- #}
+    {% if not show_without_vat %}
     {% set slot = slots.TAXES_BEFORE %}{% include '_slot.html.twig' %}
     <div class="l-bottom-table">
       <table class="box-table">
         <thead>
           <tr>
-            <th style="text-align:left; width:25%;">{{ 'tax'|trans }}</th>
-            <th style="text-align:right; width:25%;">{{ 'tax-base'|trans }}</th>
+            <th style="text-align:left; width:22%;">{{ 'tax'|trans }}</th>
+            <th style="text-align:right; width:32%;">{{ 'tax-base'|trans }}</th>
             <th style="text-align:right; width:25%;">{{ 'percentage'|trans }}</th>
-            <th style="text-align:right; width:25%;">{{ 'amount'|trans }}</th>
+            <th style="text-align:right; width:21.1%;">{{ 'amount'|trans }}</th>
           </tr>
         </thead>
         <tbody>
@@ -282,6 +300,7 @@
       </table>
     </div>
     {% set slot = slots.TAXES_AFTER %}{% include '_slot.html.twig' %}
+    {% endif %}
     {% endif %}
 
     {# ---------- RECIBO | FORMA DE PAGO | IMPORTE | VENCIMIENTO ---------- #}

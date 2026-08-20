@@ -593,6 +593,24 @@ class BeplyHtmlRenderService
         // pero no cambia la tipografía configurada. Un 17px debe salir como 17px también en A5.
         $scale = $this->paperScale($cfg);
         $extensionBlocks = $this->extensionBlocks($docContext);
+        $bottomAnchorGap = $isDoc
+            ? $this->estimateBottomAnchorGap(
+                $cfg,
+                $company,
+                $customer,
+                $lines,
+                $taxes,
+                $receipts,
+                $observations,
+                $extensionBlocks,
+                (string) $cfg->footerText,
+                (string) $cfg->thanksTitle,
+                (string) $cfg->thanksText
+            )
+            : 0;
+        $linesBorderFill = $cfg->diseno === 'legacy_boxes'
+            ? max(0, $bottomAnchorGap - max(8, (int) round(max(7, (int) $cfg->fontSize) * 1.5)))
+            : 0;
 
         return [
             'color1' => $color1,
@@ -625,14 +643,16 @@ class BeplyHtmlRenderService
             'page_mb' => max(0, (int) $cfg->marginBottom),
             'page_ml' => max(0, (int) $cfg->marginLeft),
             'hide_payment_methods' => (bool) $cfg->hidePaymentMethods,
+            'show_without_vat' => (bool) $cfg->showWithoutVat,
             'draft_warning' => $this->draftWarning($cfg, $model, $isDoc, $format),
             // is_document = false para listados/fichas del core: la plantilla oculta cliente/impuestos/totales.
             'is_document' => $isDoc,
             // Alto mínimo del área de líneas: se conserva a 0 para no fabricar páginas casi vacías.
             'lines_fill' => $isDoc ? $this->estimateLinesFill($cfg, $company, $customer, $lines, $taxes, $receipts, $observations) : 0,
             // Hueco antes del bloque inferior para que totales/pagos/pie fiscal cierren la pagina.
-            'bottom_anchor_gap' => $isDoc ? $this->estimateBottomAnchorGap($cfg, $company, $customer, $lines, $taxes, $receipts, $observations, $extensionBlocks, (string) $cfg->footerText, (string) $cfg->thanksTitle, (string) $cfg->thanksText) : 0,
+            'bottom_anchor_gap' => $bottomAnchorGap,
             'bottom_anchor_transform' => $isDoc && $this->preciseBottomAnchorEnabled($cfg),
+            'lines_border_fill' => $linesBorderFill,
             'logo' => $this->logoDataUri($cfg),
             'footer_image' => $this->footerImageDataUri($cfg),
             // Logo en blanco para bandas oscuras (contraste); cae al normal si no hay.
@@ -656,6 +676,11 @@ class BeplyHtmlRenderService
             'thanks_text' => $this->plain($cfg->thanksText),
             // Pie de página (numeración): respeta pageFooterText/Align/FontSize. Vacío => sin pie.
             'page_footer_content' => $this->pageFooterContent(trim((string) $cfg->pageFooterText)),
+            'page_footer_is_long' => mb_strlen(trim((string) $cfg->pageFooterText)) > 255,
+            'page_footer_text' => trim((string) $cfg->pageFooterText),
+            'page_footer_align' => in_array($cfg->pageFooterAlign, ['left', 'center', 'right', 'justify'], true)
+                ? $cfg->pageFooterAlign
+                : 'left',
             'page_footer_box' => $this->footerBox($cfg->pageFooterAlign),
             'page_footer_size' => max(6, (int) $cfg->pageFooterFontSize),
             'extension_blocks' => $extensionBlocks,
@@ -1591,6 +1616,7 @@ class BeplyHtmlRenderService
                     ['label' => Tools::lang()->trans('total'), 'value' => $net],
                 ],
                 'net' => $net,
+                'taxes' => Tools::money(0, $coddivisa),
                 'total' => $net,
                 'units' => $units,
             ];
@@ -1610,6 +1636,7 @@ class BeplyHtmlRenderService
         return [
             'rows' => $rows,
             'net' => $net,
+            'taxes' => Tools::money($num('totaliva'), $coddivisa),
             'total' => Tools::money($num('total'), $coddivisa),
             'units' => $units,
         ];
