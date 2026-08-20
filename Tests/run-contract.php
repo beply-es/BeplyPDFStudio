@@ -228,6 +228,32 @@ foreach (AbstractBeplyPdfLayout::registry() as $key => $layout) {
     }
     $runner->check('nada-fuera-del-papel', empty($offPaper), implode(' | ', array_slice($offPaper, 0, 6)));
 
+    if ($key === 'legacy_boxes') {
+        $legalCfg = $withLogo($layout->defaultConfig());
+        $legalCfg->marginBottom = 40;
+        $legalCfg->pageFooterAlign = 'left';
+        $legalCfg->pageFooterFontSize = 8;
+        $legalCfg->pageFooterText = 'LegalDyanInicio '
+            . str_repeat('información de protección de datos y derechos del cliente ', 18)
+            . ' LegalDyanFin';
+        $legalProbe = $render($legalCfg);
+        $legalStart = $legalProbe->findWord('LegalDyanInicio');
+        $legalEnd = $legalProbe->findWord('LegalDyanFin');
+
+        $runner->check(
+            'pie-legal-largo-completo',
+            $legalStart !== null && $legalEnd !== null,
+            'el texto legal largo no aparece completo en el PDF real'
+        );
+        $runner->check(
+            'pie-legal-largo-en-margen-inferior',
+            $legalStart !== null
+                && $legalStart['page'] === 1
+                && $legalStart['y0'] > $legalProbe->pageHeight(1) - mmToPt(40.0) - 8.0,
+            'el texto legal no queda dentro del margen inferior reservado'
+        );
+    }
+
     // Un diseno retirado (no seleccionable) ya no se ofrece a nadie: solo se le exige que
     // siga renderizando sin romperse para quien lo tenga asignado, no el contrato visual.
     if (!$layout->selectable()) {

@@ -564,11 +564,16 @@ final class BeplyTemplateSuite
     private function legacyBoxesCompatibility(): void
     {
         $legalText = 'LEGAL_START ' . str_repeat('texto de protección de datos ', 45) . ' LEGAL_END';
-        $html = $this->html($this->cfg(function ($c) use ($legalText): void {
-            $c->pageFooterText = $legalText;
-            $c->pageFooterAlign = 'left';
-            $c->pageFooterFontSize = 8;
-        }));
+        BeplyPdfDocumentExtensionRegistry::clear();
+        try {
+            $html = $this->html($this->cfg(function ($c) use ($legalText): void {
+                $c->pageFooterText = $legalText;
+                $c->pageFooterAlign = 'left';
+                $c->pageFooterFontSize = 8;
+            }));
+        } finally {
+            $this->registerTestExtensions();
+        }
         $style = $this->styleOf($html);
         $body = $this->bodyOf($html);
 
@@ -586,6 +591,11 @@ final class BeplyTemplateSuite
                 && strpos($body, 'data-beply-summary-net="true"') !== false
                 && strpos($body, 'data-beply-summary-taxes="true"') !== false
                 && strpos($body, 'data-beply-summary-total="true"') !== false
+        );
+
+        $this->assert(
+            'Cajas prolonga el marco de líneas hasta el resumen inferior',
+            (bool) preg_match('/\.l-items::after\s*\{[^}]*height:\s*[1-9]\d*px[^}]*border-bottom:/s', $style)
         );
     }
 
