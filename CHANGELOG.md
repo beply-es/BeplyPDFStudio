@@ -1,5 +1,10 @@
 # Changelog
 
+## v2.9 - 2026-08-20
+
+- Evita que la fecha y el número se recorten cuando Taller añade la tercera caja de vehículo al diseño `legacy_boxes`.
+- Mantiene las tres cajas dentro del ancho útil A4 y reserva más espacio para los metadatos del documento.
+
 ## v2.8 - 2026-08-20
 
 - Restores the four-column currency, net, taxes and grand-total summary in the legacy Boxes invoice layout.
