@@ -1,5 +1,12 @@
 # Changelog
 
+## v2.8 - 2026-08-20
+
+- Restores the four-column currency, net, taxes and grand-total summary in the legacy Boxes invoice layout.
+- Renders long native `FormatoDocumento` legal footers as a wrapping running element inside the reserved page margin, instead of silently dropping the text.
+- Extends the framed line area through the measured blank space and aligns the legacy header, party boxes, tax summary and warranty text with PlantillasPDF documents.
+- Adds HTML and real-PDF regression contracts for complete long legal footers, lower-margin placement, legacy summary columns and measured bottom anchoring.
+
 ## v2.6 - 2026-08-14
 
 - Preserves every table section when FacturaScripts reports combine a parameter page with tabular results, instead of returning only the styled report header.
