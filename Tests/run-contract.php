@@ -111,6 +111,9 @@ final class BeplyInvoiceLineTaxSampleDoc extends BeplyPdfSampleDoc
     public function __construct(?int $idempresa = null)
     {
         parent::__construct($idempresa);
+        // El fixture debe ser fiscalmente neutro también por el lado emisor. Un id que no
+        // puede existir evita heredar la empresa sintética de la base de pruebas.
+        $this->idempresa = PHP_INT_MAX;
         $this->nombrecliente = self::COMPLETE_BUYER_NAME;
         $this->cifnif = '';
     }
@@ -290,17 +293,16 @@ foreach (AbstractBeplyPdfLayout::registry() as $key => $layout) {
                 && $effectProbe->findWord('Primero') !== null,
             'el primer o el segundo apellido no aparece en las palabras extraídas'
         );
-        $buyerFiscalLabels = array_values(array_filter(
-            $effectProbe->findWords('CIF/NIF:', 1),
-            static fn(array $word): bool => $word['x0'] > ($effectProbe->pageWidth(1) / 2.0)
-        ));
+        $fiscalLabels = $effectProbe->findWords('CIF/NIF:', 1);
+        $clearFiscalIdentifiers = preg_match(
+            '/(?<![[:alnum:]])(?:[A-Z][0-9]{8}|[0-9]{8}[A-Z])(?![[:alnum:]])/u',
+            $effectText
+        ) === 1;
         $runner->check(
-            'factura-default-prueba-sin-identidad-fiscal-de-comprador',
-            empty($buyerFiscalLabels),
-            'etiquetas fiscales en la mitad del comprador: ' . implode(', ', array_map(
-                static fn(array $word): string => 'x=' . round($word['x0'], 1) . ',y=' . round($word['y0'], 1),
-                $buyerFiscalLabels
-            ))
+            'factura-default-fixture-fiscal-totalmente-neutro',
+            empty($fiscalLabels) && !$clearFiscalIdentifiers,
+            'etiquetas fiscales=' . count($fiscalLabels)
+                . ', patrones de identificador=' . ($clearFiscalIdentifiers ? '1+' : '0')
         );
     }
 
