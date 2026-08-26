@@ -12,6 +12,10 @@ require FS_FOLDER . '/vendor/autoload.php';
 require FS_FOLDER . '/config.php';
 \FacturaScripts\Core\Kernel::init();
 
+// Esta matriz mide la ruta funcional de FormatoDocumento en una pasada. El modo preciso,
+// que rasteriza y vuelve a renderizar para anclar el bloque inferior, tiene su suite propia.
+putenv('BEPLY_PDF_PRECISE_BOTTOM_ANCHOR=0');
+
 use FacturaScripts\Core\Base\DataBase\DataBaseWhere;
 use FacturaScripts\Core\Tools;
 use FacturaScripts\Dinamic\Model\BeplyPdfColumn;
@@ -212,11 +216,16 @@ final class BeplyFormatTemplateSuite
         $pdf = new PDFExport();
         $start = hrtime(true);
         $pdf->addBusinessDocPage($this->doc());
+        $afterAdd = hrtime(true);
         $bytes = (string) $pdf->getDoc();
-        $elapsed = (hrtime(true) - $start) / 1_000_000_000;
+        $afterGet = hrtime(true);
+        $addElapsed = ($afterAdd - $start) / 1_000_000_000;
+        $getElapsed = ($afterGet - $afterAdd) / 1_000_000_000;
+        $elapsed = ($afterGet - $start) / 1_000_000_000;
+        $timing = sprintf('elapsed %.3fs (add %.3fs, get %.3fs)', $elapsed, $addElapsed, $getElapsed);
         $this->assert('print route produces PDF', strpos($bytes, '%PDF') === 0, 'not a PDF');
         $this->assert('print route PDF has content', strlen($bytes) > 8000, 'PDF too small');
-        $this->assert('print route render < 2s', $elapsed < 2.0, sprintf('elapsed %.3fs', $elapsed));
+        $this->assert('print route render < 2s', $elapsed < 2.0, $timing);
     }
 
     private function bodyPresent(string $name, callable $mut, string $needle, string $formatText = ''): void

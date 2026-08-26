@@ -10,6 +10,8 @@
 - El contrato genera el PDF real y verifica en el texto extraído el IVA, el
   total bruto, un nombre completo sintético y la ausencia de una identidad
   fiscal sintética.
+- Mantiene la fecha dentro de la caja de metadatos cuando una extensión añade
+  una tercera caja, compactando únicamente esa variante del diseño Cajas.
 - Añade las traducciones turcas exigidas por el catálogo actual de FacturaScripts.
 
 ## v2.9 - 2026-08-20
