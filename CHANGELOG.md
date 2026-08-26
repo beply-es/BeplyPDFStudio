@@ -8,8 +8,9 @@
 - El reparto de 520 puntos conserva al menos 62 puntos para importes y 48 para
   el resto de columnas.
 - El contrato genera el PDF real y verifica en el texto extraído el IVA, el
-  total bruto, los dos apellidos y la ausencia de una identidad fiscal de
-  prueba.
+  total bruto, un nombre completo sintético y la ausencia de una identidad
+  fiscal sintética.
+- Añade las traducciones turcas exigidas por el catálogo actual de FacturaScripts.
 
 ## v2.9 - 2026-08-20
 

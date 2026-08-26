@@ -1,0 +1,17 @@
+{
+    "apply-customer-language": "Müşteri dilini uygula",
+    "beplypdf-print-in-document": "Belgede yazdır",
+    "beplypdf-grand-total": "Genel toplam",
+    "beplypdf-quantity-short": "Mikt.",
+    "beplypdf-total-units": "Toplam birim",
+    "show-total-units": "Toplam birimleri göster",
+    "beplypdf-draft-suffix": "taslak",
+    "beplypdf-draft-title-FacturaCliente": "Fatura",
+    "beplypdf-draft-title-FacturaProveedor": "Fatura",
+    "beplypdf-draft-title-PresupuestoCliente": "Teklif",
+    "beplypdf-draft-title-PresupuestoProveedor": "Teklif",
+    "beplypdf-draft-title-PedidoCliente": "Sipariş",
+    "beplypdf-draft-title-PedidoProveedor": "Sipariş",
+    "beplypdf-draft-title-AlbaranCliente": "İrsaliye",
+    "beplypdf-draft-title-AlbaranProveedor": "İrsaliye"
+}
