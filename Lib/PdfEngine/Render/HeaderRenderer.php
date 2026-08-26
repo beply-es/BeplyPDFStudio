@@ -23,6 +23,7 @@ use FacturaScripts\Core\Tools;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\BeplyPdfBrandingLogoService;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\BeplyPdfConfig;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\BeplyPdfLogoPathResolver;
+use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfBuyerFiscalIdentity;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\PdfEngine\BeplyPdfDraw;
 
 /**
@@ -1152,8 +1153,12 @@ class HeaderRenderer
         }
 
         // CIF/NIF (preferimos el del documento, si no el del sujeto)
-        $cifnif = !empty($model->cifnif) ? $model->cifnif : ($subject->cifnif ?? '');
-        if (!empty($cifnif)) {
+        $cifnif = BeplyPdfBuyerFiscalIdentity::resolve(
+            $model->cifnif ?? '',
+            $subject->cifnif ?? '',
+            !$isPurchase && !empty($model->integration_connect)
+        );
+        if ($cifnif !== '') {
             $lines[] = Tools::lang()->trans('cifnif') . ': ' . $this->plain($cifnif);
         }
 
