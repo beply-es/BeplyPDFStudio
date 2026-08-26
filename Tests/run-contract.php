@@ -103,6 +103,29 @@ final class BeplyMarkdownSampleDoc extends BeplyPdfSampleDoc
     }
 }
 
+/** Factura neutra para probar el efecto sin introducir identidad fiscal en el PDF. */
+final class BeplyInvoiceLineTaxSampleDoc extends BeplyPdfSampleDoc
+{
+    public const COMPLETE_BUYER_NAME = 'Comprador Prueba Apellido Primero Apellido Segundo';
+
+    public function __construct(?int $idempresa = null)
+    {
+        parent::__construct($idempresa);
+        $this->nombrecliente = self::COMPLETE_BUYER_NAME;
+        $this->cifnif = '';
+    }
+
+    public function getSubject()
+    {
+        return (object) [
+            'cifnif' => '',
+            'telefono1' => '',
+            'telefono2' => '',
+            'email' => 'buyer@example.test',
+        ];
+    }
+}
+
 final class ContractRunner
 {
     private int $total = 0;
@@ -232,6 +255,47 @@ foreach (AbstractBeplyPdfLayout::registry() as $key => $layout) {
         }
     }
     $runner->check('nada-fuera-del-papel', empty($offPaper), implode(' | ', array_slice($offPaper, 0, 6)));
+
+    if ($key === 'legacy_framed') {
+        $effectProbe = $render($layout->defaultConfig(), new BeplyInvoiceLineTaxSampleDoc(null));
+        $effectText = $effectProbe->flatText();
+        $firstLineStart = strpos($effectText, 'Producto de ejemplo A');
+        $secondLineStart = strpos($effectText, 'Servicio profesional de ejemplo B');
+        $firstLineText = $firstLineStart !== false && $secondLineStart !== false
+            ? substr($effectText, $firstLineStart, $secondLineStart - $firstLineStart)
+            : '';
+        $headerText = $firstLineStart !== false ? substr($effectText, 0, $firstLineStart) : '';
+
+        $runner->check(
+            'factura-default-cabecera-iva-y-total-linea-en-texto-pdf',
+            preg_match('/\bIVA\b/u', mb_strtoupper($headerText)) === 1
+                && preg_match('/\bTOTAL\b/u', mb_strtoupper($headerText)) === 1,
+            'texto extraído antes de la primera línea: ' . $headerText
+        );
+        $runner->check(
+            'factura-default-desglose-iva-y-total-linea-en-texto-pdf',
+            preg_match('/21(?:[,.]00)?\s*%.*60[,.]50/u', $firstLineText) === 1,
+            'texto extraído de la primera línea: ' . $firstLineText
+        );
+        $runner->check(
+            'factura-default-conserva-segundo-apellido-en-texto-pdf',
+            $effectProbe->findWord('Segundo') !== null
+                && $effectProbe->findWord('Primero') !== null,
+            'el primer o el segundo apellido no aparece en las palabras extraídas'
+        );
+        $buyerFiscalLabels = array_values(array_filter(
+            $effectProbe->findWords('CIF/NIF:', 1),
+            static fn(array $word): bool => $word['x0'] > ($effectProbe->pageWidth(1) / 2.0)
+        ));
+        $runner->check(
+            'factura-default-prueba-sin-identidad-fiscal-de-comprador',
+            empty($buyerFiscalLabels),
+            'etiquetas fiscales en la mitad del comprador: ' . implode(', ', array_map(
+                static fn(array $word): string => 'x=' . round($word['x0'], 1) . ',y=' . round($word['y0'], 1),
+                $buyerFiscalLabels
+            ))
+        );
+    }
 
     if ($key === 'legacy_boxes') {
         BeplyPdfDocumentExtensionRegistry::clear();

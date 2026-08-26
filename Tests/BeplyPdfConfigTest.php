@@ -71,6 +71,25 @@ final class BeplyPdfConfigTest extends TestCase
         }
     }
 
+    public function testDefaultCustomerInvoiceShowsVatAndGrossTotalPerLineWithinThe520PointBudget(): void
+    {
+        $cfg = AbstractBeplyPdfLayout::find('legacy_framed')->defaultConfig();
+        $this->assertSame(
+            ['descripcion', 'cantidad', 'pvpunitario', 'pvptotal', 'iva', 'totaliva'],
+            $cfg->lineColumns
+        );
+        $this->assertSame(
+            ['text', 'number', 'money', 'money', 'percentage', 'money'],
+            $cfg->lineColumnsType
+        );
+
+        foreach ($cfg->lineColumns as $index => $column) {
+            $points = 520.0 * ((float) $cfg->lineColumnsWidth[$index] / 100.0);
+            $minimum = in_array($column, ['pvpunitario', 'pvptotal', 'totaliva'], true) ? 62.0 : 48.0;
+            $this->assertTrue($points >= $minimum, "{$column} queda en {$points}pt, mínimo {$minimum}pt");
+        }
+    }
+
     public function testFindLayout(): void
     {
         $this->assertNotNull(AbstractBeplyPdfLayout::find('legacy_standard'));

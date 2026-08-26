@@ -1,5 +1,17 @@
 # Changelog
 
+## v3.0 - 2026-08-26
+
+- La plantilla de factura por defecto desglosa por línea base, porcentaje de
+  IVA y total con IVA, que el render HTML calcula con el mismo criterio que el
+  motor nativo.
+- El reparto de 520 puntos conserva al menos 62 puntos para importes y 48 para
+  el resto de columnas.
+- El contrato genera el PDF real y verifica en el texto extraído el IVA, el
+  total bruto, un nombre completo sintético y la ausencia de una identidad
+  fiscal sintética.
+- Añade las traducciones turcas exigidas por el catálogo actual de FacturaScripts.
+
 ## v2.9 - 2026-08-20
 
 - Evita que la fecha y el número se recorten cuando Taller añade la tercera caja de vehículo al diseño `legacy_boxes`.

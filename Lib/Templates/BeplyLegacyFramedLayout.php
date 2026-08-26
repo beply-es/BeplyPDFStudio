@@ -47,11 +47,12 @@ class BeplyLegacyFramedLayout extends BeplyLegacyStandardLayout
         $c->marginRight = 14;
         $c->fontSize = 12;
         $c->titleFontSize = 20;
-        // Columnas: Descripción · Cant. · Precio · Neto
-        $c->lineColumns = ['descripcion', 'cantidad', 'pvpunitario', 'pvptotal'];
-        $c->lineColumnsAlign = ['left', 'right', 'right', 'right'];
-        $c->lineColumnsType = ['text', 'number', 'money', 'money'];
-        $c->lineColumnsWidth = [54, 12, 17, 17];
+        // Factura cliente por defecto: base, tipo de IVA y total de línea con IVA.
+        // Sobre 520pt, estos pesos dan >=62pt a dinero y >=48pt al resto.
+        $c->lineColumns = ['descripcion', 'cantidad', 'pvpunitario', 'pvptotal', 'iva', 'totaliva'];
+        $c->lineColumnsAlign = ['left', 'right', 'right', 'right', 'right', 'right'];
+        $c->lineColumnsType = ['text', 'number', 'money', 'money', 'percentage', 'money'];
+        $c->lineColumnsWidth = [44, 10, 12, 12, 10, 12];
         return $c;
     }
 }
