@@ -283,10 +283,17 @@ foreach (AbstractBeplyPdfLayout::registry() as $key => $layout) {
                 && $effectProbe->findWord('Primero') !== null,
             'el primer o el segundo apellido no aparece en las palabras extraídas'
         );
+        $buyerFiscalLabels = array_values(array_filter(
+            $effectProbe->findWords('CIF/NIF:', 1),
+            static fn(array $word): bool => $word['x0'] > ($effectProbe->pageWidth(1) / 2.0)
+        ));
         $runner->check(
-            'factura-default-prueba-sin-identidad-fiscal',
-            preg_match('/\bCIF\s*\/\s*NIF\b/u', mb_strtoupper($effectText)) !== 1,
-            'la factura neutra de prueba contiene una identidad fiscal'
+            'factura-default-prueba-sin-identidad-fiscal-de-comprador',
+            empty($buyerFiscalLabels),
+            'etiquetas fiscales en la mitad del comprador: ' . implode(', ', array_map(
+                static fn(array $word): string => 'x=' . round($word['x0'], 1) . ',y=' . round($word['y0'], 1),
+                $buyerFiscalLabels
+            ))
         );
     }
 
