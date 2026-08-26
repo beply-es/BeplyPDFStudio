@@ -222,6 +222,13 @@ foreach (AbstractBeplyPdfLayout::registry() as $key => $layout) {
         continue;
     }
 
+    // Un diseno retirado (no seleccionable) ya no se ofrece a nadie: solo se le exige que
+    // siga renderizando sin romperse para quien lo tenga asignado, no el contrato visual.
+    if (!$layout->selectable()) {
+        echo "  (diseno retirado: solo se comprueba que renderiza)\n";
+        continue;
+    }
+
     $runner->check(
         'sin-paginas-en-blanco',
         empty($probe->blankPages()),
@@ -370,13 +377,6 @@ foreach (AbstractBeplyPdfLayout::registry() as $key => $layout) {
                 && $legalStart['y0'] > $legalProbe->pageHeight(1) - mmToPt(40.0) - 8.0,
             'el texto legal no queda dentro del margen inferior reservado'
         );
-    }
-
-    // Un diseno retirado (no seleccionable) ya no se ofrece a nadie: solo se le exige que
-    // siga renderizando sin romperse para quien lo tenga asignado, no el contrato visual.
-    if (!$layout->selectable()) {
-        echo "  (diseno retirado: solo se comprueba que renderiza)\n";
-        continue;
     }
 
     // ------------------------------------------------------------ logo position

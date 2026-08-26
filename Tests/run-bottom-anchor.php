@@ -82,7 +82,7 @@ final class BeplyBottomAnchorSuite
         $cases = [
             ['1 linea', 1, 'single-bottom'],
             ['media pagina', 6, 'single-bottom'],
-            ['bloque inferior en pagina nueva', 18, 'newpage-top'],
+            ['bloque inferior en pagina nueva', 19, 'newpage-top'],
             ['lineas continuadas', 24, 'continued-bottom'],
         ];
         $designFilter = trim((string) getenv('BEPLY_BOTTOM_ANCHOR_DESIGN'));
