@@ -20,6 +20,7 @@ use FacturaScripts\Plugins\BeplyPDFStudio\Lib\BeplyPdfRichTextLite;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfDocumentContext;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfDocumentExtensionRegistry;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfDocumentSlot;
+use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfBuyerFiscalIdentity;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfFiscalQrRegistry;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfLineColumn;
 use Twig\Environment;
@@ -1096,7 +1097,11 @@ class BeplyHtmlRenderService
             }
         }
         $name = $isPurchase ? ($model->nombre ?? '') : ($model->nombrecliente ?? '');
-        $cifnif = !empty($model->cifnif) ? $model->cifnif : ($subject->cifnif ?? '');
+        $cifnif = BeplyPdfBuyerFiscalIdentity::resolve(
+            $model->cifnif ?? '',
+            $subject->cifnif ?? '',
+            !$isPurchase && !empty($model->integration_connect)
+        );
         $code = $cfg->showCustomerCode
             ? ($isPurchase ? ($model->codproveedor ?? '') : ($model->codcliente ?? ''))
             : '';

@@ -92,6 +92,7 @@ namespace {
     $classes = [
         \FacturaScripts\Test\Plugins\BeplyPDFStudio\BeplyPdfAssetServiceTest::class,
         \FacturaScripts\Test\Plugins\BeplyPDFStudio\BeplyPdfBrandingLogoServiceTest::class,
+        \FacturaScripts\Test\Plugins\BeplyPDFStudio\BeplyPdfBuyerFiscalIdentityTest::class,
         \FacturaScripts\Test\Plugins\BeplyPDFStudio\BeplyPdfConfigTest::class,
         \FacturaScripts\Test\Plugins\BeplyPDFStudio\BeplyPdfConfigValidatorTest::class,
         \FacturaScripts\Test\Plugins\BeplyPDFStudio\BeplyPdfDocumentExtensionRegistryTest::class,
