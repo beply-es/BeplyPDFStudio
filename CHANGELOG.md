@@ -1,5 +1,13 @@
 # Changelog
 
+## v3.1 - 2026-08-26
+
+- Trata un CIF/NIF compuesto sólo por espacios como ausente en ambos motores
+  PDF y evita caer al CIF del cliente compartido para documentos de venta de
+  marketplace.
+- Conserva el fallback fiscal habitual de los documentos de proveedor y añade
+  contrato unitario y prueba de efecto sobre el texto extraído del PDF real.
+
 ## v3.0 - 2026-08-26
 
 - La plantilla de factura por defecto desglosa por línea base, porcentaje de
