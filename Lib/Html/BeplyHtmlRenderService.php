@@ -1520,6 +1520,13 @@ class BeplyHtmlRenderService
         if ($key === 'referencia') {
             return (string) ($line->referencia ?? '');
         }
+        if ($key === 'totaliva') {
+            $net = isset($line->pvptotal) && is_numeric($line->pvptotal) ? (float) $line->pvptotal : 0.0;
+            $vat = isset($line->iva) && is_numeric($line->iva) ? (float) $line->iva : 0.0;
+            $surcharge = isset($line->recargo) && is_numeric($line->recargo) ? (float) $line->recargo : 0.0;
+
+            return Tools::money($net * (1.0 + $vat / 100.0 + $surcharge / 100.0), $coddivisa);
+        }
         $v = isset($line->{$key}) && is_numeric($line->{$key}) ? (float) $line->{$key} : 0.0;
         switch ($type) {
             case 'money':
