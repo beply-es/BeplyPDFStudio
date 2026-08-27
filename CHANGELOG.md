@@ -1,5 +1,13 @@
 # Changelog
 
+## v3.2 - 2026-08-27
+
+- Trata un `cifnif` de factura compuesto sólo por espacios como ausente y
+  recupera la identidad fiscal del cliente en los dos motores PDF.
+- Añade un rojo unitario con la preimagen literal `"   "` y valida el efecto
+  generando un PDF real, extrayendo su texto y comprobando la columna del
+  comprador.
+
 ## v3.1 - 2026-08-26
 
 - Trata un CIF/NIF compuesto sólo por espacios como ausente en ambos motores

@@ -9,24 +9,23 @@ use PHPUnit\Framework\TestCase;
 
 final class BeplyPdfBuyerFiscalIdentityTest extends TestCase
 {
-    public function testMarketplaceWhitespaceIsAbsenceAndNeverFallsBackToTheSharedClient(): void
+    public function testWhitespaceDocumentIdentityFallsBackToTheCustomer(): void
     {
         $sharedClientTaxId = 'TEST-SHARED-' . substr(hash('sha256', __METHOD__), 0, 12);
 
         $this->assertSame(
-            '',
-            BeplyPdfBuyerFiscalIdentity::resolve(" \t\n ", $sharedClientTaxId, true)
+            $sharedClientTaxId,
+            BeplyPdfBuyerFiscalIdentity::resolve('   ', $sharedClientTaxId)
         );
         $this->assertSame(
             $sharedClientTaxId,
-            BeplyPdfBuyerFiscalIdentity::resolve(" \t\n ", $sharedClientTaxId, false)
+            BeplyPdfBuyerFiscalIdentity::resolve('', $sharedClientTaxId)
         );
         $this->assertSame(
             'BUYER-' . substr(hash('sha256', __CLASS__), 0, 12),
             BeplyPdfBuyerFiscalIdentity::resolve(
                 ' BUYER-' . substr(hash('sha256', __CLASS__), 0, 12) . ' ',
-                $sharedClientTaxId,
-                true
+                $sharedClientTaxId
             )
         );
     }
@@ -43,9 +42,9 @@ final class BeplyPdfBuyerFiscalIdentityTest extends TestCase
                 strpos($source, 'BeplyPdfBuyerFiscalIdentity::resolve(') !== false,
                 basename($sourcePath) . ' must use the shared fiscal identity boundary'
             );
-            $this->assertTrue(
+            $this->assertFalse(
                 strpos($normalizedSource, '!$isPurchase && !empty($model->integration_connect)') !== false,
-                basename($sourcePath) . ' must preserve the subject fallback for purchase documents'
+                basename($sourcePath) . ' must not suppress the customer fallback for marketplace documents'
             );
         }
     }

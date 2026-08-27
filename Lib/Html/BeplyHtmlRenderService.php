@@ -1099,8 +1099,7 @@ class BeplyHtmlRenderService
         $name = $isPurchase ? ($model->nombre ?? '') : ($model->nombrecliente ?? '');
         $cifnif = BeplyPdfBuyerFiscalIdentity::resolve(
             $model->cifnif ?? '',
-            $subject->cifnif ?? '',
-            !$isPurchase && !empty($model->integration_connect)
+            $subject->cifnif ?? ''
         );
         $code = $cfg->showCustomerCode
             ? ($isPurchase ? ($model->codproveedor ?? '') : ($model->codcliente ?? ''))

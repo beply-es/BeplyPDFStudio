@@ -1155,8 +1155,7 @@ class HeaderRenderer
         // CIF/NIF (preferimos el del documento, si no el del sujeto)
         $cifnif = BeplyPdfBuyerFiscalIdentity::resolve(
             $model->cifnif ?? '',
-            $subject->cifnif ?? '',
-            !$isPurchase && !empty($model->integration_connect)
+            $subject->cifnif ?? ''
         );
         if ($cifnif !== '') {
             $lines[] = Tools::lang()->trans('cifnif') . ': ' . $this->plain($cifnif);
