@@ -1,5 +1,13 @@
 # Changelog
 
+## v3.3 - 2026-08-27
+
+- Evita imprimir como identidad fiscal del comprador los placeholders de
+  cliente compartido y los identificadores de integración de ALI, LYM, MAI,
+  MIR, MIRR y SHP.
+- Conserva el fallback desde una factura con espacios o identidad sintética al
+  NIF autoritativo del cliente; cuando ambos son sintéticos, no imprime ninguno.
+
 ## v3.2 - 2026-08-27
 
 - Trata un `cifnif` de factura compuesto sólo por espacios como ausente y

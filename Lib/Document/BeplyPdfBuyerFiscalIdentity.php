@@ -4,9 +4,12 @@ declare(strict_types=1);
 
 namespace FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document;
 
-/** Resolves a tax identifier, treating whitespace-only document values as absent. */
+/** Resolves buyer fiscal evidence without printing integration placeholders. */
 final class BeplyPdfBuyerFiscalIdentity
 {
+    private const SHARED_CLIENT_PLACEHOLDERS = ['00000000A', '00000000T'];
+    private const SYNTHETIC_PREFIXES = ['ALI-', 'LYM-', 'MAI-', 'MIR-', 'MIRR-', 'SHP-'];
+
     public static function resolve(
         mixed $documentTaxId,
         mixed $subjectTaxId
@@ -21,6 +24,21 @@ final class BeplyPdfBuyerFiscalIdentity
 
     private static function clean(mixed $taxId): string
     {
-        return is_scalar($taxId) ? trim((string) $taxId) : '';
+        if (!is_scalar($taxId)) {
+            return '';
+        }
+
+        $value = trim((string) $taxId);
+        $identity = strtoupper(preg_replace('/\s+/u', '', $value) ?? '');
+        if ($identity === '' || in_array($identity, self::SHARED_CLIENT_PLACEHOLDERS, true)) {
+            return '';
+        }
+        foreach (self::SYNTHETIC_PREFIXES as $prefix) {
+            if (str_starts_with($identity, $prefix)) {
+                return '';
+            }
+        }
+
+        return $value;
     }
 }
