@@ -2,13 +2,16 @@
 
 ## v3.4 - 2026-08-31
 
-- Corrige el campo `CIF/NIF` del bloque de metadatos del diseño Enmarcado para
-  mostrar la identidad fiscal resuelta del comprador, dejando la del emisor
-  únicamente en su bloque de empresa.
+- Corrige el campo `CIF/NIF` del bloque de metadatos del diseño Enmarcado con
+  roles explícitos: cliente comprador en ventas y empresa compradora en compras,
+  sin duplicar allí la identidad del proveedor.
 - Hace visible en toda factura rectificativa la referencia persistida a la
   original y etiqueta como motivo sus observaciones persistidas, incluso cuando
   los documentos padre o las notas estén ocultos; si falta cualquiera de esos
   datos se omite sin derivarlo ni inventarlo.
+- Normaliza y deduplica la referencia original en una única frontera compartida
+  por HTML y Cezpdf, incluidos los fallbacks Clásico, Banda, Resumen, Corporativo
+  y Cajas con documentos padre ocultos o visibles.
 - Añade un contrato sintético HTML/PDF real para identidades válidas, vacías,
   espacios, placeholders y prefijos de integración, además de base, IVA y total
   exactos en facturas ordinarias y rectificativas negativas.

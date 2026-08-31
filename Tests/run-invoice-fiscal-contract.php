@@ -13,12 +13,14 @@ require FS_FOLDER . '/config.php';
 require_once __DIR__ . '/Lib/BeplyPdfProbe.php';
 
 use FacturaScripts\Core\Tools;
+use FacturaScripts\Dinamic\Model\Empresa;
+use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Export\PDFExport;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Html\BeplyHtmlRenderService;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\PdfEngine\BeplyPdfSampleDoc;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Templates\AbstractBeplyPdfLayout;
 use FacturaScripts\Plugins\BeplyPDFStudio\Tests\Lib\BeplyPdfProbe;
 
-final class BeplySyntheticInvoiceContractDoc extends BeplyPdfSampleDoc
+class BeplySyntheticInvoiceContractDoc extends BeplyPdfSampleDoc
 {
     public $idfacturarect;
 
@@ -91,6 +93,28 @@ final class BeplySyntheticInvoiceContractDoc extends BeplyPdfSampleDoc
     }
 }
 
+final class BeplySyntheticPurchaseInvoiceContractDoc extends BeplySyntheticInvoiceContractDoc
+{
+    public string $codproveedor = 'SUP-SYNTH-001';
+    public string $nombre = 'Proveedor Sintético S.L.';
+
+    public function modelClassName(): string
+    {
+        return 'FacturaProveedor';
+    }
+}
+
+final class BeplyNativePdfExportProbe extends PDFExport
+{
+    public function renderFallback($config, object $model): string
+    {
+        $method = new ReflectionMethod(PDFExport::class, 'renderBeplyDoc');
+        $method->setAccessible(true);
+        $method->invoke($this, $model, $config);
+        return (string) $this->getDoc();
+    }
+}
+
 final class BeplyInvoiceFiscalContractSuite
 {
     private int $total = 0;
@@ -107,7 +131,9 @@ final class BeplyInvoiceFiscalContractSuite
         @mkdir(FS_FOLDER . '/MyFiles/Cache', 0775, true);
         $this->buyerIdentityHtmlContract();
         $this->buyerIdentityPdfContract();
+        $this->purchaseBuyerIdentityContract();
         $this->rectificationPdfContract();
+        $this->rectificationFallbackMatrix();
         $this->ordinaryInvoiceContract();
 
         echo "INVOICE_FISCAL_CONTRACT total={$this->total} failed={$this->failed}\n";
@@ -170,6 +196,64 @@ final class BeplyInvoiceFiscalContractSuite
         );
     }
 
+    private function purchaseBuyerIdentityContract(): void
+    {
+        $company = new Empresa();
+        $companyId = (int) Tools::settings('default', 'idempresa', 0);
+        if ($companyId <= 0 || false === $company->loadFromCode($companyId)) {
+            $this->assert('purchase fixture loads a synthetic-capable company', false, 'default company missing');
+            return;
+        }
+
+        $purchaserTaxId = $this->syntheticSpanishTaxId(__METHOD__ . '-purchaser');
+        $supplierTaxId = $this->syntheticSpanishTaxId(__METHOD__ . '-supplier');
+        $originalTaxId = $company->cifnif;
+        $company->cifnif = $purchaserTaxId;
+        if (false === $company->save()) {
+            $this->assert('purchase fixture stores synthetic purchaser identity', false, 'company save failed');
+            return;
+        }
+
+        try {
+            $doc = new BeplySyntheticPurchaseInvoiceContractDoc($supplierTaxId, $supplierTaxId);
+            $doc->idempresa = $companyId;
+            $cfg = AbstractBeplyPdfLayout::find('legacy_framed')->defaultConfig();
+            $html = $this->renderer->buildHtml($cfg, $doc);
+            $metadata = $this->framedMetadata($html);
+            $counterparty = $this->framedCounterparty($html);
+
+            $this->assert('purchase metadata renders purchaser company identity',
+                strpos($metadata, $purchaserTaxId) !== false,
+                $metadata
+            );
+            $this->assert('purchase metadata never duplicates supplier identity',
+                strpos($metadata, $supplierTaxId) === false,
+                $metadata
+            );
+            $this->assert('purchase counterparty block keeps supplier identity',
+                strpos($counterparty, $supplierTaxId) !== false,
+                $counterparty
+            );
+            $this->assert('purchase HTML prints supplier identity exactly once',
+                substr_count($html, $supplierTaxId) === 1,
+                'occurrences=' . substr_count($html, $supplierTaxId)
+            );
+
+            $text = $this->probe($doc, $cfg)->flatText();
+            $this->assert('purchase PDF prints supplier identity exactly once',
+                substr_count($text, $supplierTaxId) === 1,
+                'occurrences=' . substr_count($text, $supplierTaxId)
+            );
+            $this->assert('purchase PDF includes purchaser identity in company and buyer metadata',
+                substr_count($text, $purchaserTaxId) === 2,
+                'occurrences=' . substr_count($text, $purchaserTaxId)
+            );
+        } finally {
+            $company->cifnif = $originalTaxId;
+            $this->assert('purchase fixture restores company identity', $company->save(), 'company restore failed');
+        }
+    }
+
     private function rectificationPdfContract(): void
     {
         $buyer = $this->syntheticSpanishTaxId(__METHOD__ . '-buyer');
@@ -204,6 +288,58 @@ final class BeplyInvoiceFiscalContractSuite
         $hash = hash('sha256', $pdf);
         $this->assert('rectification PDF has a SHA-256 identity', strlen($hash) === 64 && $pdf !== '', $hash);
         echo "RECTIFICATION_PDF_SHA256={$hash}\n";
+    }
+
+    private function rectificationFallbackMatrix(): void
+    {
+        $buyer = $this->syntheticSpanishTaxId(__METHOD__ . '-buyer');
+        $reason = 'Motivo sintético de fallback';
+        $layouts = ['legacy_standard', 'legacy_banner', 'legacy_summary', 'corporate', 'legacy_boxes'];
+
+        foreach ([false, true] as $showParentDocs) {
+            foreach ($layouts as $layout) {
+                $label = $layout . ' parents=' . ($showParentDocs ? 'on' : 'off');
+                $doc = new BeplySyntheticInvoiceContractDoc($buyer, $buyer, true, $reason, true);
+                $doc->codigorect = "  FAC-SYNTH-ORIGINAL\t";
+                $cfg = AbstractBeplyPdfLayout::find($layout)->defaultConfig();
+                $cfg->showParentDocs = $showParentDocs;
+                $cfg->hideNotes = true;
+
+                $html = $this->renderer->buildHtml($cfg, $doc);
+                $this->assert($label . ' HTML original exactly once',
+                    substr_count($html, 'FAC-SYNTH-ORIGINAL') === 1,
+                    'occurrences=' . substr_count($html, 'FAC-SYNTH-ORIGINAL')
+                );
+                $this->assert($label . ' HTML preserves reason', strpos($html, $reason) !== false, 'reason missing');
+
+                $pdf = (new BeplyNativePdfExportProbe())->renderFallback($cfg, $doc);
+                $probe = BeplyPdfProbe::fromBytes($pdf);
+                $text = $probe->flatText();
+                $this->assert($label . ' fallback is a visible PDF',
+                    strpos($pdf, '%PDF') === 0 && $probe->pageCount() >= 1 && $probe->blankPages() === [],
+                    'pages=' . $probe->pageCount()
+                );
+                $this->assert($label . ' fallback original exactly once',
+                    substr_count($text, 'FAC-SYNTH-ORIGINAL') === 1,
+                    'occurrences=' . substr_count($text, 'FAC-SYNTH-ORIGINAL')
+                );
+                $this->assert($label . ' fallback preserves reason', strpos($text, $reason) !== false, 'reason missing');
+                $this->assertAmounts($label . ' fallback', $text, [-10.74, -2.25, -12.99]);
+            }
+        }
+
+        foreach ($layouts as $layout) {
+            $doc = new BeplySyntheticInvoiceContractDoc($buyer, $buyer, false, 'Ordinary synthetic note', false);
+            $cfg = AbstractBeplyPdfLayout::find($layout)->defaultConfig();
+            $cfg->showParentDocs = true;
+            $text = BeplyPdfProbe::fromBytes(
+                (new BeplyNativePdfExportProbe())->renderFallback($cfg, $doc)
+            )->flatText();
+            $this->assert($layout . ' ordinary fallback omits Original',
+                strpos($text, 'FAC-SYNTH-ORIGINAL') === false,
+                $text
+            );
+        }
     }
 
     private function ordinaryInvoiceContract(): void
@@ -244,6 +380,13 @@ final class BeplyInvoiceFiscalContractSuite
     {
         $start = strpos($html, '<td class="meta-left"');
         $end = $start === false ? false : strpos($html, '<td class="meta-right"', $start);
+        return $start === false || $end === false ? '' : substr($html, $start, $end - $start);
+    }
+
+    private function framedCounterparty(string $html): string
+    {
+        $start = strpos($html, '<td class="meta-right"');
+        $end = $start === false ? false : strpos($html, '</td>', $start);
         return $start === false || $end === false ? '' : substr($html, $start, $end - $start);
     }
 
