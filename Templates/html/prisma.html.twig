@@ -433,7 +433,7 @@
 
     {# ========== OBSERVACIONES ========== #}
     {% if observations %}
-    <div class="obs"><span class="t">{{ 'observations'|trans }}:</span><br/>{{ observations|raw }}</div>
+    <div class="obs"><span class="t">{{ observations_title }}:</span><br/>{{ observations|raw }}</div>
     {% endif %}
 
     {% include '_fiscal-landscape-columns-close.html.twig' %}

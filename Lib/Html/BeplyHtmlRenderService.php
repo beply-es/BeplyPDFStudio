@@ -23,6 +23,9 @@ use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfDocumentSlot;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfBuyerFiscalIdentity;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfFiscalQrRegistry;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfLineColumn;
+use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfMetadataFiscalIdentity;
+use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfParentDocumentLines;
+use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfRectificationData;
 use Twig\Environment;
 use Twig\Loader\FilesystemLoader;
 use Twig\TwigFilter;
@@ -553,12 +556,23 @@ class BeplyHtmlRenderService
             // --- DOCUMENTO de venta/compra: datos completos del modelo ---
             $company = $this->companyData($model);
             $customer = $this->customerData($cfg, $model);
+            $metadataCifnif = BeplyPdfMetadataFiscalIdentity::resolve(
+                isset($model->codproveedor),
+                $company['cifnif'],
+                $customer['cifnif']
+            );
             $rawLines = $this->documentLines($model);
             $columns = $this->columnsMeta($cfg, $docContext, $rawLines, $coddivisa);
             $lines = $this->linesData($cfg, $model, $coddivisa, $docContext, $columns, $rawLines);
             $taxes = $this->taxData($cfg, $model, $coddivisa);
             $totals = $this->totalsData($cfg, $model, $coddivisa, $rawLines);
-            $observations = $cfg->hideNotes ? '' : $this->richTextHtml($model->observaciones ?? '');
+            $rectification = BeplyPdfRectificationData::resolve($model);
+            $observations = $rectification['reason'] !== ''
+                ? $this->richTextHtml($rectification['reason'])
+                : ($cfg->hideNotes ? '' : $this->richTextHtml($model->observaciones ?? ''));
+            $observationsTitle = Tools::lang()->trans(
+                $rectification['reason'] !== '' ? 'reason' : 'observations'
+            );
             $receipts = $this->receiptsData($cfg, $model, $coddivisa, $docContext);
             $shipping = $cfg->hideShippingAddress ? [] : $this->shippingData($model);
             $doc = $this->docData($cfg, $model, $coddivisa, $format);
@@ -566,6 +580,7 @@ class BeplyHtmlRenderService
             // --- GENÉRICO del core (ficha / listado / informe): solo cabecera + tabla ---
             $company = $this->companyData((object) ['idempresa' => $generic['idempresa'] ?? null]);
             $customer = ['label' => '', 'name' => '', 'cifnif' => '', 'code' => '', 'lines' => [], 'phones' => '', 'email' => '', 'agent' => ''];
+            $metadataCifnif = '';
             $genericSections = $this->genericSections($generic);
             if (empty($genericSections)) {
                 [$columns, $lines] = $this->genericTable($generic);
@@ -577,6 +592,7 @@ class BeplyHtmlRenderService
             $taxes = [];
             $totals = ['total' => '', 'units' => null];
             $observations = '';
+            $observationsTitle = Tools::lang()->trans('observations');
             $receipts = [];
             $shipping = [];
             $doc = [
@@ -661,6 +677,7 @@ class BeplyHtmlRenderService
             'doc' => $doc,
             'company' => $company,
             'customer' => $customer,
+            'metadata_cifnif' => $metadataCifnif,
             'shipping' => $shipping,
             'lines' => $lines,
             'columns' => $columns,
@@ -670,6 +687,7 @@ class BeplyHtmlRenderService
             'taxes' => $taxes,
             'totals' => $totals,
             'observations' => $observations,
+            'observations_title' => $observationsTitle,
             'receipts' => $receipts,
             'footer_text' => $this->richTextHtml($cfg->footerText),
             'footer_text_plain' => $this->richTextPlain($cfg->footerText),
@@ -1018,6 +1036,12 @@ class BeplyHtmlRenderService
             ? (float) ($model->neto ?? 0)
             : (float) ($model->total ?? 0);
         $paymentDate = $cfg->showPaymentDate ? BeplyPdfPaymentDateResolver::resolve($model) : '';
+        $rectification = BeplyPdfRectificationData::resolve($model);
+        $parentDocs = BeplyPdfParentDocumentLines::resolve(
+            $model,
+            $cfg->showParentDocs,
+            static fn(string $key): string => Tools::lang()->trans($key)
+        );
 
         return [
             'title' => mb_strtoupper($this->plain($title)),
@@ -1026,7 +1050,8 @@ class BeplyHtmlRenderService
             'numero2' => $cfg->showNumber2 ? (string) ($model->numero2 ?? '') : '',
             'supplier_number' => $cfg->showSupplierNumber ? (string) ($model->numproveedor ?? '') : '',
             'payment_date' => $paymentDate !== '' ? Tools::date($paymentDate) : '',
-            'parent_docs' => $cfg->showParentDocs ? $this->parentDocumentLines($model) : [],
+            'parent_docs' => $parentDocs,
+            'is_rectification' => $rectification['is_rectification'],
             'serie' => $cfg->hideSeries ? '' : (string) ($model->codserie ?? ''),
             'date' => !empty($model->fecha) ? Tools::date($model->fecha) : '',
             'expiration' => !empty($model->finoferta) ? Tools::date($model->finoferta) : '',
@@ -1207,41 +1232,6 @@ class BeplyHtmlRenderService
         $key = 'beplypdf-draft-suffix';
         $suffix = Tools::lang()->trans($key);
         return ($suffix === '' || $suffix === $key) ? 'boceto' : $suffix;
-    }
-
-    private function parentDocumentLines($model): array
-    {
-        $lines = [];
-        if (!empty($model->codigorect)) {
-            $lines[] = Tools::lang()->trans('original') . ': ' . $model->codigorect;
-        }
-
-        if (!is_object($model) || !method_exists($model, 'parentDocuments')) {
-            return $lines;
-        }
-
-        try {
-            foreach ((array) $model->parentDocuments() as $parent) {
-                if (!is_object($parent)) {
-                    continue;
-                }
-
-                $title = method_exists($parent, 'modelClassName')
-                    ? Tools::lang()->trans($parent->modelClassName() . '-min')
-                    : Tools::lang()->trans('document');
-                $code = $parent->codigo ?? '';
-                if ($code === '' && method_exists($parent, 'primaryColumnValue')) {
-                    $code = (string) $parent->primaryColumnValue();
-                }
-                if ($code !== '') {
-                    $lines[] = trim($title . ': ' . $code);
-                }
-            }
-        } catch (\Throwable $e) {
-            return $lines;
-        }
-
-        return array_values(array_unique($lines));
     }
 
     private function columnsMeta(BeplyPdfConfig $cfg, ?BeplyPdfDocumentContext $context = null, array $lines = [], string $coddivisa = ''): array

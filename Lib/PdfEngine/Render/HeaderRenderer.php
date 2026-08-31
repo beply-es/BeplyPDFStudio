@@ -24,6 +24,8 @@ use FacturaScripts\Plugins\BeplyPDFStudio\Lib\BeplyPdfBrandingLogoService;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\BeplyPdfConfig;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\BeplyPdfLogoPathResolver;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfBuyerFiscalIdentity;
+use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfCorporateHeaderGeometry;
+use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfParentDocumentLines;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\PdfEngine\BeplyPdfDraw;
 
 /**
@@ -335,7 +337,7 @@ class HeaderRenderer
         $gap = 14.0;
         $boxW = ($contentW - $gap) / 2.0;
         $boxTop = min($emisorBottom - 16.0, $emisorTop - 6.0);
-        $docLines = array_merge($this->numberDateLines($cfg, $model), $this->parentDocumentLines($model));
+        $docLines = $this->numberDateLines($cfg, $model);
         $cliLines = $this->legacyBodyLines($this->customerLines($cfg, $model));
         $h = max($this->legacyBoxHeight($docLines, $fs), $this->legacyBoxHeight($cliLines, $fs));
         $docBottom = $this->drawLegacyBox($pdf, Tools::trans('document'), $docLines, $contentX, $boxTop, $boxW, $h, $fs, $cfg, true);
@@ -474,8 +476,9 @@ class HeaderRenderer
             $this->drawFitText($pdf, $brandX, $pageHeight - 47.0, max(7.0, $this->cssPt((float) $cfg->fontSize - 1.0)), $companyContact, $mutedOnDark, 'right', $brandW);
         }
 
-        $metaTop = $bandBottom - 27.0;
         $meta = $this->corporateMetaRows($cfg, $model);
+        $geometry = BeplyPdfCorporateHeaderGeometry::resolve($bandBottom, $fs, count($meta));
+        $metaTop = $geometry['meta_top'];
         $metaW = $contentW * 0.52;
         $metaX = $right - $metaW;
         $labelW = $metaW * 0.63;
@@ -486,13 +489,13 @@ class HeaderRenderer
             $value = (string) $row[1];
             $this->drawFitText($pdf, $metaX, $my, max(8.0, $fs), $label . ':', $cfg->colorText, 'right', $labelW, true);
             $this->drawFitText($pdf, $metaX + $labelW + 14.0, $my, max(8.0, $fs), $value, $cfg->colorText, 'right', $valueW - 14.0);
-            $my -= $fs + 6.0;
+            $my -= $geometry['meta_row_step'];
         }
 
-        $ruleY = $bandBottom - 72.0;
+        $ruleY = $geometry['rule_y'];
         BeplyPdfDraw::line($pdf, $contentX, $ruleY, $right, $ruleY, $border, 0.7);
 
-        $partiesTop = $ruleY - 12.0;
+        $partiesTop = $geometry['parties_top'];
         $gap = 18.0;
         $colW = ($contentW - $gap) / 2.0;
         $leftBottom = $this->drawCorporateParty(
@@ -534,6 +537,9 @@ class HeaderRenderer
         }
         if ($cfg->showNumber2 && !empty($model->numero2)) {
             $rows[] = [Tools::lang()->trans('number2'), (string) $model->numero2];
+        }
+        foreach ($this->documentParentPairs($model, $cfg->showParentDocs) as $parentPair) {
+            $rows[] = $parentPair;
         }
         return $rows;
     }
@@ -710,6 +716,9 @@ class HeaderRenderer
         if (!empty($model->fecha)) {
             $parts[] = Tools::date($model->fecha);
         }
+        foreach ($this->documentParentLines($model, $cfg->showParentDocs) as $parentLine) {
+            $parts[] = $parentLine;
+        }
         return implode('   ·   ', $parts);
     }
 
@@ -723,6 +732,9 @@ class HeaderRenderer
         }
         if (!$cfg->hideSeries && property_exists($model, 'codserie') && !empty($model->codserie)) {
             $pairs[] = [Tools::lang()->trans('serie'), (string) $model->codserie];
+        }
+        foreach ($this->documentParentPairs($model, $cfg->showParentDocs) as $parentPair) {
+            $pairs[] = $parentPair;
         }
         return $pairs;
     }
@@ -1058,11 +1070,8 @@ class HeaderRenderer
             $lines[] = Tools::lang()->trans('number2') . ': ' . $model->numero2;
         }
 
-        // Documentos origen relacionados (presupuesto/pedido/albarán/factura rectificada), si el modelo los expone.
-        if ($cfg->showParentDocs) {
-            foreach ($this->parentDocumentLines($model) as $parentLine) {
-                $lines[] = $parentLine;
-            }
+        foreach ($this->documentParentLines($model, $cfg->showParentDocs) as $parentLine) {
+            $lines[] = $parentLine;
         }
 
         // Serie
@@ -1256,44 +1265,25 @@ class HeaderRenderer
         return Tools::lang()->trans('agent') . ': ' . $name;
     }
 
-    /**
-     * Documentos padre/origen. Usa parentDocuments() cuando existe y codigorect como fallback.
-     *
-     * @return string[]
-     */
-    private function parentDocumentLines($model): array
+    /** @return string[] */
+    private function documentParentLines($model, bool $includeOptionalParents): array
     {
-        $lines = [];
+        return BeplyPdfParentDocumentLines::resolve(
+            $model,
+            $includeOptionalParents,
+            static fn(string $key): string => Tools::lang()->trans($key)
+        );
+    }
 
-        if (!empty($model->codigorect)) {
-            $lines[] = Tools::lang()->trans('original') . ': ' . $model->codigorect;
+    /** @return array<int, array{0: string, 1: string}> */
+    private function documentParentPairs($model, bool $includeOptionalParents): array
+    {
+        $pairs = [];
+        foreach ($this->documentParentLines($model, $includeOptionalParents) as $line) {
+            $parts = explode(': ', $line, 2);
+            $pairs[] = [$parts[0], $parts[1] ?? ''];
         }
-
-        if (!is_object($model) || !method_exists($model, 'parentDocuments')) {
-            return $lines;
-        }
-
-        try {
-            foreach ((array) $model->parentDocuments() as $parent) {
-                if (!is_object($parent)) {
-                    continue;
-                }
-                $title = method_exists($parent, 'modelClassName')
-                    ? Tools::lang()->trans($parent->modelClassName() . '-min')
-                    : Tools::lang()->trans('document');
-                $code = $parent->codigo ?? '';
-                if ($code === '' && method_exists($parent, 'primaryColumnValue')) {
-                    $code = (string) $parent->primaryColumnValue();
-                }
-                if ($code !== '') {
-                    $lines[] = trim($title . ': ' . $code);
-                }
-            }
-        } catch (\Throwable $e) {
-            // opcional: no debe romper la impresión
-        }
-
-        return array_values(array_unique($lines));
+        return $pairs;
     }
 
     /**

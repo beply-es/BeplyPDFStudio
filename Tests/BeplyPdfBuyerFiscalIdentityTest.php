@@ -30,9 +30,20 @@ final class BeplyPdfBuyerFiscalIdentityTest extends TestCase
         );
     }
 
+    public function testValidDocumentIdentityWinsOverTheCustomerFallback(): void
+    {
+        $documentTaxId = self::syntheticValidSpanishTaxId(__METHOD__ . '-document');
+        $customerTaxId = self::syntheticValidSpanishTaxId(__METHOD__ . '-customer');
+
+        $this->assertSame(
+            $documentTaxId,
+            BeplyPdfBuyerFiscalIdentity::resolve(' ' . $documentTaxId . ' ', $customerTaxId)
+        );
+    }
+
     public function testSyntheticDocumentIdentityFallsBackToTheCustomer(): void
     {
-        $customerTaxId = self::syntheticValidSpanishTaxId();
+        $customerTaxId = self::syntheticValidSpanishTaxId(__METHOD__);
         $this->assertFalse(
             in_array($customerTaxId, [str_repeat('0', 8) . 'T', str_repeat('0', 8) . 'A'], true),
             'the authoritative subject fixture must not be a shared-client placeholder'
@@ -61,6 +72,33 @@ final class BeplyPdfBuyerFiscalIdentityTest extends TestCase
         );
     }
 
+    public function testFramedMetadataUsesBuyerIdentityAndKeepsIssuerInCompanyBlock(): void
+    {
+        $source = (string) file_get_contents(dirname(__DIR__) . '/Templates/html/framed.html.twig');
+        $companyStart = strpos($source, '{% set company_block %}');
+        $companyEnd = strpos($source, '{% endset %}', $companyStart);
+        $metadataStart = strpos($source, '<td class="meta-left"');
+        $metadataEnd = strpos($source, '{# Lado derecho = CLIENTE', $metadataStart);
+
+        $this->assertFalse($companyStart === false || $companyEnd === false, 'company block must exist');
+        $this->assertFalse($metadataStart === false || $metadataEnd === false, 'metadata block must exist');
+
+        $companyBlock = substr($source, $companyStart, $companyEnd - $companyStart);
+        $metadataBlock = substr($source, $metadataStart, $metadataEnd - $metadataStart);
+        $this->assertTrue(
+            strpos($companyBlock, 'company.cifnif') !== false,
+            'issuer fiscal identity must remain in the issuer block'
+        );
+        $this->assertTrue(
+            strpos($metadataBlock, 'metadata_cifnif') !== false,
+            'the labelled metadata field must use the role-aware buyer fiscal identity'
+        );
+        $this->assertFalse(
+            strpos($metadataBlock, 'company.cifnif') !== false || strpos($metadataBlock, 'customer.cifnif') !== false,
+            'the template must not hardcode a party role for buyer metadata'
+        );
+    }
+
     public function testBothPdfEnginesUseTheSameBuyerFiscalIdentityBoundary(): void
     {
         foreach ([
@@ -80,9 +118,9 @@ final class BeplyPdfBuyerFiscalIdentityTest extends TestCase
         }
     }
 
-    private static function syntheticValidSpanishTaxId(): string
+    private static function syntheticValidSpanishTaxId(string $seed = __CLASS__): string
     {
-        $number = hexdec(substr(hash('sha256', __CLASS__), 0, 7));
+        $number = hexdec(substr(hash('sha256', $seed), 0, 7));
         $digits = str_pad((string) ($number % 100000000), 8, '0', STR_PAD_LEFT);
         $letters = 'TRWAGMYFPDXBNJZSQVHLCKE';
 
