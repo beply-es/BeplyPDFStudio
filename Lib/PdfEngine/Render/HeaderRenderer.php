@@ -24,6 +24,7 @@ use FacturaScripts\Plugins\BeplyPDFStudio\Lib\BeplyPdfBrandingLogoService;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\BeplyPdfConfig;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\BeplyPdfLogoPathResolver;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfBuyerFiscalIdentity;
+use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfRectificationData;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\PdfEngine\BeplyPdfDraw;
 
 /**
@@ -1058,10 +1059,18 @@ class HeaderRenderer
             $lines[] = Tools::lang()->trans('number2') . ': ' . $model->numero2;
         }
 
-        // Documentos origen relacionados (presupuesto/pedido/albarán/factura rectificada), si el modelo los expone.
+        // La factura rectificada es identidad fiscal del documento y no depende de un toggle visual.
+        $rectification = BeplyPdfRectificationData::resolve($model);
+        if ($rectification['original_code'] !== '') {
+            $lines[] = Tools::lang()->trans('original') . ': ' . $rectification['original_code'];
+        }
+
+        // Otros documentos origen relacionados conservan el toggle configurable.
         if ($cfg->showParentDocs) {
             foreach ($this->parentDocumentLines($model) as $parentLine) {
-                $lines[] = $parentLine;
+                if (!in_array($parentLine, $lines, true)) {
+                    $lines[] = $parentLine;
+                }
             }
         }
 

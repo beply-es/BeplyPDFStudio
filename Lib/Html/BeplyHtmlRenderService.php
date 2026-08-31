@@ -23,6 +23,7 @@ use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfDocumentSlot;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfBuyerFiscalIdentity;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfFiscalQrRegistry;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfLineColumn;
+use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfRectificationData;
 use Twig\Environment;
 use Twig\Loader\FilesystemLoader;
 use Twig\TwigFilter;
@@ -558,7 +559,13 @@ class BeplyHtmlRenderService
             $lines = $this->linesData($cfg, $model, $coddivisa, $docContext, $columns, $rawLines);
             $taxes = $this->taxData($cfg, $model, $coddivisa);
             $totals = $this->totalsData($cfg, $model, $coddivisa, $rawLines);
-            $observations = $cfg->hideNotes ? '' : $this->richTextHtml($model->observaciones ?? '');
+            $rectification = BeplyPdfRectificationData::resolve($model);
+            $observations = $rectification['reason'] !== ''
+                ? $this->richTextHtml($rectification['reason'])
+                : ($cfg->hideNotes ? '' : $this->richTextHtml($model->observaciones ?? ''));
+            $observationsTitle = Tools::lang()->trans(
+                $rectification['reason'] !== '' ? 'reason' : 'observations'
+            );
             $receipts = $this->receiptsData($cfg, $model, $coddivisa, $docContext);
             $shipping = $cfg->hideShippingAddress ? [] : $this->shippingData($model);
             $doc = $this->docData($cfg, $model, $coddivisa, $format);
@@ -577,6 +584,7 @@ class BeplyHtmlRenderService
             $taxes = [];
             $totals = ['total' => '', 'units' => null];
             $observations = '';
+            $observationsTitle = Tools::lang()->trans('observations');
             $receipts = [];
             $shipping = [];
             $doc = [
@@ -670,6 +678,7 @@ class BeplyHtmlRenderService
             'taxes' => $taxes,
             'totals' => $totals,
             'observations' => $observations,
+            'observations_title' => $observationsTitle,
             'receipts' => $receipts,
             'footer_text' => $this->richTextHtml($cfg->footerText),
             'footer_text_plain' => $this->richTextPlain($cfg->footerText),
@@ -1018,6 +1027,14 @@ class BeplyHtmlRenderService
             ? (float) ($model->neto ?? 0)
             : (float) ($model->total ?? 0);
         $paymentDate = $cfg->showPaymentDate ? BeplyPdfPaymentDateResolver::resolve($model) : '';
+        $rectification = BeplyPdfRectificationData::resolve($model);
+        $parentDocs = $cfg->showParentDocs ? $this->parentDocumentLines($model) : [];
+        if ($rectification['original_code'] !== '') {
+            array_unshift(
+                $parentDocs,
+                Tools::lang()->trans('original') . ': ' . $rectification['original_code']
+            );
+        }
 
         return [
             'title' => mb_strtoupper($this->plain($title)),
@@ -1026,7 +1043,8 @@ class BeplyHtmlRenderService
             'numero2' => $cfg->showNumber2 ? (string) ($model->numero2 ?? '') : '',
             'supplier_number' => $cfg->showSupplierNumber ? (string) ($model->numproveedor ?? '') : '',
             'payment_date' => $paymentDate !== '' ? Tools::date($paymentDate) : '',
-            'parent_docs' => $cfg->showParentDocs ? $this->parentDocumentLines($model) : [],
+            'parent_docs' => array_values(array_unique($parentDocs)),
+            'is_rectification' => $rectification['is_rectification'],
             'serie' => $cfg->hideSeries ? '' : (string) ($model->codserie ?? ''),
             'date' => !empty($model->fecha) ? Tools::date($model->fecha) : '',
             'expiration' => !empty($model->finoferta) ? Tools::date($model->finoferta) : '',

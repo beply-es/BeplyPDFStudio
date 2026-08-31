@@ -174,7 +174,7 @@
           {% if doc.numero2 %}<tr><td class="ml">{{ 'number2'|trans }}:</td><td class="mr">{{ doc.numero2 }}</td></tr>{% endif %}
           {% if doc.payment_date %}<tr><td class="ml">{{ 'payment-date'|trans }}:</td><td class="mr">{{ doc.payment_date }}</td></tr>{% endif %}
           {% for parent in doc.parent_docs %}<tr><td class="ml">{{ 'document'|trans }}:</td><td class="mr">{{ parent }}</td></tr>{% endfor %}
-          {% if company.cifnif %}<tr><td class="ml">{{ 'cifnif'|trans }}:</td><td class="mr">{{ company.cifnif }}</td></tr>{% endif %}
+          {% if customer.cifnif %}<tr><td class="ml">{{ 'cifnif'|trans }}:</td><td class="mr">{{ customer.cifnif }}</td></tr>{% endif %}
           {% set slot = slots.DOCUMENT_META_AFTER %}{% include '_slot.html.twig' %}
         </table>
       </td>
@@ -250,7 +250,7 @@
 
     {% set slot = slots.OBSERVATIONS_BEFORE %}{% include '_slot.html.twig' %}
     {% if observations %}
-    <div class="obs"><span class="t">{{ 'observations'|trans }}</span><br/>{{ observations|raw }}</div>
+    <div class="obs"><span class="t">{{ observations_title }}</span><br/>{{ observations|raw }}</div>
     {% endif %}
     {% set slot = slots.OBSERVATIONS_AFTER %}{% include '_slot.html.twig' %}
 

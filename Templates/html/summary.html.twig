@@ -269,7 +269,7 @@
 
     {% set slot = slots.OBSERVATIONS_BEFORE %}{% include '_slot.html.twig' %}
     {% if observations %}
-    <div class="obs"><span class="t">{{ 'observations'|trans }}</span><br/>{{ observations|raw }}</div>
+    <div class="obs"><span class="t">{{ observations_title }}</span><br/>{{ observations|raw }}</div>
     {% endif %}
     {% set slot = slots.OBSERVATIONS_AFTER %}{% include '_slot.html.twig' %}
 

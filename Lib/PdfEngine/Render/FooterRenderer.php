@@ -22,6 +22,7 @@ namespace FacturaScripts\Plugins\BeplyPDFStudio\Lib\PdfEngine\Render;
 use FacturaScripts\Core\Tools;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\BeplyPdfConfig;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\BeplyPdfPaymentDateResolver;
+use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfRectificationData;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\PdfEngine\BeplyPdfDraw;
 
 /**
@@ -72,8 +73,9 @@ class FooterRenderer
         // 1) Bloque de TOTALES alineado a la derecha (varía por estilo)
         $this->renderTotals($pdf, $cfg, $model, $contentX, $right, $coddivisa);
 
-        // 2) Observaciones (si no están ocultas y hay contenido)
-        if (!$cfg->hideNotes) {
+        // 2) Observaciones; el motivo de una rectificación nunca queda oculto por un toggle visual.
+        [, $isRectificationReason] = $this->noteData($model);
+        if (!$cfg->hideNotes || $isRectificationReason) {
             $this->renderNotes($pdf, $cfg, $model, $contentX, $contentW);
         }
 
@@ -106,8 +108,8 @@ class FooterRenderer
     {
         $size = (float) $cfg->fontSize;
         $height = $this->estimateCorporateTotalsHeight($cfg, $model);
-        $obs = isset($model->observaciones) ? trim((string) $model->observaciones) : '';
-        if (!$cfg->hideNotes && $obs !== '') {
+        [$obs, $isRectificationReason] = $this->noteData($model);
+        if ((!$cfg->hideNotes || $isRectificationReason) && $obs !== '') {
             $charsPerLine = max(40, (int) floor($contentW / max(3.8, $size * 0.45)));
             $lines = max(1, (int) ceil(mb_strlen($this->stripHtml($obs)) / $charsPerLine));
             $height += self::GAP + (self::ROW_H - 2.0) + ($lines * max(12.0, $size * 1.45)) + (self::GAP * 0.5);
@@ -629,16 +631,30 @@ class FooterRenderer
         return $rows;
     }
 
+    /** @return array{0: string, 1: bool} */
+    private function noteData($model): array
+    {
+        $rectification = BeplyPdfRectificationData::resolve($model);
+        if ($rectification['reason'] !== '') {
+            return [$rectification['reason'], true];
+        }
+
+        $observations = isset($model->observaciones) && is_scalar($model->observaciones)
+            ? trim((string) $model->observaciones)
+            : '';
+        return [$observations, false];
+    }
+
     // -----------------------------------------------------------------
     // 2. OBSERVACIONES
     // -----------------------------------------------------------------
 
     /**
-     * Observaciones del documento ($model->observaciones). Solo si hay texto.
+     * Observaciones o motivo persistido del documento. Solo si hay texto.
      */
     private function renderNotes($pdf, BeplyPdfConfig $cfg, $model, float $contentX, float $contentW): void
     {
-        $obs = isset($model->observaciones) ? trim((string) $model->observaciones) : '';
+        [$obs, $isRectificationReason] = $this->noteData($model);
         if ($obs === '') {
             return;
         }
@@ -647,10 +663,11 @@ class FooterRenderer
         $corporate = $cfg->diseno === 'corporate';
         $textColor = $corporate ? $this->mix($cfg->colorText, '#FFFFFF', 0.13) : $cfg->colorText;
 
-        // título "Observaciones" (en tinta principal para que lea como encabezado de sección)
+        // El motivo persistido de una rectificación se identifica como tal; el resto conserva Observaciones.
         $pdf->y -= self::GAP;
         $titY = $pdf->y;
-        $title = $corporate ? Tools::trans('observations') : mb_strtoupper(Tools::trans('observations'));
+        $titleKey = $isRectificationReason ? 'reason' : 'observations';
+        $title = $corporate ? Tools::trans($titleKey) : mb_strtoupper(Tools::trans($titleKey));
         BeplyPdfDraw::text($pdf, $contentX, $titY, $size, $title, $cfg->colorText, 'left', 0.0, true);
         $pdf->y = $titY - (self::ROW_H - 2.0);
 
