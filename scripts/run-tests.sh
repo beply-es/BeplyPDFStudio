@@ -15,6 +15,9 @@ docker exec "$CONTAINER" sh -c "find '$PLUGIN' -name '*.php' -not -path '*/.git/
 echo "== Unit tests =="
 docker exec "$CONTAINER" php "$PLUGIN/Tests/run-unit.php"
 
+echo "== Synthetic invoice fiscal contract (HTML + real PDF) =="
+docker exec -u www-data "$CONTAINER" php "$PLUGIN/Tests/run-invoice-fiscal-contract.php"
+
 echo "== E2E tests =="
 docker exec -u www-data "$CONTAINER" php "$PLUGIN/Tests/run-e2e.php"
 
