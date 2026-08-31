@@ -44,6 +44,9 @@ jobs:
       - name: Run provenance downloader tests
         run: python3 -m unittest scripts.ci.test_download_provenance_release_asset
 
+      - name: Run catalog release witness tests
+        run: python3 -m unittest scripts.ci.test_verify_release_witness scripts.ci.test_upload_catalog_release
+
   lint:
     name: PHP Lint
     timeout-minutes: 10

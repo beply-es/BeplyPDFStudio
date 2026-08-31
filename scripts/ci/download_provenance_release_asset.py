@@ -6,6 +6,7 @@ import hashlib
 import json
 import os
 import re
+import socket
 import sys
 import time
 import urllib.error
@@ -21,6 +22,7 @@ DIGEST_PATTERN = re.compile(r"^sha256:[0-9a-f]{64}$")
 REPOSITORY_PATTERN = re.compile(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")
 ASSET_PATTERN = re.compile(r"^[A-Za-z0-9_.-]+\.zip$")
 PUBLISHED_AT_PATTERN = re.compile(r"^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$")
+RETRYABLE_HTTP_CODES = {429, 500, 502, 503, 504}
 
 
 class ProvenanceError(RuntimeError):
@@ -217,9 +219,16 @@ def download_exact_provenance_asset(
         try:
             return _fetch_once(client, pins)
         except urllib.error.HTTPError as exc:
-            if exc.code != 404:
+            if exc.code == 404:
+                last_missing = f"GitHub API returned 404 for {exc.url}"
+            elif exc.code in RETRYABLE_HTTP_CODES:
+                last_missing = f"GitHub API returned transient HTTP {exc.code} for {exc.url}"
+            else:
                 raise ProvenanceError(f"GitHub API failed with HTTP {exc.code}") from exc
-            last_missing = f"GitHub API returned 404 for {exc.url}"
+        except urllib.error.URLError as exc:
+            last_missing = f"GitHub request failed transiently: {exc.reason}"
+        except (TimeoutError, socket.timeout) as exc:
+            last_missing = f"GitHub request timed out transiently: {exc}"
         except ProvenanceNotReady as exc:
             last_missing = str(exc)
 

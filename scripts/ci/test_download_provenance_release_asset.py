@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import hashlib
+import socket
 import tempfile
 import unittest
+import urllib.error
 import urllib.request
 from pathlib import Path
 
@@ -62,6 +64,32 @@ class FakeClient:
         self.calls.append(("bytes", path))
         self.assert_accept = accept
         return self.package
+
+
+class FirstRequestFailureClient(FakeClient):
+    def __init__(self, failure: Exception) -> None:
+        super().__init__()
+        self.failure: Exception | None = failure
+
+    def json(self, path: str):
+        if self.failure is not None:
+            failure = self.failure
+            self.failure = None
+            raise failure
+        return super().json(path)
+
+
+class FirstDownloadFailureClient(FakeClient):
+    def __init__(self, failure: Exception) -> None:
+        super().__init__()
+        self.failure: Exception | None = failure
+
+    def bytes(self, path: str, *, accept: str):
+        if self.failure is not None:
+            failure = self.failure
+            self.failure = None
+            raise failure
+        return super().bytes(path, accept=accept)
 
 
 class ProvenanceDownloadTests(unittest.TestCase):
@@ -164,6 +192,92 @@ class ProvenanceDownloadTests(unittest.TestCase):
                     client=FakeClient(reported_size=len(PACKAGE) + 1),
                     sleep=lambda _seconds: None,
                 )
+
+    def test_retries_selected_transient_http_failures_with_bounded_backoff(self) -> None:
+        for code in (429, 500, 502, 503, 504):
+            with self.subTest(code=code), tempfile.TemporaryDirectory() as tmp_dir:
+                client = FirstRequestFailureClient(
+                    urllib.error.HTTPError(
+                        "https://api.github.com/transient",
+                        code,
+                        "transient",
+                        {},
+                        None,
+                    )
+                )
+                sleeps: list[float] = []
+
+                result = download_exact_provenance_asset(
+                    self.pins(Path(tmp_dir) / "plugin.zip"),
+                    client=client,
+                    sleep=sleeps.append,
+                )
+
+                self.assertEqual(result.sha256, DIGEST)
+                self.assertEqual(sleeps, [5])
+
+    def test_retries_url_connect_and_asset_read_timeout_failures(self) -> None:
+        clients = (
+            FirstRequestFailureClient(
+                urllib.error.URLError(ConnectionResetError("connection reset"))
+            ),
+            FirstRequestFailureClient(
+                urllib.error.URLError(TimeoutError("connect timed out"))
+            ),
+            FirstDownloadFailureClient(socket.timeout("read timed out")),
+        )
+        for client in clients:
+            with self.subTest(client=type(client).__name__), tempfile.TemporaryDirectory() as tmp_dir:
+                sleeps: list[float] = []
+
+                result = download_exact_provenance_asset(
+                    self.pins(Path(tmp_dir) / "plugin.zip"),
+                    client=client,
+                    sleep=sleeps.append,
+                )
+
+                self.assertEqual(result.sha256, DIGEST)
+                self.assertEqual(sleeps, [5])
+
+    def test_does_not_retry_unsafe_http_failures(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            sleeps: list[float] = []
+            client = FirstRequestFailureClient(
+                urllib.error.HTTPError(
+                    "https://api.github.com/forbidden",
+                    403,
+                    "forbidden",
+                    {},
+                    None,
+                )
+            )
+
+            with self.assertRaisesRegex(ProvenanceError, "HTTP 403"):
+                download_exact_provenance_asset(
+                    self.pins(Path(tmp_dir) / "plugin.zip"),
+                    client=client,
+                    sleep=sleeps.append,
+                )
+
+            self.assertEqual(sleeps, [])
+
+    def test_identity_and_digest_failures_are_not_retried(self) -> None:
+        cases = (
+            (FakeClient(tag_sha="0" * 40), "points to"),
+            (FakeClient(package=b"tampered"), "digest"),
+        )
+        for client, message in cases:
+            with self.subTest(message=message), tempfile.TemporaryDirectory() as tmp_dir:
+                sleeps: list[float] = []
+
+                with self.assertRaisesRegex(ProvenanceError, message):
+                    download_exact_provenance_asset(
+                        self.pins(Path(tmp_dir) / "plugin.zip"),
+                        client=client,
+                        sleep=sleeps.append,
+                    )
+
+                self.assertEqual(sleeps, [])
 
     def test_cross_host_redirect_strips_github_authorization(self) -> None:
         handler = SafeRedirectHandler()

@@ -203,85 +203,29 @@ jobs:
       - name: Upload candidate to Beply dev
         if: github.ref == 'refs/heads/main'
         env:
-          BEPLY_DEV_API_URL: ${{ secrets.BEPLY_DEV_API_URL }}
+          BEPLY_API_URL: ${{ secrets.BEPLY_DEV_API_URL }}
           BEPLY_DEV_CI_TOKEN: ${{ secrets.BEPLY_DEV_CI_TOKEN }}
-          PLUGIN_NAME: ${{ steps.ini.outputs.name }}
-          PLUGIN_VERSION: ${{ steps.ini.outputs.version }}
           PLUGIN_ZIP: ${{ steps.dev_provenance.outputs.zip_path }}
-          EXPECTED_CHECKSUM: ${{ steps.dev_provenance.outputs.sha256 }}
-          EXPECTED_BYTES: ${{ steps.dev_provenance.outputs.size }}
-          SOURCE_TAG: main-${{ github.sha }}
-          SOURCE_URL: https://github.com/${{ github.repository }}/releases/tag/main-${{ github.sha }}
+          PLUGIN_FS_NAME: ${{ steps.ini.outputs.name }}
+          PLUGIN_SLUG: beplypdfstudio
+          PLUGIN_VERSION: ${{ steps.ini.outputs.version }}
+          SOURCE_REPO_FULL_NAME: ${{ github.repository }}
+          SOURCE_BRANCH: main
+          RELEASE_TRACK: main
+          SOURCE_RELEASE_TAG: main-${{ github.sha }}
+          SOURCE_RELEASE_URL: https://github.com/${{ github.repository }}/releases/tag/main-${{ github.sha }}
           SOURCE_PUBLISHED_AT: ${{ steps.dev_provenance.outputs.published_at }}
+          EXPECTED_CHECKSUM: ${{ steps.dev_provenance.outputs.sha256 }}
+          EXPECTED_FILE_SIZE: ${{ steps.dev_provenance.outputs.size }}
         run: |
           set -euo pipefail
           if [ -z "$BEPLY_DEV_CI_TOKEN" ]; then
             echo "::error::BEPLY_DEV_CI_TOKEN must be configured for dev platform upload. Immutable provenance bytes were preserved, but catalog ingestion is unverified."
             exit 1
           fi
-
-          API_URL="${BEPLY_DEV_API_URL:-https://api.services.devbeply.es}"
-          test -s "$PLUGIN_ZIP"
-          read -r SHA256_HEX _ < <(sha256sum "$PLUGIN_ZIP")
-          ZIP_CHECKSUM="sha256:${SHA256_HEX}"
-          ZIP_BYTES="$(stat -c %s "$PLUGIN_ZIP")"
-          test "$ZIP_CHECKSUM" = "$EXPECTED_CHECKSUM" || { echo "::error::Downloaded DEV ZIP checksum drift"; exit 1; }
-          test "$ZIP_BYTES" = "$EXPECTED_BYTES" || { echo "::error::Downloaded DEV ZIP size drift"; exit 1; }
-
-          RESPONSE=$(curl -sS -w "\n%{http_code}" -X POST \
-            -H "Authorization: Bearer ${BEPLY_DEV_CI_TOKEN}" \
-            -F "file=@${PLUGIN_ZIP}" \
-            -F "sourceRepoFullName=${GITHUB_REPOSITORY}" \
-            -F "sourceBranch=main" \
-            -F "sourceReleaseTag=${SOURCE_TAG}" \
-            -F "sourceReleaseUrl=${SOURCE_URL}" \
-            -F "sourcePublishedAt=${SOURCE_PUBLISHED_AT}" \
-            "${API_URL}/api/v1/plugins/release")
-          HTTP_CODE="${RESPONSE##*$'\n'}"
-          BODY="${RESPONSE%$'\n'*}"
-          UPLOAD_CREATED=false
-          if [[ "$HTTP_CODE" =~ ^[0-9]{3}$ ]] && [ "$HTTP_CODE" -ge 200 ] && [ "$HTTP_CODE" -lt 300 ]; then
-            printf '%s' "$BODY" | jq -e \
-              --arg fs_name "$PLUGIN_NAME" \
-              --arg version "$PLUGIN_VERSION" \
-              '.success == true and .data.pluginName == $fs_name and .data.version == $version' >/dev/null \
-              || { echo "::error::Dev upload response identity mismatch"; exit 1; }
-            UPLOAD_CREATED=true
-          elif [ "$HTTP_CODE" = "409" ] && printf '%s' "$BODY" | jq -e '.code == "SUBMISSION_PENDING"' >/dev/null; then
-            echo "::notice::The exact version already has a pending submission; validating its immutable identity."
-          else
-            echo "::error::Dev platform upload failed (HTTP ${HTTP_CODE}): ${BODY}"
-            exit 1
-          fi
-
-          PENDING_JSON=$(curl -sSf \
-            -H "Authorization: Bearer ${BEPLY_DEV_CI_TOKEN}" \
-            "${API_URL}/api/v1/plugins/pending-releases")
-          # pending-releases exposes the manifest FS name as pluginName.
-          MATCHES=$(printf '%s' "$PENDING_JSON" | jq \
-            --arg repo "$GITHUB_REPOSITORY" \
-            --arg tag "$SOURCE_TAG" \
-            --arg fs_name "$PLUGIN_NAME" \
-            --arg version "$PLUGIN_VERSION" \
-            --arg checksum "$ZIP_CHECKSUM" \
-            --arg bytes "$ZIP_BYTES" \
-            '[.data.releases[]? | select(
-              (.sourceRepoFullName // "") == $repo
-              and (.sourceReleaseTag // "") == $tag
-              and (.pluginName // "") == $fs_name
-              and (.version // "") == $version
-              and (.checksum // "") == $checksum
-              and (((.fileSize // -1) | tostring) == $bytes)
-            )] | length')
-          if [ "$MATCHES" != "1" ]; then
-            echo "::error::Dev readback expected exactly 1 pending row for repo=${GITHUB_REPOSITORY} tag=${SOURCE_TAG} fsName=${PLUGIN_NAME} version=${PLUGIN_VERSION} checksum=${ZIP_CHECKSUM} bytes=${ZIP_BYTES}; found ${MATCHES}."
-            exit 1
-          fi
-
-          echo "::notice::Plugin confirmed as one exact pending DEV release."
-          if [ "$UPLOAD_CREATED" = "true" ]; then
-            printf '%s' "$BODY" | jq -r '.data | "Plugin: \(.pluginName) | Version: \(.version) | Status: \(.releaseStatus)"'
-          fi
+          export BEPLY_CI_TOKEN="$BEPLY_DEV_CI_TOKEN"
+          export BEPLY_API_URL="${BEPLY_API_URL:-https://api.services.devbeply.es}"
+          bash scripts/ci/upload_catalog_release.sh
 
       - name: Generate release notes
         if: github.ref_type == 'tag'
