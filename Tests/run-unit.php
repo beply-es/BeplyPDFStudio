@@ -100,6 +100,8 @@ namespace {
         \FacturaScripts\Test\Plugins\BeplyPDFStudio\BeplyPdfGenericReportBufferTest::class,
         \FacturaScripts\Test\Plugins\BeplyPDFStudio\BeplyPdfInternalFormatPolicyTest::class,
         \FacturaScripts\Test\Plugins\BeplyPDFStudio\BeplyPdfLogoPathResolverTest::class,
+        \FacturaScripts\Test\Plugins\BeplyPDFStudio\BeplyPdfMetadataFiscalIdentityTest::class,
+        \FacturaScripts\Test\Plugins\BeplyPDFStudio\BeplyPdfParentDocumentLinesTest::class,
         \FacturaScripts\Test\Plugins\BeplyPDFStudio\BeplyPdfPaymentDateResolverTest::class,
         \FacturaScripts\Test\Plugins\BeplyPDFStudio\BeplyPdfPreviewLogoTest::class,
         \FacturaScripts\Test\Plugins\BeplyPDFStudio\BeplyPdfRectificationDataTest::class,

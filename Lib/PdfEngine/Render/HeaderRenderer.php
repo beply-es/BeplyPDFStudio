@@ -24,7 +24,7 @@ use FacturaScripts\Plugins\BeplyPDFStudio\Lib\BeplyPdfBrandingLogoService;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\BeplyPdfConfig;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\BeplyPdfLogoPathResolver;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfBuyerFiscalIdentity;
-use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfRectificationData;
+use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfParentDocumentLines;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\PdfEngine\BeplyPdfDraw;
 
 /**
@@ -336,7 +336,7 @@ class HeaderRenderer
         $gap = 14.0;
         $boxW = ($contentW - $gap) / 2.0;
         $boxTop = min($emisorBottom - 16.0, $emisorTop - 6.0);
-        $docLines = array_merge($this->numberDateLines($cfg, $model), $this->parentDocumentLines($model));
+        $docLines = $this->numberDateLines($cfg, $model);
         $cliLines = $this->legacyBodyLines($this->customerLines($cfg, $model));
         $h = max($this->legacyBoxHeight($docLines, $fs), $this->legacyBoxHeight($cliLines, $fs));
         $docBottom = $this->drawLegacyBox($pdf, Tools::trans('document'), $docLines, $contentX, $boxTop, $boxW, $h, $fs, $cfg, true);
@@ -536,6 +536,9 @@ class HeaderRenderer
         if ($cfg->showNumber2 && !empty($model->numero2)) {
             $rows[] = [Tools::lang()->trans('number2'), (string) $model->numero2];
         }
+        foreach ($this->documentParentPairs($model, $cfg->showParentDocs) as $parentPair) {
+            $rows[] = $parentPair;
+        }
         return $rows;
     }
 
@@ -711,6 +714,9 @@ class HeaderRenderer
         if (!empty($model->fecha)) {
             $parts[] = Tools::date($model->fecha);
         }
+        foreach ($this->documentParentLines($model, $cfg->showParentDocs) as $parentLine) {
+            $parts[] = $parentLine;
+        }
         return implode('   ·   ', $parts);
     }
 
@@ -724,6 +730,9 @@ class HeaderRenderer
         }
         if (!$cfg->hideSeries && property_exists($model, 'codserie') && !empty($model->codserie)) {
             $pairs[] = [Tools::lang()->trans('serie'), (string) $model->codserie];
+        }
+        foreach ($this->documentParentPairs($model, $cfg->showParentDocs) as $parentPair) {
+            $pairs[] = $parentPair;
         }
         return $pairs;
     }
@@ -1059,19 +1068,8 @@ class HeaderRenderer
             $lines[] = Tools::lang()->trans('number2') . ': ' . $model->numero2;
         }
 
-        // La factura rectificada es identidad fiscal del documento y no depende de un toggle visual.
-        $rectification = BeplyPdfRectificationData::resolve($model);
-        if ($rectification['original_code'] !== '') {
-            $lines[] = Tools::lang()->trans('original') . ': ' . $rectification['original_code'];
-        }
-
-        // Otros documentos origen relacionados conservan el toggle configurable.
-        if ($cfg->showParentDocs) {
-            foreach ($this->parentDocumentLines($model) as $parentLine) {
-                if (!in_array($parentLine, $lines, true)) {
-                    $lines[] = $parentLine;
-                }
-            }
+        foreach ($this->documentParentLines($model, $cfg->showParentDocs) as $parentLine) {
+            $lines[] = $parentLine;
         }
 
         // Serie
@@ -1265,44 +1263,25 @@ class HeaderRenderer
         return Tools::lang()->trans('agent') . ': ' . $name;
     }
 
-    /**
-     * Documentos padre/origen. Usa parentDocuments() cuando existe y codigorect como fallback.
-     *
-     * @return string[]
-     */
-    private function parentDocumentLines($model): array
+    /** @return string[] */
+    private function documentParentLines($model, bool $includeOptionalParents): array
     {
-        $lines = [];
+        return BeplyPdfParentDocumentLines::resolve(
+            $model,
+            $includeOptionalParents,
+            static fn(string $key): string => Tools::lang()->trans($key)
+        );
+    }
 
-        if (!empty($model->codigorect)) {
-            $lines[] = Tools::lang()->trans('original') . ': ' . $model->codigorect;
+    /** @return array<int, array{0: string, 1: string}> */
+    private function documentParentPairs($model, bool $includeOptionalParents): array
+    {
+        $pairs = [];
+        foreach ($this->documentParentLines($model, $includeOptionalParents) as $line) {
+            $parts = explode(': ', $line, 2);
+            $pairs[] = [$parts[0], $parts[1] ?? ''];
         }
-
-        if (!is_object($model) || !method_exists($model, 'parentDocuments')) {
-            return $lines;
-        }
-
-        try {
-            foreach ((array) $model->parentDocuments() as $parent) {
-                if (!is_object($parent)) {
-                    continue;
-                }
-                $title = method_exists($parent, 'modelClassName')
-                    ? Tools::lang()->trans($parent->modelClassName() . '-min')
-                    : Tools::lang()->trans('document');
-                $code = $parent->codigo ?? '';
-                if ($code === '' && method_exists($parent, 'primaryColumnValue')) {
-                    $code = (string) $parent->primaryColumnValue();
-                }
-                if ($code !== '') {
-                    $lines[] = trim($title . ': ' . $code);
-                }
-            }
-        } catch (\Throwable $e) {
-            // opcional: no debe romper la impresión
-        }
-
-        return array_values(array_unique($lines));
+        return $pairs;
     }
 
     /**

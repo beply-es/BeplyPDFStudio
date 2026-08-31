@@ -66,8 +66,8 @@ final class BeplyPdfRectificationDataTest extends TestCase
     public function testBothPdfEnginesUseTheSameRectificationBoundary(): void
     {
         foreach ([
+            dirname(__DIR__) . '/Lib/Document/BeplyPdfParentDocumentLines.php',
             dirname(__DIR__) . '/Lib/Html/BeplyHtmlRenderService.php',
-            dirname(__DIR__) . '/Lib/PdfEngine/Render/HeaderRenderer.php',
             dirname(__DIR__) . '/Lib/PdfEngine/Render/FooterRenderer.php',
         ] as $sourcePath) {
             $source = (string) file_get_contents($sourcePath);
