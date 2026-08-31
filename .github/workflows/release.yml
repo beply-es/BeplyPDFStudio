@@ -100,12 +100,21 @@ jobs:
       - name: Parse facturascripts.ini
         id: ini
         run: |
+          set -euo pipefail
           parse_field() {
             grep -E "^${1}\s*=" facturascripts.ini | head -1 | sed 's/[^=]*=\s*//' | sed 's/^"\(.*\)"$/\1/' | xargs
           }
+          PLUGIN_NAME="$(parse_field name)"
+          PLUGIN_VERSION="$(parse_field version)"
+          if [ "$GITHUB_REF" = "refs/heads/main" ]; then
+            ASSET_NAME="${PLUGIN_NAME}-dev-${PLUGIN_VERSION}.zip"
+          else
+            ASSET_NAME="${PLUGIN_NAME}-v${PLUGIN_VERSION}.zip"
+          fi
           {
-            echo "version=$(parse_field version)"
-            echo "name=$(parse_field name)"
+            echo "version=${PLUGIN_VERSION}"
+            echo "name=${PLUGIN_NAME}"
+            echo "asset_name=${ASSET_NAME}"
             echo "min_version=$(parse_field min_version)"
             echo "max_version=$(parse_field max_version)"
             echo "min_php=$(parse_field min_php)"
@@ -117,15 +126,19 @@ jobs:
           PLUGIN_VERSION: ${{ steps.ini.outputs.version }}
         run: |
           set -euo pipefail
-          if [ "$GITHUB_REF_TYPE" = "tag" ] && [ "$GITHUB_REF_NAME" != "v${PLUGIN_VERSION}" ]; then
-            echo "::error::Tag ${GITHUB_REF_NAME} does not match facturascripts.ini version v${PLUGIN_VERSION}"
-            exit 1
+          if [ "$GITHUB_REF" = "refs/heads/main" ]; then
+            exit 0
           fi
+          if [ "$GITHUB_REF_TYPE" = "tag" ] && [ "$GITHUB_REF_NAME" = "v${PLUGIN_VERSION}" ]; then
+            exit 0
+          fi
+          echo "::error::Ref ${GITHUB_REF} must be main or the exact tag v${PLUGIN_VERSION}"
+          exit 1
 
       - name: Build plugin zip
         env:
           PLUGIN_NAME: ${{ steps.ini.outputs.name }}
-          PLUGIN_VERSION: ${{ steps.ini.outputs.version }}
+          PLUGIN_ASSET_NAME: ${{ steps.ini.outputs.asset_name }}
         run: |
           set -euo pipefail
           mkdir -p "/tmp/build/${PLUGIN_NAME}"
@@ -140,52 +153,79 @@ jobs:
             --exclude='.gitignore' \
             ./ "/tmp/build/${PLUGIN_NAME}/"
           cd /tmp/build
-          zip -r "/tmp/${PLUGIN_NAME}-v${PLUGIN_VERSION}.zip" "${PLUGIN_NAME}/"
+          zip -r "/tmp/${PLUGIN_ASSET_NAME}" "${PLUGIN_NAME}/"
+          test -s "/tmp/${PLUGIN_ASSET_NAME}"
+
+      - name: Publish dev provenance release
+        if: github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@153bb8e04406b158c6c84fc1615b65b24149a1fe # v2
+        with:
+          tag_name: "main-${{ github.sha }}"
+          target_commitish: "${{ github.sha }}"
+          name: "${{ steps.ini.outputs.name }} dev ${{ github.sha }}"
+          body: |
+            Candidato inmutable de desarrollo para `${{ github.sha }}`.
+
+            Estos bytes se publican antes de su ingesta para que la plataforma
+            pueda verificar procedencia, checksum y tamaño de forma fail-closed.
+          prerelease: true
+          make_latest: false
+          overwrite_files: false
+          fail_on_unmatched_files: true
+          files: /tmp/${{ steps.ini.outputs.asset_name }}
+
+      - name: Resolve immutable dev provenance ZIP
+        if: github.ref == 'refs/heads/main'
+        id: dev_provenance
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          PLUGIN_ASSET_NAME: ${{ steps.ini.outputs.asset_name }}
+        run: |
+          set -euo pipefail
+          python3 scripts/ci/download_provenance_release_asset.py \
+            --repository "${GITHUB_REPOSITORY}" \
+            --source-tag "main-${GITHUB_SHA}" \
+            --source-sha "${GITHUB_SHA}" \
+            --asset-name "${PLUGIN_ASSET_NAME}" \
+            --destination "/tmp/provenance/${PLUGIN_ASSET_NAME}" \
+            --attempts 6 \
+            --github-output "$GITHUB_OUTPUT"
 
       - name: Preserve dev candidate artifact
-        if: github.ref_type == 'branch'
+        if: github.ref == 'refs/heads/main'
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
         with:
           name: ${{ steps.ini.outputs.name }}-dev-${{ steps.ini.outputs.version }}
-          path: /tmp/${{ steps.ini.outputs.name }}-v${{ steps.ini.outputs.version }}.zip
+          path: ${{ steps.dev_provenance.outputs.zip_path }}
           if-no-files-found: error
-          retention-days: 14
+          retention-days: 7
 
       - name: Upload candidate to Beply dev
-        if: github.ref_type == 'branch'
+        if: github.ref == 'refs/heads/main'
         env:
-          BEPLY_DEV_API_URL: ${{ secrets.BEPLY_DEV_API_URL }}
+          BEPLY_API_URL: ${{ secrets.BEPLY_DEV_API_URL }}
           BEPLY_DEV_CI_TOKEN: ${{ secrets.BEPLY_DEV_CI_TOKEN }}
-          PLUGIN_NAME: ${{ steps.ini.outputs.name }}
+          PLUGIN_ZIP: ${{ steps.dev_provenance.outputs.zip_path }}
+          PLUGIN_FS_NAME: ${{ steps.ini.outputs.name }}
+          PLUGIN_SLUG: beplypdfstudio
           PLUGIN_VERSION: ${{ steps.ini.outputs.version }}
+          SOURCE_REPO_FULL_NAME: ${{ github.repository }}
+          SOURCE_BRANCH: main
+          RELEASE_TRACK: main
+          SOURCE_RELEASE_TAG: main-${{ github.sha }}
+          SOURCE_RELEASE_URL: https://github.com/${{ github.repository }}/releases/tag/main-${{ github.sha }}
+          SOURCE_PUBLISHED_AT: ${{ steps.dev_provenance.outputs.published_at }}
+          EXPECTED_CHECKSUM: ${{ steps.dev_provenance.outputs.sha256 }}
+          EXPECTED_FILE_SIZE: ${{ steps.dev_provenance.outputs.size }}
         run: |
           set -euo pipefail
           if [ -z "$BEPLY_DEV_CI_TOKEN" ]; then
-            echo "::warning::BEPLY_DEV_CI_TOKEN not configured. Candidate remains available as a workflow artifact."
-            exit 0
+            echo "::error::BEPLY_DEV_CI_TOKEN must be configured for dev platform upload. Immutable provenance bytes were preserved, but catalog ingestion is unverified."
+            exit 1
           fi
-          API_URL="${BEPLY_DEV_API_URL:-https://api.services.devbeply.es}"
-          RESPONSE=$(curl -sS -w "\n%{http_code}" -X POST \
-            -H "Authorization: Bearer ${BEPLY_DEV_CI_TOKEN}" \
-            -F "file=@/tmp/${PLUGIN_NAME}-v${PLUGIN_VERSION}.zip" \
-            -F "sourceRepoFullName=${{ github.repository }}" \
-            -F "sourceBranch=${GITHUB_REF_NAME}" \
-            -F "sourceReleaseTag=${GITHUB_REF_NAME}-${GITHUB_SHA::12}" \
-            -F "sourceReleaseUrl=https://github.com/${{ github.repository }}/commit/${GITHUB_SHA}" \
-            -F "sourcePublishedAt=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-            "${API_URL}/api/v1/plugins/release")
-          HTTP_CODE=$(echo "$RESPONSE" | tail -1)
-          BODY=$(echo "$RESPONSE" | sed '$d')
-          if [ "$HTTP_CODE" -ge 200 ] && [ "$HTTP_CODE" -lt 300 ]; then
-            echo "$BODY" | jq -r '.data | "Plugin: \(.pluginName) | Version: \(.version) | Status: \(.releaseStatus)"'
-            exit 0
-          fi
-          if [ "$HTTP_CODE" = "409" ] && echo "$BODY" | grep -q VERSION_ALREADY_APPROVED; then
-            echo "::notice::Version already approved in dev."
-            exit 0
-          fi
-          echo "::error::Dev platform upload failed (HTTP $HTTP_CODE): $BODY"
-          exit 1
+          export BEPLY_CI_TOKEN="$BEPLY_DEV_CI_TOKEN"
+          export BEPLY_API_URL="${BEPLY_API_URL:-https://api.services.devbeply.es}"
+          bash scripts/ci/upload_catalog_release.sh
 
       - name: Generate release notes
         if: github.ref_type == 'tag'
@@ -213,7 +253,7 @@ jobs:
             Version `${{ steps.ini.outputs.version }}` · FacturaScripts `${{ steps.ini.outputs.min_version }}`–`${{ steps.ini.outputs.max_version || 'sin límite' }}` · PHP `${{ steps.ini.outputs.min_php }}`.
 
             ${{ steps.changelog.outputs.notes }}
-          files: /tmp/${{ steps.ini.outputs.name }}-v${{ steps.ini.outputs.version }}.zip
+          files: /tmp/${{ steps.ini.outputs.asset_name }}
 
       - name: Upload candidate to Beply production
         if: github.ref_type == 'tag'
@@ -222,6 +262,7 @@ jobs:
           BEPLY_CI_TOKEN: ${{ secrets.BEPLY_CI_TOKEN }}
           PLUGIN_NAME: ${{ steps.ini.outputs.name }}
           PLUGIN_VERSION: ${{ steps.ini.outputs.version }}
+          PLUGIN_ASSET_NAME: ${{ steps.ini.outputs.asset_name }}
         run: |
           set -euo pipefail
           if [ -z "$BEPLY_API_URL" ] || [ -z "$BEPLY_CI_TOKEN" ]; then
@@ -230,7 +271,7 @@ jobs:
           fi
           RESPONSE=$(curl -sS -w "\n%{http_code}" -X POST \
             -H "Authorization: Bearer ${BEPLY_CI_TOKEN}" \
-            -F "file=@/tmp/${PLUGIN_NAME}-v${PLUGIN_VERSION}.zip" \
+            -F "file=@/tmp/${PLUGIN_ASSET_NAME}" \
             -F "sourceRepoFullName=${{ github.repository }}" \
             -F "sourceReleaseTag=${GITHUB_REF_NAME}" \
             -F "sourceReleaseUrl=https://github.com/${{ github.repository }}/releases/tag/${GITHUB_REF_NAME}" \
