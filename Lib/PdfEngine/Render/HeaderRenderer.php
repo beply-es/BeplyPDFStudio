@@ -24,6 +24,7 @@ use FacturaScripts\Plugins\BeplyPDFStudio\Lib\BeplyPdfBrandingLogoService;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\BeplyPdfConfig;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\BeplyPdfLogoPathResolver;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfBuyerFiscalIdentity;
+use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfCorporateHeaderGeometry;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfParentDocumentLines;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\PdfEngine\BeplyPdfDraw;
 
@@ -475,8 +476,9 @@ class HeaderRenderer
             $this->drawFitText($pdf, $brandX, $pageHeight - 47.0, max(7.0, $this->cssPt((float) $cfg->fontSize - 1.0)), $companyContact, $mutedOnDark, 'right', $brandW);
         }
 
-        $metaTop = $bandBottom - 27.0;
         $meta = $this->corporateMetaRows($cfg, $model);
+        $geometry = BeplyPdfCorporateHeaderGeometry::resolve($bandBottom, $fs, count($meta));
+        $metaTop = $geometry['meta_top'];
         $metaW = $contentW * 0.52;
         $metaX = $right - $metaW;
         $labelW = $metaW * 0.63;
@@ -487,13 +489,13 @@ class HeaderRenderer
             $value = (string) $row[1];
             $this->drawFitText($pdf, $metaX, $my, max(8.0, $fs), $label . ':', $cfg->colorText, 'right', $labelW, true);
             $this->drawFitText($pdf, $metaX + $labelW + 14.0, $my, max(8.0, $fs), $value, $cfg->colorText, 'right', $valueW - 14.0);
-            $my -= $fs + 6.0;
+            $my -= $geometry['meta_row_step'];
         }
 
-        $ruleY = $bandBottom - 72.0;
+        $ruleY = $geometry['rule_y'];
         BeplyPdfDraw::line($pdf, $contentX, $ruleY, $right, $ruleY, $border, 0.7);
 
-        $partiesTop = $ruleY - 12.0;
+        $partiesTop = $geometry['parties_top'];
         $gap = 18.0;
         $colW = ($contentW - $gap) / 2.0;
         $leftBottom = $this->drawCorporateParty(

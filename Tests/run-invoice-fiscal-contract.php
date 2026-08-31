@@ -104,6 +104,31 @@ final class BeplySyntheticPurchaseInvoiceContractDoc extends BeplySyntheticInvoi
     }
 }
 
+final class BeplySyntheticCorporateGeometryDoc extends BeplySyntheticInvoiceContractDoc
+{
+    public function parentDocuments(): array
+    {
+        return [
+            new class {
+                public string $codigo = 'PED-SYNTH-EXTRA-1';
+
+                public function modelClassName(): string
+                {
+                    return 'PedidoCliente';
+                }
+            },
+            new class {
+                public string $codigo = 'PED-SYNTH-EXTRA-2';
+
+                public function modelClassName(): string
+                {
+                    return 'PedidoCliente';
+                }
+            },
+        ];
+    }
+}
+
 final class BeplyNativePdfExportProbe extends PDFExport
 {
     public function renderFallback($config, object $model): string
@@ -134,6 +159,7 @@ final class BeplyInvoiceFiscalContractSuite
         $this->purchaseBuyerIdentityContract();
         $this->rectificationPdfContract();
         $this->rectificationFallbackMatrix();
+        $this->corporateFallbackGeometryContract();
         $this->ordinaryInvoiceContract();
 
         echo "INVOICE_FISCAL_CONTRACT total={$this->total} failed={$this->failed}\n";
@@ -340,6 +366,50 @@ final class BeplyInvoiceFiscalContractSuite
                 $text
             );
         }
+    }
+
+    private function corporateFallbackGeometryContract(): void
+    {
+        $buyer = $this->syntheticSpanishTaxId(__METHOD__ . '-buyer');
+        $doc = new BeplySyntheticCorporateGeometryDoc(
+            $buyer,
+            $buyer,
+            true,
+            'Motivo sintético corporativo',
+            true
+        );
+        $doc->numero2 = 'EXT-SYNTH-OPTIONAL';
+        $cfg = AbstractBeplyPdfLayout::find('corporate')->defaultConfig();
+        $cfg->showNumber2 = true;
+        $cfg->showParentDocs = true;
+        $cfg->hideNotes = true;
+
+        $pdf = (new BeplyNativePdfExportProbe())->renderFallback($cfg, $doc);
+        $probe = BeplyPdfProbe::fromBytes($pdf);
+        $lastMetadata = $probe->findWord('PED-SYNTH-EXTRA-2');
+        $partyName = $probe->findWord('Comprador');
+
+        $this->assert('corporate expanded fallback remains one visible page',
+            $probe->pageCount() === 1 && $probe->blankPages() === [],
+            'pages=' . $probe->pageCount()
+        );
+        $this->assert('corporate expanded fallback exposes final metadata row',
+            is_array($lastMetadata),
+            'last metadata word missing'
+        );
+        $this->assert('corporate expanded fallback exposes party block',
+            is_array($partyName),
+            'party word missing'
+        );
+        if (is_array($lastMetadata) && is_array($partyName)) {
+            $clearance = (float) $partyName['y0'] - (float) $lastMetadata['y1'];
+            $this->assert('corporate metadata clears the party block geometrically',
+                $clearance >= 8.0,
+                'clearance=' . Tools::number($clearance, 2) . 'pt'
+            );
+            echo 'CORPORATE_METADATA_CLEARANCE_PT=' . Tools::number($clearance, 2) . "\n";
+        }
+        $this->assertAmounts('corporate expanded fallback', $probe->flatText(), [-10.74, -2.25, -12.99]);
     }
 
     private function ordinaryInvoiceContract(): void

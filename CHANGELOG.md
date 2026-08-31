@@ -12,6 +12,9 @@
 - Normaliza y deduplica la referencia original en una única frontera compartida
   por HTML y Cezpdf, incluidos los fallbacks Clásico, Banda, Resumen, Corporativo
   y Cajas con documentos padre ocultos o visibles.
+- Reserva dinámicamente en el fallback Corporativo la altura de sus metadatos,
+  manteniendo `Original`, `Número 2` y documentos padre por encima del separador
+  y del bloque de empresa/contraparte.
 - Añade un contrato sintético HTML/PDF real para identidades válidas, vacías,
   espacios, placeholders y prefijos de integración, además de base, IVA y total
   exactos en facturas ordinarias y rectificativas negativas.
