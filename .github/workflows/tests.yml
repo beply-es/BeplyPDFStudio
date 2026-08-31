@@ -41,6 +41,9 @@ jobs:
       - name: Run unit tests
         run: php Tests/run-unit.php
 
+      - name: Run provenance downloader tests
+        run: python3 -m unittest scripts.ci.test_download_provenance_release_asset
+
   lint:
     name: PHP Lint
     timeout-minutes: 10
