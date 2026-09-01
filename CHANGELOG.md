@@ -1,5 +1,15 @@
 # Changelog
 
+## v3.6 - 2026-09-01
+
+- Retira el paso legado de subida a produccion de `release.yml`. La ingesta en el
+  catalogo de produccion es del workflow canonico
+  `beply-es/beply-k3s` `prod-plugin-artifact-ingest.yml`, y en su lugar queda un
+  aviso que imprime ese camino con sus pines exactos, para que un verde signifique
+  "release inmutable publicada" y nunca "fila ingestada en produccion".
+- Version nueva porque `3.5` ya tenia bytes de artefacto en el catalogo: el
+  contrato es inmutable y no se sobrescribe.
+
 ## v3.5 - 2026-09-01
 
 - Cierra en falso la subida del candidato al catálogo de producción: una
