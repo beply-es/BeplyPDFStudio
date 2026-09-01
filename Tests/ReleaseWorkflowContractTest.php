@@ -145,4 +145,31 @@ final class ReleaseWorkflowContractTest extends TestCase
         $this->assertTrue(str_contains($workflow, 'needs: verify_tests'));
         $this->assertTrue(str_contains($workflow, 'Tests workflow status='));
     }
+
+    public function testMissingProdTokenFailsClosed(): void
+    {
+        $workflow = $this->workflow();
+
+        // El paso de produccion debe fallar cerrado igual que el de dev: una credencial
+        // ausente no puede producir un release verde sin fila en el catalogo.
+        $this->assertTrue(str_contains($workflow, 'BEPLY_PROD_CI_TOKEN must be configured for production platform upload'));
+        $this->assertSame(1, preg_match(
+            '/if \[ -z "\$BEPLY_PROD_CI_TOKEN" \]; then.*?::error::BEPLY_PROD_CI_TOKEN.*?exit 1/s',
+            $workflow
+        ));
+        $this->assertFalse(str_contains($workflow, 'no platform upload was attempted'));
+        $this->assertFalse(str_contains($workflow, 'Production platform credentials are not configured'));
+    }
+
+    public function testProdUploadUsesTheVerifiedCatalogHelper(): void
+    {
+        $workflow = $this->workflow();
+
+        // La subida a produccion debe reutilizar el helper verificado (checksum, tamano y
+        // verify_witness releyendo la fila), no un curl crudo sin readback.
+        $this->assertSame(2, substr_count($workflow, 'bash scripts/ci/upload_catalog_release.sh'));
+        $this->assertTrue(str_contains($workflow, 'BEPLY_PROD_CI_TOKEN: ${{ secrets.BEPLY_PROD_CI_TOKEN }}'));
+        $this->assertFalse(str_contains($workflow, 'BEPLY_CI_TOKEN: ${{ secrets.BEPLY_CI_TOKEN }}'));
+        $this->assertFalse(str_contains($workflow, '/api/v1/plugins/release")'));
+    }
 }

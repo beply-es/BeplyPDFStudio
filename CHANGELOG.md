@@ -1,5 +1,17 @@
 # Changelog
 
+## v3.5 - 2026-09-01
+
+- Cierra en falso la subida del candidato al catálogo de producción: una
+  credencial ausente ya no produce un release verde sin fila ingestada, sino un
+  fallo explícito con el artefacto inmutable preservado.
+- La subida a producción reutiliza el mismo helper verificado que la de
+  desarrollo, con checksum y tamaño fijados y relectura del testigo de la fila
+  del catálogo, en lugar de un `curl` sin readback.
+- Adopta el nombre de secreto canónico de la flota `BEPLY_PROD_CI_TOKEN` y la
+  URL de producción por defecto, en vez de nombres que ningún repositorio tenía
+  configurados.
+
 ## v3.4 - 2026-08-31
 
 - Corrige el campo `CIF/NIF` del bloque de metadatos del diseño Enmarcado con

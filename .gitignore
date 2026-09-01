@@ -30,3 +30,4 @@ Thumbs.db
 
 # Entorno Python de WeasyPrint (se construye en la imagen, no se versiona)
 .venv/
+__pycache__/
