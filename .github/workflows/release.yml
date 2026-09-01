@@ -255,26 +255,23 @@ jobs:
             ${{ steps.changelog.outputs.notes }}
           files: /tmp/${{ steps.ini.outputs.asset_name }}
 
-      - name: Upload candidate to Beply production
+      # La ingesta del artefacto en el catalogo de PRODUCCION no se hace aqui. El camino
+      # canonico es el workflow beply-es/beply-k3s .github/workflows/prod-plugin-artifact-ingest.yml,
+      # que valida pins exactos, carga la clave PROD desde SOPS y relee la fila creada.
+      - name: Announce canonical production ingest path
         if: github.ref_type == 'tag'
         env:
-          BEPLY_API_URL: ${{ secrets.BEPLY_API_URL || 'https://api.beply.es' }}
-          BEPLY_PROD_CI_TOKEN: ${{ secrets.BEPLY_PROD_CI_TOKEN }}
-          PLUGIN_ZIP: /tmp/${{ steps.ini.outputs.asset_name }}
-          PLUGIN_FS_NAME: ${{ steps.ini.outputs.name }}
-          PLUGIN_SLUG: beplypdfstudio
+          RELEASE_TAG: ${{ github.ref_name }}
+          PLUGIN_NAME: ${{ steps.ini.outputs.name }}
           PLUGIN_VERSION: ${{ steps.ini.outputs.version }}
-          SOURCE_REPO_FULL_NAME: ${{ github.repository }}
-          SOURCE_BRANCH: main
-          RELEASE_TRACK: main
-          SOURCE_RELEASE_TAG: ${{ github.ref_name }}
-          SOURCE_RELEASE_URL: https://github.com/${{ github.repository }}/releases/tag/${{ github.ref_name }}
+          ASSET_NAME: ${{ steps.ini.outputs.asset_name }}
         run: |
           set -euo pipefail
-          if [ -z "$BEPLY_PROD_CI_TOKEN" ]; then
-            echo "::error::BEPLY_PROD_CI_TOKEN must be configured for production platform upload. The immutable GitHub release exists, but catalog ingestion is unverified."
-            exit 1
-          fi
-          export BEPLY_CI_TOKEN="$BEPLY_PROD_CI_TOKEN"
-          export SOURCE_PUBLISHED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-          bash scripts/ci/upload_catalog_release.sh
+          echo "::notice::Immutable GitHub release ${RELEASE_TAG} published. This workflow does NOT ingest into the production catalog."
+          echo "Canonical production ingest: dispatch beply-es/beply-k3s .github/workflows/prod-plugin-artifact-ingest.yml from refs/heads/main with:"
+          echo "  source_kind=release_asset  source_repo=${GITHUB_REPOSITORY}  source_release_tag=${RELEASE_TAG}"
+          echo "  source_sha=${GITHUB_SHA}  source_branch=main  release_track=main"
+          echo "  plugin_name=${PLUGIN_NAME}  plugin_version=${PLUGIN_VERSION}  source_release_asset_name=${ASSET_NAME}"
+          echo "  plus the exact source_release_asset_id, source_published_at, zip_sha256, zip_size"
+          echo "  apply=true  confirm=INGEST_PROD_PLUGIN_ARTIFACT"
+          echo "A green result here means the release exists, never that a production catalog row exists."
