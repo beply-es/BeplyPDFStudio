@@ -135,7 +135,10 @@ final class ReleaseWorkflowContractTest extends TestCase
 
         $this->assertTrue(str_contains($workflow, "if: github.ref_type == 'tag'"));
         $this->assertTrue(str_contains($workflow, 'must be main or the exact tag v${PLUGIN_VERSION}'));
-        $this->assertTrue(str_contains($workflow, 'Upload candidate to Beply production'));
+        // El paso de subida a produccion se retiro: la ingesta es de beply-k3s. Lo que sigue
+        // exigiendo tag exacto es la creacion de la release y el aviso del camino canonico.
+        $this->assertTrue(str_contains($workflow, 'Announce canonical production ingest path'));
+        $this->assertTrue(str_contains($workflow, '- name: Create GitHub release'));
     }
 
     public function testReleaseWaitsForTheFullTestWorkflow(): void
@@ -146,30 +149,27 @@ final class ReleaseWorkflowContractTest extends TestCase
         $this->assertTrue(str_contains($workflow, 'Tests workflow status='));
     }
 
-    public function testMissingProdTokenFailsClosed(): void
+    public function testReleaseWorkflowDoesNotClaimProductionIngestion(): void
     {
         $workflow = $this->workflow();
 
-        // El paso de produccion debe fallar cerrado igual que el de dev: una credencial
-        // ausente no puede producir un release verde sin fila en el catalogo.
-        $this->assertTrue(str_contains($workflow, 'BEPLY_PROD_CI_TOKEN must be configured for production platform upload'));
-        $this->assertSame(1, preg_match(
-            '/if \[ -z "\$BEPLY_PROD_CI_TOKEN" \]; then.*?::error::BEPLY_PROD_CI_TOKEN.*?exit 1/s',
-            $workflow
-        ));
-        $this->assertFalse(str_contains($workflow, 'no platform upload was attempted'));
-        $this->assertFalse(str_contains($workflow, 'Production platform credentials are not configured'));
+        // La ingesta en PROD es de beply-k3s/prod-plugin-artifact-ingest.yml. Este workflow
+        // no debe subir al catalogo de produccion ni sugerir que lo hace: un verde aqui
+        // significa "release inmutable publicada", nunca "fila ingestada en PROD".
+        $this->assertFalse(str_contains($workflow, 'Upload candidate to Beply production'));
+        $this->assertFalse(str_contains($workflow, 'BEPLY_PROD_CI_TOKEN'));
+        $this->assertFalse(str_contains($workflow, 'secrets.BEPLY_CI_TOKEN'));
+        $this->assertFalse(str_contains($workflow, "secrets.BEPLY_API_URL"));
+        $this->assertSame(1, substr_count($workflow, 'bash scripts/ci/upload_catalog_release.sh'));
     }
 
-    public function testProdUploadUsesTheVerifiedCatalogHelper(): void
+    public function testReleaseWorkflowNamesTheCanonicalProdIngestPath(): void
     {
         $workflow = $this->workflow();
 
-        // La subida a produccion debe reutilizar el helper verificado (checksum, tamano y
-        // verify_witness releyendo la fila), no un curl crudo sin readback.
-        $this->assertSame(2, substr_count($workflow, 'bash scripts/ci/upload_catalog_release.sh'));
-        $this->assertTrue(str_contains($workflow, 'BEPLY_PROD_CI_TOKEN: ${{ secrets.BEPLY_PROD_CI_TOKEN }}'));
-        $this->assertFalse(str_contains($workflow, 'BEPLY_CI_TOKEN: ${{ secrets.BEPLY_CI_TOKEN }}'));
-        $this->assertFalse(str_contains($workflow, '/api/v1/plugins/release")'));
+        // Quien lea el log del tag debe encontrar el camino canonico exacto, no un silencio.
+        $this->assertTrue(str_contains($workflow, 'prod-plugin-artifact-ingest.yml'));
+        $this->assertTrue(str_contains($workflow, 'INGEST_PROD_PLUGIN_ARTIFACT'));
+        $this->assertTrue(str_contains($workflow, 'beply-es/beply-k3s'));
     }
 }
