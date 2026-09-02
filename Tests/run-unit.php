@@ -100,8 +100,8 @@ namespace {
         \FacturaScripts\Test\Plugins\BeplyPDFStudio\BeplyPdfDocumentCacheServiceTest::class,
         \FacturaScripts\Test\Plugins\BeplyPDFStudio\BeplyPdfGenericReportBufferTest::class,
         \FacturaScripts\Test\Plugins\BeplyPDFStudio\BeplyPdfInternalFormatPolicyTest::class,
+        \FacturaScripts\Test\Plugins\BeplyPDFStudio\BeplyPdfLineTableLayoutTest::class,
         \FacturaScripts\Test\Plugins\BeplyPDFStudio\BeplyPdfLogoPathResolverTest::class,
-        \FacturaScripts\Test\Plugins\BeplyPDFStudio\BeplyPdfMetadataFiscalIdentityTest::class,
         \FacturaScripts\Test\Plugins\BeplyPDFStudio\BeplyPdfParentDocumentLinesTest::class,
         \FacturaScripts\Test\Plugins\BeplyPDFStudio\BeplyPdfPaymentDateResolverTest::class,
         \FacturaScripts\Test\Plugins\BeplyPDFStudio\BeplyPdfPreviewLogoTest::class,
@@ -109,6 +109,7 @@ namespace {
         \FacturaScripts\Test\Plugins\BeplyPDFStudio\ReleaseWorkflowContractTest::class,
         \FacturaScripts\Test\Plugins\BeplyPDFStudio\BeplyPdfRichTextLiteTest::class,
         \FacturaScripts\Test\Plugins\BeplyPDFStudio\BeplyPdfStyleResolverTest::class,
+        \FacturaScripts\Test\Plugins\BeplyPDFStudio\BeplyPdfTemplateLayoutGuardTest::class,
         \FacturaScripts\Test\Plugins\BeplyPDFStudio\BeplyPdfXmlTranslationTest::class,
     ];
 

@@ -23,7 +23,7 @@ use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfDocumentSlot;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfBuyerFiscalIdentity;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfFiscalQrRegistry;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfLineColumn;
-use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfMetadataFiscalIdentity;
+use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfLineTableLayout;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfParentDocumentLines;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfRectificationData;
 use Twig\Environment;
@@ -57,6 +57,9 @@ class BeplyHtmlRenderService
     ];
 
     private const GENERIC_TABLE_TEMPLATE = 'generic-table.html.twig';
+
+    /** Reparto/densidad de la tabla de líneas del último buildHtml() de documento (para inyectar su CSS). */
+    private ?array $lineTableLayout = null;
 
     private static ?Environment $twig = null;
 
@@ -358,6 +361,7 @@ class BeplyHtmlRenderService
         if ($template === null) {
             return '';
         }
+        $this->lineTableLayout = null;
         $context = $this->context($cfg, $model, $generic, $format);
         $html = $this->twig()->render($template, $context);
         if ($this->isCompactPaper($cfg)) {
@@ -366,7 +370,51 @@ class BeplyHtmlRenderService
         if ($this->isLandscape($cfg)) {
             $html = $this->injectLandscapeFiscalColumnsCss($html, $cfg);
         }
+        if ($generic === null && $this->lineTableLayout !== null) {
+            // Va la última: la densidad de la tabla de líneas manda sobre el padding de papel compacto.
+            $html = $this->injectCss($html, $this->lineTableCss($this->lineTableLayout));
+        }
         return $this->appendMissingSlots($html, $context['extension_blocks'] ?? []);
+    }
+
+    private function injectCss(string $html, string $css): string
+    {
+        if ($css === '') {
+            return $html;
+        }
+        if (strpos($html, '</style>') !== false) {
+            return preg_replace('/<\/style>/', $css . "\n</style>", $html, 1) ?? $html;
+        }
+        if (strpos($html, '</head>') !== false) {
+            return str_replace('</head>', '<style>' . $css . '</style></head>', $html);
+        }
+        return $html;
+    }
+
+    /**
+     * CSS de densidad de la tabla de líneas cuando el contenido no cabe con la densidad normal de la
+     * plantilla: letra y padding más pequeños, cabeceras que parten por palabras y, en último
+     * recurso, celdas que parten líneas. En densidad normal no se inyecta nada: los diseños en uso
+     * conservan su aspecto exacto.
+     */
+    private function lineTableCss(array $layout): string
+    {
+        if (($layout['mode'] ?? BeplyPdfLineTableLayout::MODE_NORMAL) === BeplyPdfLineTableLayout::MODE_NORMAL) {
+            return '';
+        }
+        $font = max(7, (int) ($layout['font_px'] ?? 9));
+        $padX = max(2, (int) ($layout['pad_x_px'] ?? 6));
+        $padY = max(2, (int) ($layout['pad_y_px'] ?? 6));
+        $cells = '.desc-table thead th, .desc-table tbody td, .studio-lines th, .studio-lines td';
+        $heads = '.desc-table thead th, .studio-lines th';
+        $css = "\n  /* Tabla de líneas en densidad {$layout['mode']}: el contenido no cabe con la densidad normal. */\n"
+            . "  {$cells} { font-size: {$font}px !important; padding: {$padY}px {$padX}px !important; line-height: 1.2; }\n"
+            . "  {$heads} { white-space: normal !important; overflow-wrap: anywhere !important; word-break: break-word !important; }\n";
+        if (!empty($layout['wrap'])) {
+            // Las celdas llevan nowrap inline (para no partir números en columnas cortas): aquí manda el wrap.
+            $css .= "  .desc-table tbody td, .studio-lines td { white-space: normal !important; overflow-wrap: anywhere !important; word-break: break-word !important; }\n";
+        }
+        return $css;
     }
 
     private function injectCompactPaperCss(string $html, BeplyPdfConfig $cfg): string
@@ -395,6 +443,7 @@ class BeplyHtmlRenderService
         $headerGap = max(12, (int) round($fs * 1.4));
         $cellY = max(4, (int) round($fs * 0.45));
         $cellX = max(8, (int) round($fs * 0.75));
+        $titleFs = max(11, (int) round(max(8, (int) $cfg->titleFontSize) * $this->paperScale($cfg)));
 
         $css = "\n"
             . "  .l-header { margin-bottom: {$headerGap}px !important; }\n"
@@ -410,6 +459,9 @@ class BeplyHtmlRenderService
             . " padding: {$cellY}px {$cellX}px !important; }\n"
             . "  .l-title .num, .l-title .date, .l-title .total-head, .total-box,"
             . " .grand-total-box, .total-due-box { padding: {$cellY}px {$cellX}px !important; }\n"
+            // El título/total usan title_font_size sin escalar: en A5 «3 913,09 €» se salía del margen.
+            . "  .l-title .date, .l-title .total-head, .total-box, .grand-total-box, .total-due-box,"
+            . " .total-due-amount { font-size: {$titleFs}px !important; }\n"
             . "  .tax-table td { line-height: 1.35 !important; padding-right: {$cellX}px !important; }\n"
             . "  .obs, .end-text, .thanks { margin-top: {$smallGap}px !important; }\n"
             . "  .beply-fiscal-qr-block { margin-top: 1mm !important; }\n"
@@ -556,11 +608,6 @@ class BeplyHtmlRenderService
             // --- DOCUMENTO de venta/compra: datos completos del modelo ---
             $company = $this->companyData($model);
             $customer = $this->customerData($cfg, $model);
-            $metadataCifnif = BeplyPdfMetadataFiscalIdentity::resolve(
-                isset($model->codproveedor),
-                $company['cifnif'],
-                $customer['cifnif']
-            );
             $rawLines = $this->documentLines($model);
             $columns = $this->columnsMeta($cfg, $docContext, $rawLines, $coddivisa);
             $lines = $this->linesData($cfg, $model, $coddivisa, $docContext, $columns, $rawLines);
@@ -580,7 +627,6 @@ class BeplyHtmlRenderService
             // --- GENÉRICO del core (ficha / listado / informe): solo cabecera + tabla ---
             $company = $this->companyData((object) ['idempresa' => $generic['idempresa'] ?? null]);
             $customer = ['label' => '', 'name' => '', 'cifnif' => '', 'code' => '', 'lines' => [], 'phones' => '', 'email' => '', 'agent' => ''];
-            $metadataCifnif = '';
             $genericSections = $this->genericSections($generic);
             if (empty($genericSections)) {
                 [$columns, $lines] = $this->genericTable($generic);
@@ -677,7 +723,6 @@ class BeplyHtmlRenderService
             'doc' => $doc,
             'company' => $company,
             'customer' => $customer,
-            'metadata_cifnif' => $metadataCifnif,
             'shipping' => $shipping,
             'lines' => $lines,
             'columns' => $columns,
@@ -1247,47 +1292,44 @@ class BeplyHtmlRenderService
         $configured = $this->filterEmptyOptionalLineColumns($this->effectiveLineColumns($cfg), $lines);
         $types = $this->lineColumnTypes($cfg);
 
-        // anchos: si no hay configurados, reparto automático por contenido real del documento
-        $weights = [];
-        $sum = 0;
+        // Pesos: los anchos configurados; si ninguno está configurado, reparto automático por el
+        // contenido real del documento. Una columna añadida sin ancho (0) junto a otras con ancho
+        // no recibe peso: el reparto le reserva exactamente lo que necesita su contenido.
         $hasConfiguredWidths = false;
         foreach ($configured as $i => $key) {
             if (is_string($key)) {
                 $sourceIndex = array_search($key, $cfg->lineColumns, true);
-                $weight = max(0, (int) ($cfg->lineColumnsWidth[$sourceIndex === false ? $i : $sourceIndex] ?? 0));
-                $weights[$i] = $weight;
-                $sum += $weight;
-                $hasConfiguredWidths = $hasConfiguredWidths || $weight > 0;
-            }
-        }
-        if (!$hasConfiguredWidths) {
-            $weights = [];
-            $sum = 0;
-            foreach ($configured as $i => $key) {
-                if (is_string($key)) {
-                    $weights[$i] = $this->automaticLineColumnWeight(
-                        $key,
-                        $types[$key] ?? 'text',
-                        $labels[$key] ?? ucfirst($key),
-                        $lines,
-                        $coddivisa
-                    );
-                    $sum += $weights[$i];
-                }
+                $hasConfiguredWidths = $hasConfiguredWidths
+                    || (int) ($cfg->lineColumnsWidth[$sourceIndex === false ? $i : $sourceIndex] ?? 0) > 0;
             }
         }
         $out = [];
+        $layoutColumns = [];
         foreach ($configured as $i => $key) {
             if (!is_string($key)) {
                 continue;
             }
             $sourceIndex = array_search($key, $cfg->lineColumns, true);
-            $w = $sum > 0 ? round(($weights[$i] ?? 0) / $sum * 100, 2) : round(100 / max(1, count($configured)), 2);
+            $label = $labels[$key] ?? ucfirst($key);
+            $type = $types[$key] ?? 'text';
+            $configuredWidth = max(0, (int) ($cfg->lineColumnsWidth[$sourceIndex === false ? $i : $sourceIndex] ?? 0));
+            $weight = $hasConfiguredWidths
+                ? (float) $configuredWidth
+                : $this->automaticLineColumnWeight($key, $type, $label, $lines, $coddivisa);
             $out[] = [
                 'key' => $key,
-                'label' => $labels[$key] ?? ucfirst($key),
+                'label' => $label,
                 'align' => $cfg->lineColumnsAlign[$sourceIndex === false ? $i : $sourceIndex] ?? (in_array($key, ['descripcion', 'referencia'], true) ? 'left' : 'right'),
-                'width' => $w,
+                'width' => 0.0,
+                'external' => false,
+            ];
+            $layoutColumns[] = [
+                'key' => $key,
+                'weight' => $weight,
+                'content_em' => $this->lineColumnContentEm($key, $type, $lines, $coddivisa),
+                // Las plantillas imprimen la cabecera en mayúsculas y negrita: se mide así.
+                'label_em' => BeplyPdfLineTableLayout::longestWordEm(mb_strtoupper($label)) * 1.08,
+                'flexible' => $key === 'descripcion',
                 'external' => false,
             ];
         }
@@ -1297,13 +1339,117 @@ class BeplyHtmlRenderService
                     'key' => $column->key,
                     'label' => $column->label,
                     'align' => in_array($column->align, ['left', 'center', 'right'], true) ? $column->align : 'left',
-                    'width' => max(0, (int) $column->width),
+                    'width' => 0.0,
                     'external' => true,
                     'column' => $column,
                 ];
+                $values = $this->externalColumnValues($column, $lines, $context);
+                $layoutColumns[] = [
+                    'key' => $column->key,
+                    // Sin ancho declarado, la columna externa pesa como una columna de texto según su
+                    // contenido real (nunca 0: antes se imprimía fuera de la tabla).
+                    'weight' => (int) $column->width > 0
+                        ? (float) $column->width
+                        : $this->automaticTextWeight($column->label, $values, 8.0),
+                    'content_em' => $this->maxEmWidth($values),
+                    'label_em' => BeplyPdfLineTableLayout::longestWordEm(mb_strtoupper($column->label)) * 1.08,
+                    'flexible' => false,
+                    'external' => true,
+                ];
             }
         }
+        if ($out === []) {
+            return $out;
+        }
+
+        $layout = BeplyPdfLineTableLayout::resolve($layoutColumns, $this->lineTableUsableWidthPt($cfg), max(7, (int) $cfg->fontSize));
+        foreach ($out as $i => $column) {
+            $out[$i]['width'] = $layout['widths'][$i] ?? 0.0;
+        }
+        $this->lineTableLayout = $layout;
         return $out;
+    }
+
+    /** Ancho útil (pt) de la tabla de líneas: papel menos márgenes laterales. */
+    private function lineTableUsableWidthPt(BeplyPdfConfig $cfg): float
+    {
+        $size = $this->paperDimensionsMm($cfg);
+        $widthMm = $cfg->orientation === 'landscape' ? $size['h'] : $size['w'];
+        $usableMm = $widthMm - max(0, (int) $cfg->marginLeft) - max(0, (int) $cfg->marginRight);
+        return max(50.0, $usableMm * 72.0 / 25.4);
+    }
+
+    /** Ancho (em) del contenido más largo de una columna nativa; la descripción cuenta su palabra más larga. */
+    private function lineColumnContentEm(string $key, string $type, array $lines, string $coddivisa): float
+    {
+        $max = 0.0;
+        $n = 0;
+        foreach ($lines as $line) {
+            $n++;
+            if ($n > 50) {
+                break;
+            }
+            $value = $this->cell($key, $type, $line, $n, $coddivisa);
+            $max = max($max, $key === 'descripcion'
+                ? BeplyPdfLineTableLayout::longestWordEm($value)
+                : BeplyPdfLineTableLayout::emWidth($value));
+        }
+        // Algunas plantillas imprimen la primera columna en negrita (Prisma): el número de línea
+        // reclama un 10% más para que nunca se parta dígito a dígito.
+        return $key === 'numlinea' ? $max * 1.1 : $max;
+    }
+
+    /**
+     * Valores renderizados de una columna externa (render de la extensión, acotado a 50 líneas).
+     * @return string[]
+     */
+    private function externalColumnValues(BeplyPdfLineColumn $column, array $lines, BeplyPdfDocumentContext $context): array
+    {
+        $values = [];
+        $n = 0;
+        foreach ($lines as $line) {
+            $n++;
+            if ($n > 50) {
+                break;
+            }
+            try {
+                $values[] = (string) $column->render($line, $n, $context);
+            } catch (\Throwable $e) {
+                break;
+            }
+        }
+        return $values;
+    }
+
+    /** @param string[] $values */
+    private function maxEmWidth(array $values): float
+    {
+        $max = 0.0;
+        foreach ($values as $value) {
+            $max = max($max, BeplyPdfLineTableLayout::emWidth($value));
+        }
+        return $max;
+    }
+
+    /**
+     * Peso automático de una columna externa por su contenido real: curva más suave que la de una
+     * columna de texto nativa, porque la descripción sigue siendo la columna principal y una
+     * columna de extensión muy ancha parte líneas en vez de robarle el sitio.
+     * @param string[] $values
+     */
+    private function automaticTextWeight(string $label, array $values, float $base): float
+    {
+        $max = $this->displayMetric($label);
+        $sum = $max;
+        $count = 1;
+        foreach ($values as $value) {
+            $metric = $this->displayMetric($value);
+            $max = max($max, $metric);
+            $sum += $metric;
+            $count++;
+        }
+        $avg = $sum / max(1, $count);
+        return max($base, min(20.0, 4.0 + $max * 0.3 + $avg * 0.1));
     }
 
     private function filterEmptyOptionalLineColumns(array $columns, array $lines): array

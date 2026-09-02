@@ -313,11 +313,11 @@
     {% set slot = slots.LINES_BEFORE %}{% include '_slot.html.twig' %}
     <table class="desc-table">
       <thead>
-        <tr>{% for c in columns %}<th style="text-align:{{ c.align }};width:{{ c.width }}%;{% if c.key == 'descripcion' or not is_document %}white-space:normal;overflow-wrap:anywhere;word-break:break-word;{% endif %}">{{ c.label }}</th>{% endfor %}</tr>
+        <tr>{% for c in columns %}<th style="text-align:{{ c.align }};width:{{ c.width }}%;{% if c.key == 'descripcion' or c.external|default(false) or not is_document %}white-space:normal;overflow-wrap:anywhere;word-break:break-word;{% else %}white-space:nowrap;word-break:normal;overflow-wrap:normal;{% endif %}">{{ c.label }}</th>{% endfor %}</tr>
       </thead>
       <tbody>
         {% for row in lines %}
-        <tr>{% for cell in row %}{% set c = columns[loop.index0]|default({}) %}<td style="text-align:{{ cell.align }};width:{{ c.width|default(0) }}%;{% if c.key|default('') == 'descripcion' or not is_document %}white-space:normal;overflow-wrap:anywhere;word-break:break-word;{% endif %}">{% if cell.html|default(false) %}{{ cell.value|raw }}{% else %}{{ cell.value }}{% endif %}</td>{% endfor %}</tr>
+        <tr>{% for cell in row %}{% set c = columns[loop.index0]|default({}) %}<td style="text-align:{{ cell.align }};width:{{ c.width|default(0) }}%;{% if c.key|default('') == 'descripcion' or c.external|default(false) or not is_document %}white-space:normal;overflow-wrap:anywhere;word-break:break-word;{% else %}white-space:nowrap;word-break:normal;overflow-wrap:normal;{% endif %}">{% if cell.html|default(false) %}{{ cell.value|raw }}{% else %}{{ cell.value }}{% endif %}</td>{% endfor %}</tr>
         {% endfor %}
       </tbody>
     </table>
@@ -359,12 +359,13 @@
     </tr></table>
     {% endif %}
 
-    {# ===== PAGO + OBSERVACIONES en dos columnas — solo documentos ===== #}
-    {% if is_document and (receipts or observations or footer_text) %}
-    <table class="l-payment-az"><tr>
-      {# Columna izquierda: Método de pago #}
-      <td style="width:48%; padding-right:20px; vertical-align:top;">
-        {% if receipts and not hide_payment_methods %}
+    {# ===== PAGO + OBSERVACIONES — solo documentos =====
+       Dos columnas SOLO cuando hay contenido a ambos lados; si sólo hay recibos, o sólo hay
+       observaciones/pie, el bloque ocupa todo el ancho (antes quedaba media página en blanco). #}
+    {% set az_show_receipts = receipts and not hide_payment_methods %}
+    {% set az_show_terms = observations or footer_text %}
+    {% if is_document and (az_show_receipts or az_show_terms) %}
+    {% set az_receipts_block %}
         <div class="az-section-header">
           <div class="az-section-accent"></div>
           <div class="az-section-label">{{ 'payment-method'|trans }}:</div>
@@ -389,10 +390,8 @@
             </tbody>
           </table>
         </div>
-        {% endif %}
-      </td>
-      {# Columna derecha: Observaciones / Terms #}
-      <td style="width:52%; vertical-align:top;">
+    {% endset %}
+    {% set az_terms_block %}
         {% if observations %}
         <div class="az-section-header">
           <div class="az-section-accent"></div>
@@ -403,8 +402,19 @@
         {% if footer_text %}
         <div class="end-text" style="margin-top:{{ observations ? (font_size)|round : 0 }}px;">{{ footer_text|raw }}</div>
         {% endif %}
-      </td>
+    {% endset %}
+    {% if az_show_receipts and az_show_terms %}
+    <table class="l-payment-az" data-beply-payment-layout="split"><tr>
+      {# Columna izquierda: Método de pago #}
+      <td style="width:48%; padding-right:20px; vertical-align:top;">{{ az_receipts_block }}</td>
+      {# Columna derecha: Observaciones / Terms #}
+      <td style="width:52%; vertical-align:top;">{{ az_terms_block }}</td>
     </tr></table>
+    {% else %}
+    <table class="l-payment-az" data-beply-payment-layout="single"><tr>
+      <td style="width:100%; vertical-align:top;">{% if az_show_receipts %}{{ az_receipts_block }}{% else %}{{ az_terms_block }}{% endif %}</td>
+    </tr></table>
+    {% endif %}
     {% endif %}
 
     {% include '_fiscal-landscape-columns-close.html.twig' %}

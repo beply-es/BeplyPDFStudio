@@ -1,5 +1,42 @@
 # Changelog
 
+## v3.7 - 2026-09-02
+
+- Las columnas de la tabla de líneas ya no se salen del recuadro en ninguno de los nueve
+  diseños: el reparto del ancho (`BeplyPdfLineTableLayout`) da a cada columna al menos el
+  ancho real de su contenido y su cabecera, incluye en el 100% las columnas añadidas sin
+  ancho en el editor y las columnas externas de extensiones (antes quedaban a 0% y se
+  imprimían fuera de la tabla), y cuando el contenido no cabe con la densidad normal pasa
+  a `compact`/`dense` (letra y padding menores, cabeceras que parten por palabras) y en
+  último recurso parte líneas en vez de salirse. Una configuración que ya cabía conserva
+  exactamente sus proporciones.
+- Diseño Enmarcado: el recuadro del cliente lleva SOLO la identidad fiscal del cliente (una
+  vez, en su bloque). Desaparece la fila `CIF/NIF` de los metadatos, que en 2.x imprimía el
+  CIF del emisor dentro del recuadro del cliente y desde 3.4 repetía el del cliente. El CIF
+  del emisor sigue en la cabecera. Se retira `BeplyPdfMetadataFiscalIdentity`, que sólo
+  alimentaba esa fila.
+- Diseño Azure: el bloque de pago sólo se parte en dos columnas cuando hay recibos Y
+  observaciones/pie; con sólo recibos (o sólo observaciones) ocupa todo el ancho, en vez de
+  dejar media página en blanco a la derecha de la tabla de recibos.
+- Nuevo contrato de render real `Tests/run-plantillas.php` (WeasyPrint + poppler, en
+  `scripts/run-tests.sh`): por diseño, 12 columnas con 40 líneas, sin observaciones y con
+  observaciones largas en A4 vertical; ninguna palabra fuera del margen, cabeceras sin
+  pisarse, sin páginas en blanco, CIF del cliente una sola vez en Enmarcado y tabla de
+  recibos a todo el ancho en Azure. Contra `v3.6` da 56 rojos de 298; con 3.7, 0.
+- Contratos existentes actualizados a la nueva realidad: la columna externa de
+  `run-template.php` ya no queda a 0%, y `showWithoutVat` mira el texto visible (un
+  `width:21.3%` no es un tipo de IVA).
+- Tras la revisión independiente: las celdas de columnas no flexibles llevan `nowrap`
+  explícito (la regla `td:first-child` de las plantillas, pensada para la descripción,
+  partía el número de línea dígito a dígito en Prisma y Estudio cuando `#` iba primero); las
+  columnas externas reservan su ancho con padding real (en Estudio apaisado «L-2040»
+  partía en «L-204»/«0»); las cabeceras se miden en mayúsculas y negrita, como se imprimen.
+  El contrato añade A5 vertical y A4 apaisado con 12 columnas y comprueba que cada número de
+  línea es una palabra entera bajo la cabecera `#` (v3.6: 151 rojos de 510; 3.7: 0).
+- A5: el título/total de cabecera (`title_font_size`) se escala con el papel compacto
+  («3 913,09 €» se salía del margen en Resumen/Enmarcado) y en Prisma la etiqueta de los
+  metadatos («Número de factura») puede partir por palabras. Ambos preexistentes en 3.6.
+
 ## v3.6 - 2026-09-01
 
 - Retira el paso legado de subida a produccion de `release.yml`. La ingesta en el
