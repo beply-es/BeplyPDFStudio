@@ -409,9 +409,10 @@ class BeplyHtmlRenderService
         $heads = '.desc-table thead th, .studio-lines th';
         $css = "\n  /* Tabla de líneas en densidad {$layout['mode']}: el contenido no cabe con la densidad normal. */\n"
             . "  {$cells} { font-size: {$font}px !important; padding: {$padY}px {$padX}px !important; line-height: 1.2; }\n"
-            . "  {$heads} { white-space: normal !important; overflow-wrap: anywhere; word-break: break-word; }\n";
+            . "  {$heads} { white-space: normal !important; overflow-wrap: anywhere !important; word-break: break-word !important; }\n";
         if (!empty($layout['wrap'])) {
-            $css .= "  .desc-table tbody td, .studio-lines td { white-space: normal !important; overflow-wrap: anywhere; word-break: break-word; }\n";
+            // Las celdas llevan nowrap inline (para no partir números en columnas cortas): aquí manda el wrap.
+            $css .= "  .desc-table tbody td, .studio-lines td { white-space: normal !important; overflow-wrap: anywhere !important; word-break: break-word !important; }\n";
         }
         return $css;
     }
@@ -442,6 +443,7 @@ class BeplyHtmlRenderService
         $headerGap = max(12, (int) round($fs * 1.4));
         $cellY = max(4, (int) round($fs * 0.45));
         $cellX = max(8, (int) round($fs * 0.75));
+        $titleFs = max(11, (int) round(max(8, (int) $cfg->titleFontSize) * $this->paperScale($cfg)));
 
         $css = "\n"
             . "  .l-header { margin-bottom: {$headerGap}px !important; }\n"
@@ -457,6 +459,9 @@ class BeplyHtmlRenderService
             . " padding: {$cellY}px {$cellX}px !important; }\n"
             . "  .l-title .num, .l-title .date, .l-title .total-head, .total-box,"
             . " .grand-total-box, .total-due-box { padding: {$cellY}px {$cellX}px !important; }\n"
+            // El título/total usan title_font_size sin escalar: en A5 «3 913,09 €» se salía del margen.
+            . "  .l-title .date, .l-title .total-head, .total-box, .grand-total-box, .total-due-box,"
+            . " .total-due-amount { font-size: {$titleFs}px !important; }\n"
             . "  .tax-table td { line-height: 1.35 !important; padding-right: {$cellX}px !important; }\n"
             . "  .obs, .end-text, .thanks { margin-top: {$smallGap}px !important; }\n"
             . "  .beply-fiscal-qr-block { margin-top: 1mm !important; }\n"
@@ -1389,7 +1394,9 @@ class BeplyHtmlRenderService
                 ? BeplyPdfLineTableLayout::longestWordEm($value)
                 : BeplyPdfLineTableLayout::emWidth($value));
         }
-        return $max;
+        // Algunas plantillas imprimen la primera columna en negrita (Prisma): el número de línea
+        // reclama un 10% más para que nunca se parta dígito a dígito.
+        return $key === 'numlinea' ? $max * 1.1 : $max;
     }
 
     /**

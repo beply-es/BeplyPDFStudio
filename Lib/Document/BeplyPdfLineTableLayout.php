@@ -88,6 +88,13 @@ final class BeplyPdfLineTableLayout
             $floors = $mode === self::MODE_NORMAL
                 ? self::needs($columns, $font, self::BREATHING_PT, false)
                 : $comfortable;
+            // Una columna externa puede partir líneas: si su celda no incluye el padding real, el texto
+            // parte ("L-204" / "0") en vez de invadir el padding como hace una celda nowrap.
+            foreach ($columns as $i => $column) {
+                if (!empty($column['external'])) {
+                    $floors[$i] = max($floors[$i], $comfortable[$i]);
+                }
+            }
             $widths = self::distribute($columns, $floors, $comfortable, $usablePt);
             return self::result($mode, $font, $padX, $padY, $wrap, $widths);
         }

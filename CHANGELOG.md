@@ -26,6 +26,16 @@
 - Contratos existentes actualizados a la nueva realidad: la columna externa de
   `run-template.php` ya no queda a 0%, y `showWithoutVat` mira el texto visible (un
   `width:21.3%` no es un tipo de IVA).
+- Tras la revisión independiente: las celdas de columnas no flexibles llevan `nowrap`
+  explícito (la regla `td:first-child` de las plantillas, pensada para la descripción,
+  partía el número de línea dígito a dígito en Prisma y Estudio cuando `#` iba primero); las
+  columnas externas reservan su ancho con padding real (en Estudio apaisado «L-2040»
+  partía en «L-204»/«0»); las cabeceras se miden en mayúsculas y negrita, como se imprimen.
+  El contrato añade A5 vertical y A4 apaisado con 12 columnas y comprueba que cada número de
+  línea es una palabra entera bajo la cabecera `#` (v3.6: 151 rojos de 510; 3.7: 0).
+- A5: el título/total de cabecera (`title_font_size`) se escala con el papel compacto
+  («3 913,09 €» se salía del margen en Resumen/Enmarcado) y en Prisma la etiqueta de los
+  metadatos («Número de factura») puede partir por palabras. Ambos preexistentes en 3.6.
 
 ## v3.6 - 2026-09-01
 

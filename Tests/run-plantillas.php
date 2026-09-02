@@ -48,7 +48,7 @@ final class BeplyPlantillasDoc extends BeplyPdfSampleDoc
         for ($i = 1; $i <= $lines; $i++) {
             $line = new stdClass();
             $line->referencia = sprintf('REF-%04d', $i);
-            $line->descripcion = 'Artículo de prueba número ' . $i . ' con una descripción de longitud media para la tabla';
+            $line->descripcion = 'Artículo de prueba (ref ' . sprintf('REF-%04d', $i) . ') con una descripción de longitud media para la tabla';
             $line->cantidad = (float) (1 + $i % 4);
             $line->pvpunitario = 12.5 + $i;
             $line->dtopor = ($i % 3 === 0) ? 5.0 : 0.0;
@@ -133,6 +133,9 @@ final class BeplyPlantillasSuite
             'a12cols40_defaultwidths' => ['cols' => self::ALL_COLUMNS, 'widths' => BeplyPdfConfig::defaultLineColumnWidths(self::ALL_COLUMNS), 'lines' => 40, 'obs' => '', 'rec' => 2, 'ext' => true],
             'b_noobs_receipts' => ['cols' => self::DEFAULT_COLUMNS, 'widths' => self::DEFAULT_WIDTHS, 'lines' => 3, 'obs' => '', 'rec' => 2, 'ext' => false],
             'c_longobs_receipts' => ['cols' => self::DEFAULT_COLUMNS, 'widths' => self::DEFAULT_WIDTHS, 'lines' => 3, 'obs' => $longObservations, 'rec' => 2, 'ext' => false],
+            // (d) A5 vertical y (e) A4 apaisado con las mismas 12 columnas (aviso de Tono: A5/orientaciones con mucho texto)
+            'd_a5_12cols40' => ['cols' => self::ALL_COLUMNS, 'widths' => [0, 0, 48, 8, 13, 7, 14, 7, 0, 0, 0], 'lines' => 40, 'obs' => '', 'rec' => 2, 'ext' => true, 'paper' => 'A5', 'orientation' => 'portrait'],
+            'e_landscape_12cols40' => ['cols' => self::ALL_COLUMNS, 'widths' => [0, 0, 48, 8, 13, 7, 14, 7, 0, 0, 0], 'lines' => 40, 'obs' => $longObservations, 'rec' => 2, 'ext' => true, 'paper' => 'A4', 'orientation' => 'landscape'],
         ];
 
         $issuerTaxId = $this->issuerTaxId();
@@ -144,7 +147,7 @@ final class BeplyPlantillasSuite
                     BeplyPdfDocumentExtensionRegistry::addLineColumnProvider(new BeplyPlantillasLotColumnProvider());
                 }
                 $doc = new BeplyPlantillasDoc($case['lines'], $case['obs'], $case['rec']);
-                $cfg = $this->config($design, $case['cols'], $case['widths']);
+                $cfg = $this->config($design, $case['cols'], $case['widths'], $case['paper'] ?? 'A4', $case['orientation'] ?? 'portrait');
                 $html = $this->renderer->buildHtml($cfg, $doc);
                 $pdf = $this->renderer->render($cfg, $doc);
                 if ($this->outDir !== null) {
@@ -162,6 +165,24 @@ final class BeplyPlantillasSuite
 
                 if ($case['lines'] >= 40) {
                     $this->assert('40 líneas paginan en 2+ páginas', $probe->pageCount() >= 2, 'pages=' . $probe->pageCount());
+                    // El número de línea es una palabra ENTERA en el PDF («16», no «1» sobre «6»): la descripción del
+                    // fixture no contiene números sueltos, así que sólo la columna # puede aportarlos.
+                    $hash = $probe->findWord('#', 1);
+                    $split = [];
+                    foreach ([10, 16, 25, 40] as $number) {
+                        $found = false;
+                        foreach ($probe->findWords((string) $number) as $word) {
+                            // misma columna que la cabecera «#» (alineada a la derecha): bordes derechos a menos de 12 pt
+                            if ($hash !== null && abs($word['x1'] - $hash['x1']) < 12.0) {
+                                $found = true;
+                                break;
+                            }
+                        }
+                        if (!$found) {
+                            $split[] = $number;
+                        }
+                    }
+                    $this->assert('número de línea entero bajo la cabecera # (no partido dígito a dígito)', $hash !== null && $split === [], 'hash=' . json_encode($hash) . ' missing ' . json_encode($split));
                     $this->assert('última línea presente', strpos($text, 'REF-0040') !== false, 'REF-0040 missing');
                     $this->assert('columna externa presente', strpos($text, 'L-2040') !== false, 'external column value missing');
                 }
@@ -204,7 +225,7 @@ final class BeplyPlantillasSuite
         if (!is_array($expiration)) {
             return;
         }
-        $right = self::PAGE_WIDTH_PT - self::MARGIN_PT;
+        $right = $probe->pageWidth(1) - self::MARGIN_PT;
         if ($withoutObservations) {
             $this->assert('azure: sin observaciones la tabla de recibos ocupa todo el ancho', $expiration['x1'] >= $right - 40.0, sprintf('x1=%.1f right=%.1f', $expiration['x1'], $right));
         } else {
@@ -217,8 +238,8 @@ final class BeplyPlantillasSuite
     {
         $out = [];
         $left = self::MARGIN_PT - 1.5;
-        $right = self::PAGE_WIDTH_PT - self::MARGIN_PT + 1.5;
         for ($page = 1; $page <= $probe->pageCount(); $page++) {
+            $right = $probe->pageWidth($page) - self::MARGIN_PT + 1.5;
             foreach ($probe->words($page) as $word) {
                 if ($word['x1'] > $right || $word['x0'] < $left) {
                     $out[] = sprintf('p%d "%s" x0=%.1f x1=%.1f', $page, $word['text'], $word['x0'], $word['x1']);
@@ -251,10 +272,12 @@ final class BeplyPlantillasSuite
         return $out;
     }
 
-    private function config(string $design, array $cols, array $widths): BeplyPdfConfig
+    private function config(string $design, array $cols, array $widths, string $paper = 'A4', string $orientation = 'portrait'): BeplyPdfConfig
     {
         $cfg = new BeplyPdfConfig();
         $cfg->diseno = $design;
+        $cfg->paperSize = $paper;
+        $cfg->orientation = $orientation;
         $cfg->lineColumns = $cols;
         $cfg->lineColumnsAlign = array_map(static fn(string $k): string => in_array($k, ['descripcion', 'referencia'], true) ? 'left' : 'right', $cols);
         $cfg->lineColumnsType = array_map(static fn(string $k): string => self::TYPES[$k], $cols);

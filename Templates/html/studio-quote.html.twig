@@ -258,7 +258,7 @@
       <thead>
         <tr>
           {% for c in columns %}
-          <th style="text-align:{{ c.align }};width:{{ c.width }}%;{% if c.key == 'descripcion' or c.external|default(false) or not is_document %}white-space:normal;overflow-wrap:anywhere;word-break:break-word;{% endif %}">{{ c.label }}</th>
+          <th style="text-align:{{ c.align }};width:{{ c.width }}%;{% if c.key == 'descripcion' or c.external|default(false) or not is_document %}white-space:normal;overflow-wrap:anywhere;word-break:break-word;{% else %}white-space:nowrap;word-break:normal;overflow-wrap:normal;{% endif %}">{{ c.label }}</th>
           {% endfor %}
         </tr>
       </thead>
@@ -267,7 +267,7 @@
         <tr>
           {% for cell in row %}
           {% set c = columns[loop.index0]|default({}) %}
-          <td class="{{ c.key|default('') == 'descripcion' ? 'studio-desc-cell' : '' }}" style="text-align:{{ cell.align }};width:{{ c.width|default(cell.width|default(0)) }}%;{% if c.key|default('') == 'descripcion' or c.external|default(false) or not is_document %}white-space:normal;overflow-wrap:anywhere;word-break:break-word;{% endif %}">
+          <td class="{{ c.key|default('') == 'descripcion' ? 'studio-desc-cell' : '' }}" style="text-align:{{ cell.align }};width:{{ c.width|default(cell.width|default(0)) }}%;{% if c.key|default('') == 'descripcion' or c.external|default(false) or not is_document %}white-space:normal;overflow-wrap:anywhere;word-break:break-word;{% else %}white-space:nowrap;word-break:normal;overflow-wrap:normal;{% endif %}">
             {% if cell.html|default(false) %}<div class="studio-description-rich">{{ cell.value|raw }}</div>{% else %}{{ cell.value }}{% endif %}
           </td>
           {% endfor %}

@@ -805,9 +805,13 @@ final class BeplyTemplateSuite
         $dtoWidth = $this->headerWidth($autoBody, '% ' . Tools::lang()->trans('dto'));
         $vatWidth = $this->headerWidth($autoBody, Tools::lang()->trans('vat'));
         // Hasta 3.6 la descripción "tenía" >35% porque las demás columnas imprimían su texto fuera de
-        // la celda (y la externa a 0%). Con cada columna al ancho real de su contenido, la descripción
-        // sigue siendo la dominante (>= 30% y más del doble y medio que el precio).
-        $this->assert('lineColumns auto ancho descripcion', $descriptionWidth >= 30.0);
+        // la celda (y la externa a 0%). Con 8 columnas (7 + la externa E2E de 16 caracteres) al ancho
+        // real de su contenido y cabecera, la descripción sigue siendo la dominante: la más ancha de
+        // todas, al menos un cuarto de la tabla y más del doble y medio que el precio.
+        $referenceAutoWidth = $this->headerWidth($autoBody, Tools::lang()->trans('reference'));
+        $externalAutoWidth = $this->headerWidth($autoBody, 'E2E EXT');
+        $this->assert('lineColumns auto ancho descripcion', $descriptionWidth >= 25.0
+            && $descriptionWidth > max($referenceAutoWidth, $priceWidth, $externalAutoWidth, $dtoWidth, $vatWidth));
         $this->assert('lineColumns auto ancho descripcion dominante', $descriptionWidth > $priceWidth * 2.5);
         $this->assert('lineColumns auto ancho dto e iva', $dtoWidth > 0.0 && $dtoWidth < 10.0 && $vatWidth > 0.0 && $vatWidth < 10.0);
 
