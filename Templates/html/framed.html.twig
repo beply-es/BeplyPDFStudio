@@ -174,7 +174,7 @@
           {% if doc.numero2 %}<tr><td class="ml">{{ 'number2'|trans }}:</td><td class="mr">{{ doc.numero2 }}</td></tr>{% endif %}
           {% if doc.payment_date %}<tr><td class="ml">{{ 'payment-date'|trans }}:</td><td class="mr">{{ doc.payment_date }}</td></tr>{% endif %}
           {% for parent in doc.parent_docs %}<tr><td class="ml">{{ 'document'|trans }}:</td><td class="mr">{{ parent }}</td></tr>{% endfor %}
-          {% if metadata_cifnif %}<tr><td class="ml">{{ 'cifnif'|trans }}:</td><td class="mr">{{ metadata_cifnif }}</td></tr>{% endif %}
+          {# La identidad fiscal de la contraparte va UNA vez, en su bloque (derecha); aquí nunca. #}
           {% set slot = slots.DOCUMENT_META_AFTER %}{% include '_slot.html.twig' %}
         </table>
       </td>
@@ -208,11 +208,11 @@
   <div class="l-frame">
     <table class="desc-table">
       <thead>
-        <tr>{% for c in columns %}<th style="text-align:{{ c.align }};width:{{ c.width }}%;{% if c.key == 'descripcion' or not is_document %}white-space:normal;overflow-wrap:anywhere;word-break:break-word;{% endif %}">{{ c.label }}</th>{% endfor %}</tr>
+        <tr>{% for c in columns %}<th style="text-align:{{ c.align }};width:{{ c.width }}%;{% if c.key == 'descripcion' or c.external|default(false) or not is_document %}white-space:normal;overflow-wrap:anywhere;word-break:break-word;{% endif %}">{{ c.label }}</th>{% endfor %}</tr>
       </thead>
       <tbody>
         {% for row in lines %}
-        <tr>{% for cell in row %}{% set c = columns[loop.index0]|default({}) %}<td style="text-align:{{ cell.align }};width:{{ c.width|default(0) }}%;{% if c.key|default('') == 'descripcion' or not is_document %}white-space:normal;overflow-wrap:anywhere;word-break:break-word;{% endif %}">{% if cell.html|default(false) %}{{ cell.value|raw }}{% else %}{{ cell.value }}{% endif %}</td>{% endfor %}</tr>
+        <tr>{% for cell in row %}{% set c = columns[loop.index0]|default({}) %}<td style="text-align:{{ cell.align }};width:{{ c.width|default(0) }}%;{% if c.key|default('') == 'descripcion' or c.external|default(false) or not is_document %}white-space:normal;overflow-wrap:anywhere;word-break:break-word;{% endif %}">{% if cell.html|default(false) %}{{ cell.value|raw }}{% else %}{{ cell.value }}{% endif %}</td>{% endfor %}</tr>
         {% endfor %}
       </tbody>
     </table>

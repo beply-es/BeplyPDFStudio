@@ -36,6 +36,9 @@ docker exec -u www-data "$CONTAINER" php "$PLUGIN/Tests/run-performance.php"
 echo "== Document layout smoke (documentos reales sin cortes ni overflow) =="
 docker exec -u www-data "$CONTAINER" php "$PLUGIN/Tests/run-document-layout.php"
 
+echo "== Plantillas: 12 columnas, sin/con observaciones, CIF del cliente, bloque de pago (PDF real) =="
+docker exec -u www-data "$CONTAINER" php "$PLUGIN/Tests/run-plantillas.php"
+
 echo "== Bottom anchor (totales/recibos medidos contra el fondo útil) =="
 docker exec -u www-data "$CONTAINER" php "$PLUGIN/Tests/run-bottom-anchor.php"
 

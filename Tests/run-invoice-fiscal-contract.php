@@ -189,19 +189,27 @@ final class BeplyInvoiceFiscalContractSuite
         foreach ($cases as [$label, $documentTaxId, $subjectTaxId, $expected]) {
             $html = $this->html(new BeplySyntheticInvoiceContractDoc($documentTaxId, $subjectTaxId));
             $metadata = $this->framedMetadata($html);
+            $counterparty = $this->framedCounterparty($html);
             $this->assert($label . ' metadata exists', $metadata !== '', 'meta-left missing');
+            $this->assert($label . ' metadata never carries a fiscal row',
+                strpos($metadata, Tools::lang()->trans('cifnif')) === false,
+                $metadata
+            );
             if ($expected === '') {
                 $this->assert(
-                    $label . ' omits fiscal row',
-                    strpos($metadata, Tools::lang()->trans('cifnif')) === false,
-                    $metadata
+                    $label . ' omits fiscal identity in the customer block',
+                    strpos($counterparty, Tools::lang()->trans('cifnif')) === false,
+                    $counterparty
                 );
             } else {
-                $this->assert($label . ' renders resolved buyer', strpos($metadata, $expected) !== false, $metadata);
+                $this->assert($label . ' renders resolved buyer once in the customer block',
+                    substr_count($counterparty, $expected) === 1,
+                    $counterparty
+                );
             }
             $this->assert($label . ' never prints raw placeholder/synthetic value',
-                $documentTaxId === $expected || trim($documentTaxId) === '' || strpos($metadata, trim($documentTaxId)) === false,
-                $metadata
+                $documentTaxId === $expected || trim($documentTaxId) === '' || strpos($html, trim($documentTaxId)) === false,
+                $html
             );
         }
     }
@@ -248,12 +256,8 @@ final class BeplyInvoiceFiscalContractSuite
             $metadata = $this->framedMetadata($html);
             $counterparty = $this->framedCounterparty($html);
 
-            $this->assert('purchase metadata renders purchaser company identity',
-                strpos($metadata, $purchaserTaxId) !== false,
-                $metadata
-            );
-            $this->assert('purchase metadata never duplicates supplier identity',
-                strpos($metadata, $supplierTaxId) === false,
+            $this->assert('purchase metadata carries no fiscal identity at all',
+                strpos($metadata, $purchaserTaxId) === false && strpos($metadata, $supplierTaxId) === false,
                 $metadata
             );
             $this->assert('purchase counterparty block keeps supplier identity',
@@ -270,8 +274,8 @@ final class BeplyInvoiceFiscalContractSuite
                 substr_count($text, $supplierTaxId) === 1,
                 'occurrences=' . substr_count($text, $supplierTaxId)
             );
-            $this->assert('purchase PDF includes purchaser identity in company and buyer metadata',
-                substr_count($text, $purchaserTaxId) === 2,
+            $this->assert('purchase PDF prints purchaser identity exactly once (issuer header)',
+                substr_count($text, $purchaserTaxId) === 1,
                 'occurrences=' . substr_count($text, $purchaserTaxId)
             );
         } finally {

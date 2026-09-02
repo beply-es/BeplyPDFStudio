@@ -238,11 +238,11 @@
     <div class="lines-area">
     <table class="desc-table">
       <thead>
-        <tr>{% for c in columns %}<th style="text-align:{{ c.align }};width:{{ c.width }}%;{% if c.key == 'descripcion' or not is_document %}white-space:normal;overflow-wrap:anywhere;word-break:break-word;{% endif %}">{{ c.label }}</th>{% endfor %}</tr>
+        <tr>{% for c in columns %}<th style="text-align:{{ c.align }};width:{{ c.width }}%;{% if c.key == 'descripcion' or c.external|default(false) or not is_document %}white-space:normal;overflow-wrap:anywhere;word-break:break-word;{% endif %}">{{ c.label }}</th>{% endfor %}</tr>
       </thead>
       <tbody>
         {% for row in lines %}
-        <tr>{% for cell in row %}{% set c = columns[loop.index0]|default({}) %}<td style="text-align:{{ cell.align }};width:{{ c.width|default(0) }}%;{% if c.key|default('') == 'descripcion' or not is_document %}white-space:normal;overflow-wrap:anywhere;word-break:break-word;{% endif %}">{% if cell.html|default(false) %}{{ cell.value|raw }}{% else %}{{ cell.value }}{% endif %}</td>{% endfor %}</tr>
+        <tr>{% for cell in row %}{% set c = columns[loop.index0]|default({}) %}<td style="text-align:{{ cell.align }};width:{{ c.width|default(0) }}%;{% if c.key|default('') == 'descripcion' or c.external|default(false) or not is_document %}white-space:normal;overflow-wrap:anywhere;word-break:break-word;{% endif %}">{% if cell.html|default(false) %}{{ cell.value|raw }}{% else %}{{ cell.value }}{% endif %}</td>{% endfor %}</tr>
         {% endfor %}
       </tbody>
     </table>

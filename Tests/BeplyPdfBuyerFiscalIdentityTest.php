@@ -89,13 +89,9 @@ final class BeplyPdfBuyerFiscalIdentityTest extends TestCase
             strpos($companyBlock, 'company.cifnif') !== false,
             'issuer fiscal identity must remain in the issuer block'
         );
-        $this->assertTrue(
-            strpos($metadataBlock, 'metadata_cifnif') !== false,
-            'the labelled metadata field must use the role-aware buyer fiscal identity'
-        );
         $this->assertFalse(
-            strpos($metadataBlock, 'company.cifnif') !== false || strpos($metadataBlock, 'customer.cifnif') !== false,
-            'the template must not hardcode a party role for buyer metadata'
+            strpos($metadataBlock, 'cifnif') !== false,
+            'the metadata block must not repeat any fiscal identity: the customer block already prints the buyer'
         );
     }
 

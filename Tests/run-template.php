@@ -340,6 +340,12 @@ final class BeplyTemplateSuite
         return preg_match('#<style>(.*?)</style>#s', $html, $m) ? $m[1] : '';
     }
 
+    /** Texto visible del cuerpo: sin etiquetas ni atributos (los estilos inline no son contenido). */
+    private function visibleText(string $body): string
+    {
+        return html_entity_decode(strip_tags($body), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+    }
+
     private function bodyOf(string $html): string
     {
         $body = preg_match('#<body>(.*?)</body>#s', $html, $m) ? $m[1] : '';
@@ -634,7 +640,8 @@ final class BeplyTemplateSuite
             $c->lineColumnsWidth = [36, 10, 14, 14, 8, 8, 8, 12];
         });
         $body = $this->bodyOf($this->htmlForModel($cfg, $quote));
-        $this->assert('showWithoutVat non-invoice hides VAT breakdown', strpos($body, '21%') === false);
+        // Sólo texto visible: los anchos de columna (`width:21.3%`) no son un tipo de IVA impreso.
+        $this->assert('showWithoutVat non-invoice hides VAT breakdown', strpos($this->visibleText($body), '21%') === false);
         $this->assert('showWithoutVat non-invoice hides VAT header', stripos($body, Tools::lang()->trans('vat')) === false);
         $this->assert('showWithoutVat non-invoice hides surcharge header', !$this->bodyHasTagText($body, Tools::lang()->trans('re')));
         $this->assert('showWithoutVat non-invoice hides IRPF header', stripos($body, Tools::lang()->trans('irpf')) === false);
@@ -642,7 +649,7 @@ final class BeplyTemplateSuite
         $this->assert('showWithoutVat non-invoice hides gross total', strpos($body, Tools::money((float) $quote->total, $quote->coddivisa)) === false);
 
         $invoiceBody = $this->bodyOf($this->html($this->cfg(fn($c) => $c->showWithoutVat = true)));
-        $this->assert('showWithoutVat applies to selected invoice format too', strpos($invoiceBody, '21%') === false);
+        $this->assert('showWithoutVat applies to selected invoice format too', strpos($this->visibleText($invoiceBody), '21%') === false);
     }
 
     private function richLineDescription(): void
@@ -772,7 +779,16 @@ final class BeplyTemplateSuite
         // cabecera con Referencia y SIN "Cant." ni "Precio"
         $this->assert('lineColumns (cabeceras)', stripos($body, 'Referencia') !== false && stripos($body, 'Cant.') === false);
         $this->assert('lineColumns (datos referencia)', strpos($body, 'REF-001') !== false);
-        $this->assert('lineColumns aplica ancho en documentos', strpos($body, 'width:20%;') !== false && strpos($body, 'width:60%;') !== false);
+        // Las columnas externas entran en el reparto al 100%: las configuradas conservan su proporción
+        // (referencia y neto iguales, descripción tres veces mayor) y la externa nunca queda a 0%.
+        $referenceWidth = $this->headerWidth($body, Tools::lang()->trans('reference'));
+        $netWidth = $this->headerWidth($body, Tools::lang()->trans('net'));
+        $descriptionConfiguredWidth = $this->headerWidth($body, Tools::lang()->trans('description'));
+        $externalWidth = $this->headerWidth($body, 'E2E EXT');
+        $this->assert('lineColumns aplica ancho en documentos', $referenceWidth > 0.0 && abs($referenceWidth - $netWidth) < 0.02
+            && $descriptionConfiguredWidth > 2.5 * $referenceWidth);
+        $this->assert('lineColumns columna externa con ancho propio', $externalWidth > 3.0);
+        $this->assert('lineColumns anchos suman 100', abs($referenceWidth + $netWidth + $descriptionConfiguredWidth + $externalWidth - 100.0) < 0.05);
         $this->assert('lineColumns descripción corta palabras largas', strpos($body, 'overflow-wrap:anywhere;word-break:break-word;') !== false);
         $this->assert('lineColumns extension header', strpos($body, 'E2E EXT') !== false);
         $this->assert('lineColumns extension data', strpos($body, 'E2E_LINE_VALUE_1') !== false);
@@ -788,7 +804,10 @@ final class BeplyTemplateSuite
         $priceWidth = $this->headerWidth($autoBody, Tools::lang()->trans('price'));
         $dtoWidth = $this->headerWidth($autoBody, '% ' . Tools::lang()->trans('dto'));
         $vatWidth = $this->headerWidth($autoBody, Tools::lang()->trans('vat'));
-        $this->assert('lineColumns auto ancho descripcion', $descriptionWidth > 35.0);
+        // Hasta 3.6 la descripción "tenía" >35% porque las demás columnas imprimían su texto fuera de
+        // la celda (y la externa a 0%). Con cada columna al ancho real de su contenido, la descripción
+        // sigue siendo la dominante (>= 30% y más del doble y medio que el precio).
+        $this->assert('lineColumns auto ancho descripcion', $descriptionWidth >= 30.0);
         $this->assert('lineColumns auto ancho descripcion dominante', $descriptionWidth > $priceWidth * 2.5);
         $this->assert('lineColumns auto ancho dto e iva', $dtoWidth > 0.0 && $dtoWidth < 10.0 && $vatWidth > 0.0 && $vatWidth < 10.0);
 
