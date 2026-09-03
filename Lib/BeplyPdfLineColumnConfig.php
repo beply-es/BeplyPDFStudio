@@ -26,12 +26,27 @@ final class BeplyPdfLineColumnConfig
      * @param array{columns?: array, align?: array, type?: array, width?: array} $stored
      * @return array{columns: array, align: array, type: array, width: array}
      */
-    public static function resolve(array $children, array $stored): array
+    public static function resolve(array $children, array $stored, bool $storedIsCanonical = false): array
     {
         $children = self::shape($children);
         $stored = self::shape($stored);
 
+        if ($storedIsCanonical && self::isUsable($stored)) {
+            return $stored;
+        }
+
         return self::isUsable($children) ? $children : $stored;
+    }
+
+    /**
+     * Compares two materialized snapshots without losing row order or metadata.
+     *
+     * @param array{columns?: array, align?: array, type?: array, width?: array} $current
+     * @param array{columns?: array, align?: array, type?: array, width?: array} $expected
+     */
+    public static function matches(array $current, array $expected): bool
+    {
+        return self::shape($current) === self::shape($expected);
     }
 
     private static function isUsable(array $config): bool

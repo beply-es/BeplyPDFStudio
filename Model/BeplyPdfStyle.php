@@ -236,7 +236,7 @@ class BeplyPdfStyle extends ModelClass
     }
 
     /** Materializa la configuración a partir de las columnas. */
-    public function buildConfig(): BeplyPdfConfig
+    public function buildConfig(bool $storedColumnsAreCanonical = false): BeplyPdfConfig
     {
         // Las filas hijas son la fuente de verdad mientras formen una configuracion
         // coherente. Ante duplicados o una migracion incompleta recuperamos el ultimo
@@ -247,7 +247,7 @@ class BeplyPdfStyle extends ModelClass
             'align' => $this->csvToArray($this->line_columns_align),
             'type' => $this->csvToArray($this->line_columns_type),
             'width' => [],
-        ]);
+        ], $storedColumnsAreCanonical);
 
         return BeplyPdfConfig::fromArray([
             'diseno' => $this->diseno,
@@ -355,29 +355,88 @@ class BeplyPdfStyle extends ModelClass
      * Reescribe las filas hijas (BeplyPdfColumn) a partir de un BeplyPdfConfig.
      * Se llama al aplicar un diseño o al migrar desde el CSV legacy. Requiere id.
      */
-    public function rebuildColumnsFromConfig(BeplyPdfConfig $c): void
+    public function rebuildColumnsFromConfig(BeplyPdfConfig $c): bool
     {
         if (empty($this->id)) {
-            return;
-        }
-        // borramos las filas actuales del estilo
-        $where = [new DataBaseWhere('idstyle', $this->id)];
-        foreach (BeplyPdfColumn::all($where, [], 0, 0) as $old) {
-            $old->delete();
-        }
-        // insertamos según la config
-        foreach ($c->lineColumns as $i => $field) {
-            $col = new BeplyPdfColumn();
-            $col->idstyle = (int) $this->id;
-            $col->fieldname = $field;
-            $col->align = $c->lineColumnsAlign[$i] ?? 'left';
-            $col->coltype = $c->lineColumnsType[$i] ?? 'text';
-            $col->width = (int) ($c->lineColumnsWidth[$i] ?? 0);
-            $col->orden = ($i + 1) * 10;
-            $col->save();
+            return false;
         }
 
-        BeplyPdfRenderService::clearCache();
+        $ownsTransaction = false === self::$dataBase->inTransaction();
+        if ($ownsTransaction && false === self::$dataBase->beginTransaction()) {
+            Tools::log()->warning('beplypdf-columns-rebuild-transaction-failed');
+            return false;
+        }
+
+        try {
+            // Serializa todas las regeneraciones del mismo estilo en MySQL y PostgreSQL.
+            // Sin este lock dos peticiones podian intercalar delete/insert y duplicar filas.
+            $table = self::$dataBase->escapeColumn(self::tableName());
+            $primary = self::$dataBase->escapeColumn(self::primaryColumn());
+            $locked = self::$dataBase->select(
+                'SELECT ' . $primary . ' FROM ' . $table
+                . ' WHERE ' . $primary . ' = ' . (int) $this->id . ' FOR UPDATE'
+            );
+            if ($locked === []) {
+                throw new \RuntimeException('style-row-lock-failed');
+            }
+
+            // Una peticion que haya esperado el lock no debe reutilizar filas cacheadas
+            // antes de que la peticion anterior terminase la regeneracion.
+            (new BeplyPdfColumn())->clearCache();
+            $expected = $this->columnsSnapshotFromConfig($c);
+            if (BeplyPdfLineColumnConfig::matches($this->columnsConfig(), $expected)) {
+                if ($ownsTransaction && false === self::$dataBase->commit()) {
+                    throw new \RuntimeException('column-rebuild-commit-failed');
+                }
+                return true;
+            }
+
+            $where = [new DataBaseWhere('idstyle', $this->id)];
+            foreach (BeplyPdfColumn::all($where, [], 0, 0) as $old) {
+                if (false === $old->delete()) {
+                    throw new \RuntimeException('column-delete-failed');
+                }
+            }
+
+            foreach ($c->lineColumns as $i => $field) {
+                $col = new BeplyPdfColumn();
+                $col->idstyle = (int) $this->id;
+                $col->fieldname = $field;
+                $col->align = $c->lineColumnsAlign[$i] ?? 'left';
+                $col->coltype = $c->lineColumnsType[$i] ?? 'text';
+                $col->width = (int) ($c->lineColumnsWidth[$i] ?? 0);
+                $col->orden = ($i + 1) * 10;
+                if (false === $col->save()) {
+                    throw new \RuntimeException('column-insert-failed');
+                }
+            }
+
+            if ($ownsTransaction && false === self::$dataBase->commit()) {
+                throw new \RuntimeException('column-rebuild-commit-failed');
+            }
+
+            BeplyPdfRenderService::clearCache();
+            return true;
+        } catch (\Throwable $e) {
+            if (self::$dataBase->inTransaction()) {
+                self::$dataBase->rollback();
+            }
+            Tools::log()->warning('beplypdf-columns-rebuild-failed: ' . $e->getMessage());
+            return false;
+        }
+    }
+
+    /** @return array{columns: string[], align: string[], type: string[], width: int[]} */
+    private function columnsSnapshotFromConfig(BeplyPdfConfig $c): array
+    {
+        $snapshot = ['columns' => [], 'align' => [], 'type' => [], 'width' => []];
+        foreach ($c->lineColumns as $i => $field) {
+            $snapshot['columns'][] = $field;
+            $snapshot['align'][] = $c->lineColumnsAlign[$i] ?? 'left';
+            $snapshot['type'][] = $c->lineColumnsType[$i] ?? 'text';
+            $snapshot['width'][] = (int) ($c->lineColumnsWidth[$i] ?? 0);
+        }
+        return $snapshot;
     }
 
     private function csvToArray(?string $value): array

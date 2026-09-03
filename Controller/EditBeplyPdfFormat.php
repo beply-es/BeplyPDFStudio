@@ -112,6 +112,9 @@ class EditBeplyPdfFormat extends PanelController
                 $this->applyLockedFormatUi($this->formatForCurrentCode());
                 $where = [new DataBaseWhere('idstyle', $style->id)];
                 $view->loadData('', $where, ['orden' => 'ASC', 'id' => 'ASC']);
+                if ($this->lockedFormat && method_exists($view, 'setReadOnly')) {
+                    $view->setReadOnly(true);
+                }
                 $this->loadPreview();
                 break;
 

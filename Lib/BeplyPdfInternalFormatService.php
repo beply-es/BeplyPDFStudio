@@ -55,7 +55,9 @@ final class BeplyPdfInternalFormatService
                 return null;
             }
 
-            $this->ensureFormatStyle($format, $rule);
+            if (false === $this->ensureFormatStyle($format, $rule)) {
+                return null;
+            }
             return $format;
         });
     }
@@ -72,24 +74,32 @@ final class BeplyPdfInternalFormatService
         $format->titulo = (string) ($definition['titulo'] ?? $definition['title'] ?? $format->nombre);
     }
 
-    private function ensureFormatStyle(BeplyPdfFormatoDocumento $format, BeplyPdfInternalFormat $rule): void
+    private function ensureFormatStyle(BeplyPdfFormatoDocumento $format, BeplyPdfInternalFormat $rule): bool
     {
         $style = (new BeplyPdfFormatStyleService())->getOrCreateForFormat($format);
         if ($style === null) {
-            return;
+            return false;
         }
 
         if (BeplyPdfInternalFormatPolicy::shouldForceDraftWarning($rule, (string) $format->tipodoc)) {
-            $config = $style->buildConfig();
+            // Los formatos internos no admiten edicion manual: el snapshot escalar del
+            // estilo es canonico y permite reparar filas hijas antiguas o corruptas.
+            $config = $style->buildConfig(true);
             $config->showDraftWarning = true;
             $style->setConfig($config);
-            BeplyPdfInternalFormatGuard::withInternalWrite(static function () use ($style): void {
-                $style->save();
+            $saved = BeplyPdfInternalFormatGuard::withInternalWrite(static function () use ($style): bool {
+                return $style->save();
             });
+            if (false === $saved) {
+                return false;
+            }
         }
 
-        BeplyPdfInternalFormatGuard::withInternalWrite(static function () use ($style): void {
-            $style->rebuildColumnsFromConfig($style->buildConfig());
+        return BeplyPdfInternalFormatGuard::withInternalWrite(static function () use ($style): bool {
+            if (false === $style->rebuildColumnsFromConfig($style->buildConfig(true))) {
+                return false;
+            }
+            return true;
         });
     }
 
