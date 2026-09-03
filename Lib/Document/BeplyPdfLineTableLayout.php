@@ -93,28 +93,35 @@ final class BeplyPdfLineTableLayout
             // densidades: se respeta la proporción configurada y sólo se eleva la columna cuya celda
             // no puede contener su texto (una celda nowrap invade el padding y sale del recuadro; una
             // externa, que sí parte líneas, rompería "L-204" / "0").
-            $widths = self::distribute($columns, $comfortable, $comfortable, $usablePt);
-            if (!$wrap && self::flexibleSqueezed($columns, $widths, $usablePt)) {
+            $alloc = self::allocate($columns, $comfortable, $comfortable, $usablePt);
+            if (in_array($mode, [self::MODE_NORMAL, self::MODE_COMPACT], true) && self::flexibleSqueezed($columns, $alloc)) {
                 // Cabe, pero a costa de estrujar la descripción por debajo de un cuarto de la tabla y de su
                 // propia cuota: mejor letra y padding menores que una descripción de tres palabras por línea.
+                // Nunca se escala a wrap por esto: partir líneas en todas las celdas rompe los números.
                 continue;
             }
-            return self::result($mode, $font, $padX, $padY, $wrap, $widths);
+            return self::result($mode, $font, $padX, $padY, $wrap, self::percentages($alloc));
         }
 
-        return self::result(self::MODE_WRAP, max(7, $fontPx - 2), 3, 3, true, self::distribute($columns, [], [], $usablePt));
+        return self::result(self::MODE_WRAP, max(7, $fontPx - 2), 3, 3, true, self::percentages(self::allocate($columns, [], [], $usablePt)));
     }
 
     /**
      * ¿Alguna columna flexible ha quedado por debajo de FLEXIBLE_MIN_SHARE y, además, por debajo de la cuota que
-     * le daba su peso? Una descripción configurada estrecha a propósito (cuota ya pequeña) no cuenta.
-     * @param float[] $widths porcentajes
+     * le daba su peso? Una descripción configurada estrecha a propósito (cuota ya pequeña) no cuenta. Se compara
+     * en puntos, ANTES de redondear a porcentajes: el residuo del redondeo cae en la columna mayor (la descripción)
+     * y con pesos iguales la daba por estrujada (medido el 03-09-2026: seis pesos iguales saltaban a wrap).
+     * @param float[] $alloc anchos en pt
      */
-    private static function flexibleSqueezed(array $columns, array $widths, float $usablePt): bool
+    private static function flexibleSqueezed(array $columns, array $alloc): bool
     {
         $weightSum = 0.0;
         foreach ($columns as $column) {
             $weightSum += max(0.0, (float) ($column['weight'] ?? 0.0));
+        }
+        $total = array_sum($alloc);
+        if ($total <= 0.0) {
+            return false;
         }
         foreach ($columns as $i => $column) {
             if (empty($column['flexible'])) {
@@ -122,8 +129,8 @@ final class BeplyPdfLineTableLayout
             }
             $weight = max(0.0, (float) ($column['weight'] ?? 0.0));
             $share = $weightSum > 0.0 ? $weight / $weightSum : 1.0 / max(1, count($columns));
-            $got = ($widths[$i] ?? 0.0) / 100.0;
-            if ($got + 0.0001 < self::FLEXIBLE_MIN_SHARE && $got + 0.0001 < $share) {
+            $got = ($alloc[$i] ?? 0.0) / $total;
+            if ($got < self::FLEXIBLE_MIN_SHARE - 0.000001 && $got < $share - 0.000001) {
                 return true;
             }
         }
@@ -201,9 +208,9 @@ final class BeplyPdfLineTableLayout
     /**
      * Reparte el ancho útil: las columnas sin peso reservan su ancho cómodo; el resto se reparte
      * por peso y se eleva hasta su suelo tomando el exceso de las flexibles (y si no basta, de todas).
-     * @return float[] porcentajes con dos decimales que suman 100
+     * @return float[] anchos en pt (sin redondear)
      */
-    private static function distribute(array $columns, array $floors, array $comfortable, float $usablePt): array
+    private static function allocate(array $columns, array $floors, array $comfortable, float $usablePt): array
     {
         $n = count($columns);
         $alloc = array_fill(0, $n, 0.0);
@@ -258,10 +265,21 @@ final class BeplyPdfLineTableLayout
             }
         }
 
+        if (array_sum($alloc) <= 0.0) {
+            $alloc = array_fill(0, $n, 1.0);
+        }
+        return array_values($alloc);
+    }
+
+    /**
+     * @param float[] $alloc anchos en pt
+     * @return float[] porcentajes con dos decimales que suman 100
+     */
+    private static function percentages(array $alloc): array
+    {
         $total = array_sum($alloc);
         if ($total <= 0.0) {
-            $alloc = array_fill(0, $n, 1.0);
-            $total = (float) $n;
+            return [];
         }
         $widths = array_map(static fn(float $a): float => round($a / $total * 100.0, 2), $alloc);
         $diff = round(100.0 - array_sum($widths), 2);
