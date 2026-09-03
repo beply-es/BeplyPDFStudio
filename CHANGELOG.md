@@ -1,5 +1,18 @@
 # Changelog
 
+## v3.8 - 2026-09-03
+
+- Se niega a imprimir un documento que se contradice a si mismo: cabecera
+  integramente a cero (`total`, `neto` y `netosindto`) mientras sus lineas suman
+  un importe. Es el patron medido en la auditoria fiscal de Osmosis, donde
+  `FAC2026LYM25` tiene factura, pedido, asiento y recibo a 17,98 y su PDF -local
+  y el subido al proveedor- muestra 0,00.
+- La negativa no degrada al motor del core: el resto de fallos de render si lo
+  hacen, y esa degradacion volveria a emitir el mismo documento falso.
+- No bloquea un documento legitimo con descuento del 100 %, ni afirma
+  contradiccion cuando falta un importe de cabecera o no se pueden leer las
+  lineas.
+
 ## v3.7 - 2026-09-02
 
 - Las columnas de la tabla de líneas ya no se salen del recuadro en ninguno de los nueve

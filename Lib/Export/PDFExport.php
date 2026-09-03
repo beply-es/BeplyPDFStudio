@@ -32,6 +32,8 @@ use FacturaScripts\Plugins\BeplyPDFStudio\Lib\BeplyPdfConfig;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\BeplyPdfDocumentCacheService;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\BeplyPdfGenericReportBuffer;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\BeplyPdfRenderService;
+use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfDocumentTotalsConsistency;
+use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfInconsistentDocumentException;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Html\BeplyHtmlRenderService;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\PdfEngine\BeplyPdfDraw;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\PdfEngine\BeplyPdfSampleDoc;
@@ -148,6 +150,8 @@ class PDFExport extends CorePDFExport
         $restoreLang = null;
 
         try {
+            $this->assertDocumentTotalsAreNotSelfContradictory($model);
+
             try {
                 $format = $this->getDocumentFormat($model);
                 $this->format = $format;
@@ -201,6 +205,9 @@ class PDFExport extends CorePDFExport
                     // si no, al menos aplicamos lo soportado por el core (orientación)
                     $this->applyBeplyConfig();
                 }
+            } catch (BeplyPdfInconsistentDocumentException $e) {
+                // No degrada al core: hacerlo volveria a emitir el documento falso.
+                throw $e;
             } catch (\Throwable $e) {
                 Tools::log()->warning('beplypdf-render-fallback: ' . $e->getMessage());
                 $this->beplyConfig = null;
@@ -2175,5 +2182,27 @@ class PDFExport extends CorePDFExport
         if ($this->pdf !== null && method_exists($this->pdf, 'addInfo')) {
             $this->pdf->addInfo('Creator', 'BeplyPDFStudio');
         }
+    }
+
+    private function assertDocumentTotalsAreNotSelfContradictory($model): void
+    {
+        if (!is_object($model) || !method_exists($model, 'getLines')) {
+            return;
+        }
+
+        try {
+            $lines = (array) $model->getLines();
+        } catch (\Throwable $e) {
+            // Si no se pueden leer las lineas no se afirma contradiccion.
+            return;
+        }
+
+        if (BeplyPdfDocumentTotalsConsistency::isConsistent($model, $lines)) {
+            return;
+        }
+
+        throw new BeplyPdfInconsistentDocumentException(
+            'beplypdf-inconsistent-document-totals: the document header is entirely zero while its lines carry an amount; refusing to print a fiscal document that contradicts itself'
+        );
     }
 }
