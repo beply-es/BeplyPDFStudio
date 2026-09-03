@@ -1,5 +1,21 @@
 # Changelog
 
+## v4.0 - 2026-09-03
+
+- Los formatos internos protegidos, como el borrador de TicketBAI, ya no pueden
+  duplicar columnas cuando dos peticiones intentan asegurar el formato a la vez:
+  la regeneración se serializa con bloqueo de fila, se ejecuta dentro de una
+  transacción y revierte completa si falla cualquier borrado o inserción.
+- La regeneración es idempotente y no toca la tabla cuando las filas ya coinciden.
+  En formatos internos, la configuración escalar protegida es el origen canónico,
+  por lo que una instalación que ya tenga columnas duplicadas se autorrepara en el
+  siguiente acceso sin conservar la corrupción.
+- El render recupera el último snapshot coherente si encuentra filas duplicadas,
+  incompletas o con metadatos desalineados, evitando que una tabla dañada altere el
+  PDF mientras se repara.
+- La pestaña de columnas de un formato interno se marca además como solo lectura;
+  el bloqueo de backend existente sigue rechazando guardados y borrados manuales.
+
 ## v3.9 - 2026-09-03
 
 - Nueva columna de líneas `pvpunitarioiva` («Precio con IVA»): el precio unitario con IVA
