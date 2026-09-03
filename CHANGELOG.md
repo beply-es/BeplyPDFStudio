@@ -20,9 +20,13 @@
 - En densidad normal la cabecera de una columna nativa va en una sola línea, así que reclama
   su ancho entero («PRECIO CON IVA»), no sólo su palabra más larga; en `compact`/`dense`,
   donde las cabeceras parten por palabras, sigue bastando la palabra más larga.
-- Si en densidad normal la descripción quedara por debajo de un cuarto de la tabla y de su
-  propia cuota (siete u ocho columnas a 12 px), el motor pasa a `compact` antes que
-  estrujarla; una descripción configurada estrecha a propósito no fuerza el cambio.
+- Si en densidad normal o `compact` la descripción quedara por debajo de un cuarto de la
+  tabla y de su propia cuota (siete u ocho columnas a 12 px), el motor pasa a la densidad
+  siguiente (`compact`, `dense`) antes que estrujarla; nunca a `wrap`, que parte los
+  números. Una descripción configurada estrecha a propósito no fuerza el cambio, y la
+  comparación se hace en puntos, antes de redondear los porcentajes (con pesos iguales el
+  residuo del redondeo la daba por estrujada). Configuración por defecto a 12 px:
+  descripción 48,8 % → 41,6 %.
 - `Tests/run-format-template.php`: los umbrales de anchos automáticos pasan de absolutos
   (descripción > 35 %, dto/IVA < 10 %) a relativos con medida: hasta ahora se cumplían
   porque el texto de dto/IVA invadía el padding (38 pt de celda para 52,5 pt necesarios).

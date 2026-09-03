@@ -198,6 +198,39 @@ final class BeplyPdfLineTableLayoutTest extends TestCase
         $this->assertSame([20.0, 20.0, 30.0, 30.0], $kept['widths']);
     }
 
+    public function testEqualWeightsThatFitStayNormalAndNeverWrapByRoundingAlone(): void
+    {
+        // Medido el 03-09-2026 (revisión independiente): con seis pesos iguales la descripción recibe exactamente su
+        // cuota (1/6), pero el porcentaje redondeado a dos decimales cargaba con el residuo (−0,02) y la comparación
+        // contra la cuota exacta la daba por «estrujada»: la tabla saltaba a wrap (letra 8, celdas partiendo números).
+        $equal = [];
+        foreach (['descripcion', 'cantidad', 'pvpunitario', 'dtopor', 'pvptotal', 'iva'] as $key) {
+            $equal[] = $this->column($key, 10.0, $key === 'descripcion' ? 30.0 : 3.9, 3.0, $key === 'descripcion');
+        }
+        $layout = BeplyPdfLineTableLayout::resolve($equal, self::A4_USABLE_PT, 10);
+        $this->assertSame(BeplyPdfLineTableLayout::MODE_NORMAL, $layout['mode']);
+        $this->assertEqualsWithDelta(100.0 / 6.0, $layout['widths'][0], 0.05);
+
+        $mostlyEqual = [];
+        foreach (['descripcion', 'cantidad', 'pvpunitario', 'dtopor', 'pvptotal', 'iva'] as $i => $key) {
+            $mostlyEqual[] = $this->column($key, $i === 0 ? 7.0 : 5.0, $key === 'descripcion' ? 30.0 : 3.9, 3.0, $key === 'descripcion');
+        }
+        $this->assertSame(BeplyPdfLineTableLayout::MODE_NORMAL, BeplyPdfLineTableLayout::resolve($mostlyEqual, self::A4_USABLE_PT, 10)['mode']);
+    }
+
+    public function testSqueezedDescriptionNeverEscalatesIntoWrap(): void
+    {
+        // Once columnas nativas a 12 px: caben en dense con la descripción por debajo de un cuarto. Partir líneas en
+        // todas las celdas (wrap) rompe los números: la escalada por descripción estrujada se queda en dense.
+        $columns = [];
+        foreach (['numlinea', 'referencia', 'descripcion', 'cantidad', 'pvpunitario', 'dtopor', 'pvptotal', 'iva', 'recargo', 'irpf', 'totaliva'] as $key) {
+            $columns[] = $this->column($key, 9.0, $key === 'descripcion' ? 30.0 : 4.2, 3.6, $key === 'descripcion');
+        }
+        $layout = BeplyPdfLineTableLayout::resolve($columns, self::A4_USABLE_PT, 12);
+        $this->assertTrue($layout['mode'] !== BeplyPdfLineTableLayout::MODE_WRAP, $layout['mode']);
+        $this->assertFalse($layout['wrap']);
+    }
+
     /** @param array<int, array> $columns */
     private function assertNoFixedColumnBelowItsNeed(array $columns, array $layout, float $usablePt): void
     {
