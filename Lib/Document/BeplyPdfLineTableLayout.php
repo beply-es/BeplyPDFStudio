@@ -31,8 +31,11 @@ namespace FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document;
  *   tamaño de letra y el padding de la plantilla;
  * - `wrap` como último recurso: si ni en denso cabe, las celdas parten líneas en vez de salirse.
  *
- * Contrato: una configuración que ya cabe con su densidad normal conserva EXACTAMENTE las
- * proporciones configuradas por el usuario (los diseños en uso no cambian de aspecto).
+ * Contrato: una configuración en la que cada celda ya tiene sitio para su texto MÁS el padding
+ * real de la plantilla conserva EXACTAMENTE las proporciones configuradas por el usuario. Una
+ * celda `nowrap` no cabe con menos: si el ancho no incluye el padding, el texto lo invade y, en
+ * la última columna, sale del recuadro (medido el 03-09-2026 con «21,00%» a 12 px: 557,0 pt con
+ * el margen en 552,8 pt).
  */
 final class BeplyPdfLineTableLayout
 {
@@ -47,8 +50,6 @@ final class BeplyPdfLineTableLayout
     private const WRAP_MAX_EM = 4.0;
     /** Ancho máximo (em) que reclama una columna externa (de extensión): más allá, parte líneas. */
     private const EXTERNAL_MAX_EM = 6.0;
-    /** Aire mínimo (pt) a cada lado del texto dentro de una celda que ya cabía sin cambiar la densidad. */
-    private const BREATHING_PT = 2.0;
     private const PX_TO_PT = 0.75;
 
     /**
@@ -83,19 +84,11 @@ final class BeplyPdfLineTableLayout
             if (!$wrap && array_sum($comfortable) > $usablePt) {
                 continue;
             }
-            // En densidad normal se respeta la proporción configurada: sólo se corrige lo que
-            // realmente no cabe (texto más ancho que su celda). En las demás, el suelo es cómodo.
-            $floors = $mode === self::MODE_NORMAL
-                ? self::needs($columns, $font, self::BREATHING_PT, false)
-                : $comfortable;
-            // Una columna externa puede partir líneas: si su celda no incluye el padding real, el texto
-            // parte ("L-204" / "0") en vez de invadir el padding como hace una celda nowrap.
-            foreach ($columns as $i => $column) {
-                if (!empty($column['external'])) {
-                    $floors[$i] = max($floors[$i], $comfortable[$i]);
-                }
-            }
-            $widths = self::distribute($columns, $floors, $comfortable, $usablePt);
+            // El suelo de cada columna es su texto más el padding real de la celda, en todas las
+            // densidades: se respeta la proporción configurada y sólo se eleva la columna cuya celda
+            // no puede contener su texto (una celda nowrap invade el padding y sale del recuadro; una
+            // externa, que sí parte líneas, rompería "L-204" / "0").
+            $widths = self::distribute($columns, $comfortable, $comfortable, $usablePt);
             return self::result($mode, $font, $padX, $padY, $wrap, $widths);
         }
 

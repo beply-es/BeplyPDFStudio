@@ -22,6 +22,7 @@ namespace FacturaScripts\Plugins\BeplyPDFStudio\Lib\PdfEngine\Render;
 use FacturaScripts\Core\Tools;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\BeplyPdfConfig;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\BeplyPdfRichTextLite;
+use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfLineAmounts;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\PdfEngine\BeplyPdfDraw;
 
 /**
@@ -504,7 +505,7 @@ class LinesTableRenderer
             foreach ($tableData as $row) {
                 $natural = max($natural, $this->measure($pdf, $fontSize, (string) ($row[$key] ?? '')));
             }
-            $min = in_array($key, ['pvpunitario', 'pvptotal', 'totaliva'], true) ? 62.0 : 48.0;
+            $min = in_array($key, ['pvpunitario', 'pvpunitarioiva', 'pvptotal', 'totaliva'], true) ? 62.0 : 48.0;
             if (in_array($key, ['iva', 'recargo', 'irpf', 'dtopor'], true)) {
                 $min = 54.0;
             }
@@ -602,6 +603,8 @@ class LinesTableRenderer
                 return BeplyPdfRichTextLite::toFallbackText((string) (Tools::fixHtml($d) ?? $d));
             case 'referencia':
                 return $this->prop($line, 'referencia');
+            case 'pvpunitarioiva':
+                return $this->formatPlain('money', BeplyPdfLineAmounts::unitPriceWithTaxes($line), $model);
             case 'totaliva':
                 $base = (float) $this->numProp($line, 'pvptotal');
                 $iva = (float) $this->numProp($line, 'iva');
@@ -912,6 +915,10 @@ class LinesTableRenderer
                 $desc = $this->prop($line, 'descripcion');
                 return BeplyPdfDraw::esc(BeplyPdfRichTextLite::toFallbackText((string) (Tools::fixHtml($desc) ?? $desc)));
 
+            case 'pvpunitarioiva':
+                // Precio unitario con impuestos: pvpunitario * (1 + iva/100 + recargo/100). Sólo presentación.
+                return $this->format('money', BeplyPdfLineAmounts::unitPriceWithTaxes($line), $model);
+
             case 'totaliva':
                 // Total con impuestos de la línea: pvptotal * (1 + iva/100) + recargo.
                 $base = (float)$this->numProp($line, 'pvptotal');
@@ -989,6 +996,7 @@ class LinesTableRenderer
             'descripcion' => Tools::lang()->trans('description'),
             'cantidad' => Tools::lang()->trans('beplypdf-quantity-short'),
             'pvpunitario' => Tools::lang()->trans('price'),
+            'pvpunitarioiva' => Tools::lang()->trans('beplypdf-price-with-vat'),
             'dtopor' => Tools::lang()->trans('dto') . ' %',
             'pvptotal' => Tools::lang()->trans('amount'),
             'iva' => Tools::lang()->trans('vat'),
@@ -1033,6 +1041,7 @@ class LinesTableRenderer
             case 'irpf':
                 return 'percentage';
             case 'pvpunitario':
+            case 'pvpunitarioiva':
             case 'pvptotal':
             case 'totaliva':
                 return 'money';

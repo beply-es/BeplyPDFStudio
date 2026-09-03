@@ -17,14 +17,57 @@ final class BeplyPdfLineTableLayoutTest extends TestCase
 {
     private const A4_USABLE_PT = 510.2; // 595,3 - 2 x 15 mm
 
-    public function testDefaultSixColumnsKeepTheirConfiguredProportions(): void
+    public function testConfiguredProportionsAreKeptWhenEveryColumnAlreadyFits(): void
     {
-        $layout = BeplyPdfLineTableLayout::resolve($this->defaultColumns(), self::A4_USABLE_PT, 10);
+        // Anchos configurados en los que cada celda ya tiene sitio para su texto MÁS el padding real
+        // de la plantilla: el motor no toca nada y sólo normaliza a 100.
+        $columns = [
+            $this->column('descripcion', 40.0, 30.0, 7.5, true),
+            $this->column('cantidad', 10.0, 2.6, 3.2),
+            $this->column('pvpunitario', 13.0, 5.0, 4.1),
+            $this->column('dtopor', 11.0, 3.5, 3.0),
+            $this->column('pvptotal', 14.0, 5.4, 2.9),
+            $this->column('iva', 12.0, 3.9, 2.1),
+        ];
+        $layout = BeplyPdfLineTableLayout::resolve($columns, self::A4_USABLE_PT, 10);
 
         $this->assertSame(BeplyPdfLineTableLayout::MODE_NORMAL, $layout['mode']);
         $this->assertSame(10, $layout['font_px']);
         $this->assertFalse($layout['wrap']);
-        $this->assertSame([49.48, 8.25, 13.4, 7.22, 14.43, 7.22], $layout['widths']);
+        $this->assertSame([40.0, 10.0, 13.0, 11.0, 14.0, 12.0], $layout['widths']);
+    }
+
+    public function testDefaultSixColumnsGiveEveryFixedColumnItsTextPlusThePadding(): void
+    {
+        // Con los anchos por defecto (48/8/13/7/14/7) la columna IVA recibe 7,22 % = 36,8 pt, pero
+        // «21,00%» a 10 px mide 29 pt y la celda lleva 12 px de padding a cada lado: 47 pt. En una
+        // celda nowrap ese texto invade el padding y, en la última columna, sale del recuadro.
+        $layout = BeplyPdfLineTableLayout::resolve($this->defaultColumns(), self::A4_USABLE_PT, 10);
+
+        $this->assertSame(BeplyPdfLineTableLayout::MODE_NORMAL, $layout['mode']);
+        $this->assertNoFixedColumnBelowItsNeed($this->defaultColumns(), $layout, self::A4_USABLE_PT);
+        $this->assertGreaterThan($layout['widths'][1], $layout['widths'][0], 'description keeps the largest share');
+        $this->assertEqualsWithDelta(100.0, array_sum($layout['widths']), 0.05);
+    }
+
+    public function testOsmosisSixColumnsWithoutWidthsAtTwelvePixelsKeepTheVatCellInsideTheFrame(): void
+    {
+        // Caso real (03-09-2026): diseño Enmarcado, letra 12 px, seis columnas añadidas desde el editor con
+        // ancho 0 (el motor usa pesos automáticos) y una sola línea «1,00 · 7,43 € · 7,43 € · 21,00%».
+        // Medido con WeasyPrint+poppler: «21,00%» terminaba en 557,0 pt con el margen útil en 552,8 pt.
+        $columns = [
+            $this->column('descripcion', 48.0, 12.9, 8.6, true),
+            $this->column('cantidad', 8.0, 2.24, 3.4),
+            $this->column('pvpunitario', 13.0, 3.2, 4.4),
+            $this->column('pvptotal', 14.0, 3.2, 3.1),
+            $this->column('iva', 7.0, 3.83, 2.3),
+        ];
+        $layout = BeplyPdfLineTableLayout::resolve($columns, self::A4_USABLE_PT, 12);
+
+        $this->assertSame(BeplyPdfLineTableLayout::MODE_NORMAL, $layout['mode']);
+        $vatPt = self::A4_USABLE_PT * $layout['widths'][4] / 100.0;
+        $this->assertTrue($vatPt + 0.05 >= 3.83 * 9.0 + 2 * 12 * 0.75, sprintf('IVA needs %.1fpt (text + padding) but got %.1fpt', 3.83 * 9.0 + 18.0, $vatPt));
+        $this->assertNoFixedColumnBelowItsNeed($columns, $layout, self::A4_USABLE_PT);
     }
 
     public function testWidthsAlwaysAddUpToOneHundred(): void

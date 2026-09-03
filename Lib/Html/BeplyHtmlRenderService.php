@@ -22,6 +22,7 @@ use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfDocumentExtension
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfDocumentSlot;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfBuyerFiscalIdentity;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfFiscalQrRegistry;
+use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfLineAmounts;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfLineColumn;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfLineTableLayout;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfParentDocumentLines;
@@ -1284,7 +1285,8 @@ class BeplyHtmlRenderService
         $labels = [
             'numlinea' => '#', 'referencia' => Tools::lang()->trans('reference'),
             'descripcion' => Tools::lang()->trans('description'), 'cantidad' => Tools::lang()->trans('beplypdf-quantity-short'),
-            'pvpunitario' => Tools::lang()->trans('price'), 'dtopor' => '% ' . Tools::lang()->trans('dto'),
+            'pvpunitario' => Tools::lang()->trans('price'), 'pvpunitarioiva' => Tools::lang()->trans('beplypdf-price-with-vat'),
+            'dtopor' => '% ' . Tools::lang()->trans('dto'),
             'pvptotal' => Tools::lang()->trans('net'), 'iva' => Tools::lang()->trans('vat'),
             'recargo' => Tools::lang()->trans('re'), 'irpf' => Tools::lang()->trans('irpf'),
             'totaliva' => Tools::lang()->trans('total'),
@@ -1660,6 +1662,10 @@ class BeplyHtmlRenderService
         if ($key === 'referencia') {
             return (string) ($line->referencia ?? '');
         }
+        if ($key === 'pvpunitarioiva') {
+            // Precio unitario con IVA (y recargo): sólo presentación; base y total siguen en la cabecera.
+            return Tools::money(BeplyPdfLineAmounts::unitPriceWithTaxes($line), $coddivisa);
+        }
         if ($key === 'totaliva') {
             $net = isset($line->pvptotal) && is_numeric($line->pvptotal) ? (float) $line->pvptotal : 0.0;
             $vat = isset($line->iva) && is_numeric($line->iva) ? (float) $line->iva : 0.0;
@@ -1854,7 +1860,7 @@ class BeplyHtmlRenderService
             return $cfg->lineColumns;
         }
 
-        $taxColumns = ['iva', 'recargo', 'irpf', 'totaliva'];
+        $taxColumns = ['iva', 'recargo', 'irpf', 'totaliva', 'pvpunitarioiva'];
         $columns = array_values(array_filter($cfg->lineColumns, static fn($column): bool => !in_array($column, $taxColumns, true)));
         return $columns ?: ['descripcion', 'pvptotal'];
     }

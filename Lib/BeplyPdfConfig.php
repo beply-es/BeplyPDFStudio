@@ -38,7 +38,7 @@ class BeplyPdfConfig
     public const FUENTES = ['helvetica', 'times', 'courier', 'dejavusans'];
     public const COLUMNAS = [
         'numlinea', 'referencia', 'descripcion', 'cantidad',
-        'pvpunitario', 'dtopor', 'pvptotal', 'iva', 'recargo', 'irpf', 'totaliva',
+        'pvpunitario', 'pvpunitarioiva', 'dtopor', 'pvptotal', 'iva', 'recargo', 'irpf', 'totaliva',
     ];
     public const COLUMN_TYPES = ['text', 'number', 'money', 'percentage'];
 
@@ -131,6 +131,7 @@ class BeplyPdfConfig
             'descripcion' => 48,
             'cantidad' => 8,
             'pvpunitario' => 13,
+            'pvpunitarioiva' => 13,
             'dtopor' => 7,
             'pvptotal' => 14,
             'iva' => 7,
