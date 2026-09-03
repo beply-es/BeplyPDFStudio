@@ -1,5 +1,24 @@
 # Changelog
 
+## v3.9 - 2026-09-03
+
+- Nueva columna de líneas `pvpunitarioiva` («Precio con IVA»): el precio unitario con IVA
+  y recargo (`pvpunitario` × (1 + IVA % + RE %)), pensada para facturas B2C en las que el
+  comprador espera ver en la línea el precio que paga (7,43 € al 21 % → 8,99 €). Sólo cambia
+  la presentación de la línea: la base imponible, las cuotas y el total siguen saliendo de
+  la cabecera del documento. Se elige desde el editor de columnas (`BpsLineas`), está en los
+  dos motores (WeasyPrint y el de respaldo) y «Documento sin IVA» la retira como al resto de
+  columnas fiscales.
+- La última columna de la tabla de líneas ya no sale del recuadro cuando el editor deja los
+  anchos a 0: el suelo de cada columna incluye el padding real de la celda (12 px por lado),
+  no sólo el texto. Medido en Osmosis (diseño Enmarcado, 12 px, seis columnas a 0):
+  «21,00%» terminaba en 557,0 pt con el margen útil en 552,8 pt; ahora en 543,0 pt. Las
+  configuraciones cuyas celdas ya tenían sitio para texto y padding conservan sus
+  proporciones exactas; en las demás la columna corta crece a costa de la descripción.
+- `Tests/run-plantillas.php`: dos casos nuevos por diseño con la línea real de
+  `FAC2026LYM36` a 12 px, seis columnas a ancho 0 (con `pvpunitario` y con `pvpunitarioiva`):
+  «21,00%» dentro del recuadro y «8,99 €» / «7,43 €» presentes.
+
 ## v3.8 - 2026-09-03
 
 - Se niega a imprimir un documento que se contradice a si mismo: cabecera
