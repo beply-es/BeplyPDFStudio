@@ -27,6 +27,7 @@ use FacturaScripts\Dinamic\Model\BeplyPdfColumn;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\BeplyPdfInternalFormatGuard;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\BeplyPdfConfig;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\BeplyPdfConfigValidator;
+use FacturaScripts\Plugins\BeplyPDFStudio\Lib\BeplyPdfLineColumnConfig;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\BeplyPdfRenderService;
 
 /**
@@ -237,8 +238,16 @@ class BeplyPdfStyle extends ModelClass
     /** Materializa la configuración a partir de las columnas. */
     public function buildConfig(): BeplyPdfConfig
     {
-        // las columnas de líneas son la fuente de verdad si existen filas hijas
-        $cols = $this->columnsConfig();
+        // Las filas hijas son la fuente de verdad mientras formen una configuracion
+        // coherente. Ante duplicados o una migracion incompleta recuperamos el ultimo
+        // snapshot escalar valido del estilo; los formatos internos lo materializan de
+        // nuevo en filas en su siguiente ensureLockedFormat().
+        $cols = BeplyPdfLineColumnConfig::resolve($this->columnsConfig(), [
+            'columns' => $this->csvToArray($this->line_columns),
+            'align' => $this->csvToArray($this->line_columns_align),
+            'type' => $this->csvToArray($this->line_columns_type),
+            'width' => [],
+        ]);
 
         return BeplyPdfConfig::fromArray([
             'diseno' => $this->diseno,
@@ -283,9 +292,9 @@ class BeplyPdfStyle extends ModelClass
             'hide_due_dates' => $this->hide_due_dates,
             'print_attachments' => $this->print_attachments,
             'show_without_vat' => $this->show_without_vat,
-            'line_columns' => $cols['columns'] ?: $this->csvToArray($this->line_columns),
-            'line_columns_align' => $cols['align'] ?: $this->csvToArray($this->line_columns_align),
-            'line_columns_type' => $cols['type'] ?: $this->csvToArray($this->line_columns_type),
+            'line_columns' => $cols['columns'],
+            'line_columns_align' => $cols['align'],
+            'line_columns_type' => $cols['type'],
             'line_columns_width' => $cols['width'],
             'footer_text' => $this->footer_text,
             'footer_font_size' => $this->footer_font_size,
