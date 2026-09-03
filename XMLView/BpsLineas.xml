@@ -20,6 +20,7 @@
                 <values title="line-field-reference">referencia</values>
                 <values title="line-field-quantity">cantidad</values>
                 <values title="line-field-unit-price">pvpunitario</values>
+                <values title="line-field-unit-price-vat">pvpunitarioiva</values>
                 <values title="line-field-discount">dtopor</values>
                 <values title="line-field-amount">pvptotal</values>
                 <values title="line-field-vat">iva</values>

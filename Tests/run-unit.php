@@ -103,6 +103,7 @@ namespace {
         \FacturaScripts\Test\Plugins\BeplyPDFStudio\BeplyPdfGenericReportBufferTest::class,
         \FacturaScripts\Test\Plugins\BeplyPDFStudio\BeplyPdfInternalFormatPolicyTest::class,
         \FacturaScripts\Test\Plugins\BeplyPDFStudio\BeplyPdfLineColumnConfigTest::class,
+        \FacturaScripts\Test\Plugins\BeplyPDFStudio\BeplyPdfLineAmountsTest::class,
         \FacturaScripts\Test\Plugins\BeplyPDFStudio\BeplyPdfLineTableLayoutTest::class,
         \FacturaScripts\Test\Plugins\BeplyPDFStudio\BeplyPdfLogoPathResolverTest::class,
         \FacturaScripts\Test\Plugins\BeplyPDFStudio\BeplyPdfParentDocumentLinesTest::class,
