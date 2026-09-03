@@ -1329,8 +1329,10 @@ class BeplyHtmlRenderService
                 'key' => $key,
                 'weight' => $weight,
                 'content_em' => $this->lineColumnContentEm($key, $type, $lines, $coddivisa),
-                // Las plantillas imprimen la cabecera en mayúsculas y negrita: se mide así.
+                // Las plantillas imprimen la cabecera en mayúsculas y negrita: se mide así. En densidad normal
+                // la cabecera nativa va en una línea (nowrap): también se mide entera.
                 'label_em' => BeplyPdfLineTableLayout::longestWordEm(mb_strtoupper($label)) * 1.08,
+                'label_full_em' => BeplyPdfLineTableLayout::emWidth(mb_strtoupper($label)) * 1.08,
                 'flexible' => $key === 'descripcion',
                 'external' => false,
             ];

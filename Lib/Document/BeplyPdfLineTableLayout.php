@@ -46,6 +46,8 @@ final class BeplyPdfLineTableLayout
 
     /** Ancho mínimo (em) de una columna flexible (descripción) para que quepa alguna palabra. */
     private const FLEXIBLE_MIN_EM = 6.0;
+    /** Cuota mínima del ancho útil para la columna flexible antes de preferir una densidad mayor. */
+    private const FLEXIBLE_MIN_SHARE = 0.25;
     /** Ancho máximo (em) que reclama una columna cuando se permite partir líneas. */
     private const WRAP_MAX_EM = 4.0;
     /** Ancho máximo (em) que reclama una columna externa (de extensión): más allá, parte líneas. */
@@ -53,11 +55,13 @@ final class BeplyPdfLineTableLayout
     private const PX_TO_PT = 0.75;
 
     /**
-     * @param array<int, array{key:string, weight:float, content_em:float, label_em:float, flexible?:bool, external?:bool}> $columns
+     * @param array<int, array{key:string, weight:float, content_em:float, label_em:float, label_full_em?:float, flexible?:bool, external?:bool}> $columns
      *        `weight` > 0 = proporción configurada (o automática); 0 = sin ancho: se reserva el que
      *        necesita su contenido. `content_em` = ancho del contenido más largo en em (nowrap);
-     *        `label_em` = palabra más larga de la cabecera en em; `flexible` = puede partir líneas
- *        (descripción); `external` = columna de extensión, que también parte líneas si es muy ancha.
+     *        `label_em` = palabra más larga de la cabecera en em; `label_full_em` = cabecera entera en em
+     *        (en densidad normal la cabecera de una columna nativa no parte: va en una línea);
+     *        `flexible` = puede partir líneas (descripción); `external` = columna de extensión, que
+     *        también parte líneas si es muy ancha.
      * @param float $usablePt ancho útil de la página en puntos (papel menos márgenes)
      * @param int $fontPx tamaño de letra configurado (px CSS)
      * @param int $padXPx padding horizontal de celda de la plantilla (px)
@@ -80,7 +84,8 @@ final class BeplyPdfLineTableLayout
             [self::MODE_WRAP, max(7, $fontPx - 2), 3, 3, true],
         ];
         foreach ($modes as [$mode, $font, $padX, $padY, $wrap]) {
-            $comfortable = self::needs($columns, $font, $padX * self::PX_TO_PT, $wrap);
+            // Sólo fuera de la densidad normal se inyecta el CSS que deja partir las cabeceras por palabras.
+            $comfortable = self::needs($columns, $font, $padX * self::PX_TO_PT, $wrap, $mode !== self::MODE_NORMAL);
             if (!$wrap && array_sum($comfortable) > $usablePt) {
                 continue;
             }
@@ -89,10 +94,40 @@ final class BeplyPdfLineTableLayout
             // no puede contener su texto (una celda nowrap invade el padding y sale del recuadro; una
             // externa, que sí parte líneas, rompería "L-204" / "0").
             $widths = self::distribute($columns, $comfortable, $comfortable, $usablePt);
+            if (!$wrap && self::flexibleSqueezed($columns, $widths, $usablePt)) {
+                // Cabe, pero a costa de estrujar la descripción por debajo de un cuarto de la tabla y de su
+                // propia cuota: mejor letra y padding menores que una descripción de tres palabras por línea.
+                continue;
+            }
             return self::result($mode, $font, $padX, $padY, $wrap, $widths);
         }
 
         return self::result(self::MODE_WRAP, max(7, $fontPx - 2), 3, 3, true, self::distribute($columns, [], [], $usablePt));
+    }
+
+    /**
+     * ¿Alguna columna flexible ha quedado por debajo de FLEXIBLE_MIN_SHARE y, además, por debajo de la cuota que
+     * le daba su peso? Una descripción configurada estrecha a propósito (cuota ya pequeña) no cuenta.
+     * @param float[] $widths porcentajes
+     */
+    private static function flexibleSqueezed(array $columns, array $widths, float $usablePt): bool
+    {
+        $weightSum = 0.0;
+        foreach ($columns as $column) {
+            $weightSum += max(0.0, (float) ($column['weight'] ?? 0.0));
+        }
+        foreach ($columns as $i => $column) {
+            if (empty($column['flexible'])) {
+                continue;
+            }
+            $weight = max(0.0, (float) ($column['weight'] ?? 0.0));
+            $share = $weightSum > 0.0 ? $weight / $weightSum : 1.0 / max(1, count($columns));
+            $got = ($widths[$i] ?? 0.0) / 100.0;
+            if ($got + 0.0001 < self::FLEXIBLE_MIN_SHARE && $got + 0.0001 < $share) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /** Ancho estimado de un texto en em (DejaVu Sans; mayúsculas y dígitos son anchos, minúsculas no). */
@@ -137,12 +172,16 @@ final class BeplyPdfLineTableLayout
      * Ancho mínimo (pt) de cada columna con un tamaño de letra y un margen lateral dados.
      * @return float[]
      */
-    private static function needs(array $columns, int $fontPx, float $sidePt, bool $wrap): array
+    private static function needs(array $columns, int $fontPx, float $sidePt, bool $wrap, bool $headersBreak = true): array
     {
         $fontPt = $fontPx * self::PX_TO_PT;
         $needs = [];
         foreach ($columns as $column) {
             $labelEm = max(0.0, (float) ($column['label_em'] ?? 0.0));
+            if (!$headersBreak && empty($column['flexible']) && empty($column['external'])) {
+                // Cabecera nativa en una sola línea: reclama la cabecera entera, no su palabra más larga.
+                $labelEm = max($labelEm, (float) ($column['label_full_em'] ?? 0.0));
+            }
             $contentEm = max(0.0, (float) ($column['content_em'] ?? 0.0));
             if (!empty($column['flexible'])) {
                 $em = max($labelEm, self::FLEXIBLE_MIN_EM);

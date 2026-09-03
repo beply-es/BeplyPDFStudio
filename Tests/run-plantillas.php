@@ -153,7 +153,8 @@ final class BeplyPlantillasSuite
                 'explicit' => [$this->osmosisLine()], 'line_band' => ['7,43 €', '7,43 €', '21,00%'], 'line_band_absent' => ['8,99 €'], 'vat_inside' => '21,00%'],
             // (g) la misma factura con la columna «Precio con IVA» en lugar de «Precio»: la línea muestra 8,99 € y el neto 7,43 €.
             'g_unit_price_with_vat_12px' => ['cols' => self::GROSS_PRICE_COLUMNS, 'widths' => [0, 0, 0, 0, 0, 0], 'lines' => 1, 'obs' => '', 'rec' => 1, 'ext' => false, 'font' => 12,
-                'explicit' => [$this->osmosisLine()], 'line_band' => ['8,99 €', '7,43 €', '21,00%'], 'line_band_absent' => [], 'vat_inside' => '21,00%'],
+                'explicit' => [$this->osmosisLine()], 'line_band' => ['8,99 €', '7,43 €', '21,00%'], 'line_band_absent' => [], 'vat_inside' => '21,00%',
+                'header_phrase' => ['PRECIO', 'CON', 'IVA'], 'header_next' => 'NETO'],
         ];
 
         $issuerTaxId = $this->issuerTaxId();
@@ -219,6 +220,11 @@ final class BeplyPlantillasSuite
                     foreach ($case['line_band_absent'] as $absent) {
                         $this->assert('la fila de la línea NO contiene «' . $absent . '»', strpos($band, $absent) === false, 'band=' . $band);
                     }
+                }
+                if (isset($case['header_phrase'])) {
+                    // La cabecera de varias palabras va en UNA línea dentro de su celda: palabras consecutivas en la banda
+                    // de cabeceras, con huecos de espacio, y la cabecera siguiente empieza más a la derecha.
+                    $this->assert('cabecera «' . implode(' ', $case['header_phrase']) . '» en una línea y dentro de su columna', $this->headerPhraseFits($probe, $case['header_phrase'], $case['header_next'], (int) ($case['font'] ?? 10)), json_encode($this->headerBand($probe), JSON_UNESCAPED_UNICODE));
                 }
                 if (isset($case['vat_inside'])) {
                     $vat = $probe->findWord($case['vat_inside'], 1);
@@ -286,6 +292,40 @@ final class BeplyPlantillasSuite
             }
         }
         return $out;
+    }
+
+    /** @return array<int, array> palabras de la banda de cabeceras (misma altura que «DESCRIPCIÓN»), de izquierda a derecha */
+    private function headerBand(BeplyPdfProbe $probe): array
+    {
+        $anchor = $probe->findWord(mb_strtoupper(Tools::lang()->trans('description')), 1)
+            ?? $probe->findWord(Tools::lang()->trans('description'), 1);
+        if ($anchor === null) {
+            return [];
+        }
+        $band = array_values(array_filter($probe->words(1), static fn(array $w): bool => abs($w['y0'] - $anchor['y0']) < 2.0));
+        usort($band, static fn(array $a, array $b): int => $a['x0'] <=> $b['x0']);
+        return array_map(static fn(array $w): array => ['text' => $w['text'], 'x0' => round($w['x0'], 1), 'x1' => round($w['x1'], 1)], $band);
+    }
+
+    /** @param string[] $phrase */
+    private function headerPhraseFits(BeplyPdfProbe $probe, array $phrase, string $next, int $fontPx): bool
+    {
+        $band = $this->headerBand($probe);
+        $n = count($phrase);
+        for ($i = 0; $i + $n < count($band); $i++) {
+            $slice = array_slice($band, $i, $n);
+            if (array_map(static fn(array $w): string => $w['text'], $slice) !== $phrase) {
+                continue;
+            }
+            for ($j = 1; $j < $n; $j++) {
+                if ($slice[$j]['x0'] - $slice[$j - 1]['x1'] > $fontPx * 0.75 * 0.6) {
+                    return false; // hueco mayor que un espacio: la cabecera se partió o se separó
+                }
+            }
+            $following = $band[$i + $n];
+            return $following['text'] === $next && $following['x0'] >= $slice[$n - 1]['x1'] + 4.0;
+        }
+        return false;
     }
 
     /**

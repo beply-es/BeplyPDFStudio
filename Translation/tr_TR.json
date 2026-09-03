@@ -3,6 +3,7 @@
     "beplypdf-print-in-document": "Belgede yazdır",
     "beplypdf-grand-total": "Genel toplam",
     "beplypdf-quantity-short": "Mikt.",
+    "beplypdf-price-with-vat": "KDV dahil fiyat",
     "beplypdf-total-units": "Toplam birim",
     "show-total-units": "Toplam birimleri göster",
     "beplypdf-draft-suffix": "taslak",
@@ -13,5 +14,6 @@
     "beplypdf-draft-title-PedidoCliente": "Sipariş",
     "beplypdf-draft-title-PedidoProveedor": "Sipariş",
     "beplypdf-draft-title-AlbaranCliente": "İrsaliye",
-    "beplypdf-draft-title-AlbaranProveedor": "İrsaliye"
+    "beplypdf-draft-title-AlbaranProveedor": "İrsaliye",
+    "line-field-unit-price-vat": "KDV dahil birim fiyat"
 }

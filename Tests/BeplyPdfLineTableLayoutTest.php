@@ -140,6 +140,64 @@ final class BeplyPdfLineTableLayoutTest extends TestCase
         $this->assertSame(BeplyPdfLineTableLayout::emWidth('VENCIMIENTO'), BeplyPdfLineTableLayout::longestWordEm('Fecha de VENCIMIENTO'));
     }
 
+    public function testATwoWordHeaderClaimsItsWholeWidthWhileHeadersCannotBreak(): void
+    {
+        // «PRECIO CON IVA» (columna pvpunitarioiva) a 12 px: en densidad normal la cabecera nativa va en una sola
+        // línea (nowrap), así que necesita las tres palabras, no sólo «PRECIO». Medido el 03-09-2026: con la
+        // palabra más larga como necesidad, «CON IVA» pisaba la columna NETO.
+        $columns = [
+            $this->column('descripcion', 48.0, 12.9, 8.6, true),
+            $this->column('cantidad', 8.0, 2.24, 3.4),
+            ['key' => 'pvpunitarioiva', 'weight' => 13.0, 'content_em' => 3.2, 'label_em' => 4.67, 'label_full_em' => 10.0, 'flexible' => false, 'external' => false],
+            $this->column('pvptotal', 14.0, 3.2, 3.1),
+            $this->column('iva', 7.0, 3.83, 2.3),
+        ];
+        $layout = BeplyPdfLineTableLayout::resolve($columns, self::A4_USABLE_PT, 12);
+
+        $this->assertSame(BeplyPdfLineTableLayout::MODE_NORMAL, $layout['mode']);
+        $pricePt = self::A4_USABLE_PT * $layout['widths'][2] / 100.0;
+        $this->assertTrue($pricePt + 0.05 >= 10.0 * 9.0 + 18.0, sprintf('two-word header needs %.1fpt but got %.1fpt', 108.0, $pricePt));
+
+        // En compact/dense la cabecera parte por palabras y basta con la palabra más larga.
+        $narrow = BeplyPdfLineTableLayout::resolve($columns, 300.0, 12);
+        $this->assertTrue($narrow['mode'] !== BeplyPdfLineTableLayout::MODE_NORMAL, $narrow['mode']);
+        $narrowPricePt = 300.0 * $narrow['widths'][2] / 100.0;
+        $this->assertTrue($narrowPricePt < 10.0 * $narrow['font_px'] * 0.75 + 2 * $narrow['pad_x_px'] * 0.75, 'in compact the header may break by words');
+    }
+
+    public function testDescriptionSqueezedBelowAQuarterEscalatesDensityInsteadOfShrinking(): void
+    {
+        // Ocho columnas a 12 px caben en densidad normal, pero con el padding real de cada celda la descripción
+        // se quedaría en ~19 % (medido en Estudio con la externa E2E el 03-09-2026). El contrato de render exige
+        // que la descripción siga siendo dominante (≥ 25 %): el motor baja a compact antes que estrujarla.
+        $columns = [
+            $this->column('referencia', 12.0, 4.4, 6.6),
+            $this->column('descripcion', 48.0, 6.1, 7.3, true),
+            $this->column('cantidad', 8.0, 2.24, 3.5),
+            $this->column('pvpunitario', 13.0, 3.84, 4.7),
+            $this->column('dtopor', 7.0, 3.83, 4.1),
+            $this->column('iva', 7.0, 3.83, 2.3),
+            $this->column('pvptotal', 14.0, 3.84, 3.1),
+            $this->column('lote', 10.6, 11.1, 5.3, false, true),
+        ];
+        $layout = BeplyPdfLineTableLayout::resolve($columns, 527.0, 12);
+
+        $this->assertSame(BeplyPdfLineTableLayout::MODE_COMPACT, $layout['mode']);
+        $this->assertTrue($layout['widths'][1] >= 25.0, sprintf('description got %.2f%%', $layout['widths'][1]));
+        $this->assertNoFixedColumnBelowItsNeed($columns, $layout, 527.0);
+
+        // Una descripción configurada deliberadamente estrecha (20 %) que ya cabe NO fuerza el cambio de densidad.
+        $narrowByChoice = [
+            $this->column('descripcion', 20.0, 6.1, 7.3, true),
+            $this->column('cantidad', 20.0, 2.24, 3.5),
+            $this->column('pvpunitario', 30.0, 3.84, 4.7),
+            $this->column('pvptotal', 30.0, 3.84, 3.1),
+        ];
+        $kept = BeplyPdfLineTableLayout::resolve($narrowByChoice, self::A4_USABLE_PT, 10);
+        $this->assertSame(BeplyPdfLineTableLayout::MODE_NORMAL, $kept['mode']);
+        $this->assertSame([20.0, 20.0, 30.0, 30.0], $kept['widths']);
+    }
+
     /** @param array<int, array> $columns */
     private function assertNoFixedColumnBelowItsNeed(array $columns, array $layout, float $usablePt): void
     {
@@ -149,7 +207,11 @@ final class BeplyPdfLineTableLayoutTest extends TestCase
             if ($column['flexible']) {
                 continue;
             }
-            $need = max($column['content_em'], $column['label_em']) * $fontPt + $padPt;
+            // Una columna externa parte líneas por encima de 6 em: no reclama más que eso (EXTERNAL_MAX_EM).
+            $em = !empty($column['external'])
+                ? max(min($column['content_em'], 6.0), min($column['label_em'], 6.0))
+                : max($column['content_em'], $column['label_em']);
+            $need = $em * $fontPt + $padPt;
             $got = $usablePt * $layout['widths'][$i] / 100.0;
             $this->assertTrue($got + 0.05 >= $need, sprintf('%s needs %.1fpt but got %.1fpt', $column['key'], $need, $got));
         }
