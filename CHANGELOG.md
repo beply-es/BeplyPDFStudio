@@ -1,5 +1,12 @@
 # Changelog
 
+## v4.1 - 2026-09-03
+
+- Sin cambios funcionales respecto a 4.0. Versión dedicada a la aprobación cerrada
+  (`availability_scope=service`) de Osmosis: una versión sólo admite UNA fila de
+  disponibilidad cerrada (la aprobación borra las demás filas de esa versión), y 4.0
+  queda reservada al servicio aprobado por el PR #25.
+
 ## v4.0 - 2026-09-03
 
 - Los formatos internos protegidos, como el borrador de TicketBAI, ya no pueden
