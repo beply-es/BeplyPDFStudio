@@ -191,9 +191,17 @@ final class BeplyFormatTemplateSuite
         $priceWidth = $this->headerWidth($autoBody, Tools::lang()->trans('price'));
         $dtoWidth = $this->headerWidth($autoBody, '% ' . Tools::lang()->trans('dto'));
         $vatWidth = $this->headerWidth($autoBody, Tools::lang()->trans('vat'));
-        $this->assert('lineColumns auto width description', $descriptionWidth > 35.0, 'description did not receive weighted width');
-        $this->assert('lineColumns auto width description dominant', $descriptionWidth > $priceWidth * 2.5, 'description did not dominate numeric columns');
-        $this->assert('lineColumns auto width dto vat', $dtoWidth > 0.0 && $dtoWidth < 10.0 && $vatWidth > 0.0 && $vatWidth < 10.0, 'discount/vat columns did not receive compact width');
+        // Hasta 3.8 la descripción "tenía" >35 % y dto/IVA <10 % porque el suelo de una columna no incluía el
+        // padding real de la celda: «10,00%» a 12 px (34,5 pt) recibía 38 pt de celda para 52,5 pt necesarios y
+        // el texto invadía el padding vecino (medido el 03-09-2026). Con cada celda a texto + padding, la
+        // descripción sigue dominando: la más ancha, al menos un cuarto de la tabla y más del doble que el precio;
+        // dto e IVA quedan compactas (< 12 %: su texto + 18 pt de padding son 52,5 pt de 515).
+        $referenceWidth = $this->headerWidth($autoBody, Tools::lang()->trans('reference'));
+        $quantityWidth = $this->headerWidth($autoBody, Tools::lang()->trans('beplypdf-quantity-short'));
+        $netWidth = $this->headerWidth($autoBody, Tools::lang()->trans('net'));
+        $this->assert('lineColumns auto width description', $descriptionWidth >= 25.0 && $descriptionWidth > max($referenceWidth, $quantityWidth, $priceWidth, $dtoWidth, $vatWidth, $netWidth), 'description did not receive weighted width (' . $descriptionWidth . ')');
+        $this->assert('lineColumns auto width description dominant', $descriptionWidth > $priceWidth * 2.0, 'description did not dominate numeric columns (' . $descriptionWidth . ' vs price ' . $priceWidth . ')');
+        $this->assert('lineColumns auto width dto vat', $dtoWidth > 0.0 && $dtoWidth < 12.0 && $vatWidth > 0.0 && $vatWidth < 12.0, 'discount/vat columns did not receive compact width (' . $dtoWidth . ' / ' . $vatWidth . ')');
     }
 
     private function headerWidth(string $body, string $label): float

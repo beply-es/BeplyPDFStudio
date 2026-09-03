@@ -107,7 +107,7 @@ final class SerialNumberColumnProvider implements BeplyPdfLineColumnProviderInte
 BeplyPdfDocumentExtensionRegistry::addLineColumnProvider(new SerialNumberColumnProvider());
 ```
 
-Las columnas externas se anaden despues de las columnas configuradas por el formato. Si un formato activa "Documento sin IVA", el motor elimina las columnas fiscales nativas `iva`, `recargo`, `irpf` y `totaliva`; las columnas externas se mantienen.
+Las columnas externas se anaden despues de las columnas configuradas por el formato. Si un formato activa "Documento sin IVA", el motor elimina las columnas fiscales nativas `iva`, `recargo`, `irpf`, `totaliva` y `pvpunitarioiva`; las columnas externas se mantienen.
 
 ## Personalizar recibos
 
@@ -140,7 +140,7 @@ La opcion `show_without_vat` vive en el estilo del formato de impresion (`BeplyP
 Cuando esta activa:
 
 - no se renderiza el desglose de impuestos;
-- se eliminan las columnas fiscales `iva`, `recargo`, `irpf` y `totaliva`;
+- se eliminan las columnas fiscales `iva`, `recargo`, `irpf`, `totaliva` y `pvpunitarioiva`;
 - el total visible del documento usa `neto`;
 - no se muestra el total bruto del documento.
 

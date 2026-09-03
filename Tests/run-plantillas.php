@@ -35,7 +35,8 @@ final class BeplyPlantillasDoc extends BeplyPdfSampleDoc
     /** @var object[] */
     private array $docReceipts = [];
 
-    public function __construct(int $lines, string $observations, int $receipts)
+    /** @param object[]|null $explicitLines líneas exactas (p.ej. las de una factura real) en vez de las sintéticas */
+    public function __construct(int $lines, string $observations, int $receipts, ?array $explicitLines = null)
     {
         parent::__construct(null, 'FacturaCliente');
         $this->codigo = 'FAC-PLANTILLAS-0001';
@@ -45,7 +46,11 @@ final class BeplyPlantillasDoc extends BeplyPdfSampleDoc
         $this->cifnif = self::CUSTOMER_TAX_ID;
         $this->observaciones = $observations;
         $neto = 0.0;
-        for ($i = 1; $i <= $lines; $i++) {
+        foreach ($explicitLines ?? [] as $line) {
+            $this->docLines[] = $line;
+            $neto += (float) $line->pvptotal;
+        }
+        for ($i = 1; $explicitLines === null && $i <= $lines; $i++) {
             $line = new stdClass();
             $line->referencia = sprintf('REF-%04d', $i);
             $line->descripcion = 'Artículo de prueba (ref ' . sprintf('REF-%04d', $i) . ') con una descripción de longitud media para la tabla';
@@ -64,6 +69,10 @@ final class BeplyPlantillasDoc extends BeplyPdfSampleDoc
         $this->totalrecargo = 0.0;
         $this->totalirpf = 0.0;
         $this->total = round($this->neto + $this->totaliva, 2);
+        if ($explicitLines !== null) {
+            // Cabecera tal como la guarda FacturaScripts para la factura real: total = neto + cuota redondeada.
+            $this->total = round($this->neto + $this->totaliva, 2);
+        }
         for ($i = 1; $i <= $receipts; $i++) {
             $this->docReceipts[] = (object) [
                 'numero' => (string) $i,
@@ -103,9 +112,11 @@ final class BeplyPlantillasSuite
 {
     private const ALL_COLUMNS = ['numlinea', 'referencia', 'descripcion', 'cantidad', 'pvpunitario', 'dtopor', 'pvptotal', 'iva', 'recargo', 'irpf', 'totaliva'];
     private const TYPES = ['numlinea' => 'number', 'referencia' => 'text', 'descripcion' => 'text', 'cantidad' => 'number', 'pvpunitario' => 'money',
-        'dtopor' => 'percentage', 'pvptotal' => 'money', 'iva' => 'percentage', 'recargo' => 'percentage', 'irpf' => 'percentage', 'totaliva' => 'money'];
+        'pvpunitarioiva' => 'money', 'dtopor' => 'percentage', 'pvptotal' => 'money', 'iva' => 'percentage', 'recargo' => 'percentage', 'irpf' => 'percentage', 'totaliva' => 'money'];
     private const DEFAULT_COLUMNS = ['descripcion', 'cantidad', 'pvpunitario', 'dtopor', 'pvptotal', 'iva'];
     private const DEFAULT_WIDTHS = [48, 8, 13, 7, 14, 7];
+    /** Columnas de Osmosis con el precio unitario con IVA en vez del neto (brief 03-09-2026). */
+    private const GROSS_PRICE_COLUMNS = ['descripcion', 'cantidad', 'pvpunitarioiva', 'dtopor', 'pvptotal', 'iva'];
     private const PAGE_WIDTH_PT = 595.28;
     private const MARGIN_PT = 42.52; // 15 mm
 
@@ -136,6 +147,14 @@ final class BeplyPlantillasSuite
             // (d) A5 vertical y (e) A4 apaisado con las mismas 12 columnas (aviso de Tono: A5/orientaciones con mucho texto)
             'd_a5_12cols40' => ['cols' => self::ALL_COLUMNS, 'widths' => [0, 0, 48, 8, 13, 7, 14, 7, 0, 0, 0], 'lines' => 40, 'obs' => '', 'rec' => 2, 'ext' => true, 'paper' => 'A5', 'orientation' => 'portrait'],
             'e_landscape_12cols40' => ['cols' => self::ALL_COLUMNS, 'widths' => [0, 0, 48, 8, 13, 7, 14, 7, 0, 0, 0], 'lines' => 40, 'obs' => $longObservations, 'rec' => 2, 'ext' => true, 'paper' => 'A4', 'orientation' => 'landscape'],
+            // (f) Osmosis 03-09-2026: seis columnas añadidas desde el editor con ancho 0, letra 12 px y la línea real de
+            // FAC2026LYM36 (1 × 7,43 al 21 %): «21,00%» se salía del recuadro por el borde derecho (x1 557,0 pt, margen 552,8).
+            'f_editor_six_columns_width0_12px' => ['cols' => self::DEFAULT_COLUMNS, 'widths' => [0, 0, 0, 0, 0, 0], 'lines' => 1, 'obs' => '', 'rec' => 1, 'ext' => false, 'font' => 12,
+                'explicit' => [$this->osmosisLine()], 'line_band' => ['7,43 €', '7,43 €', '21,00%'], 'line_band_absent' => ['8,99 €'], 'vat_inside' => '21,00%'],
+            // (g) la misma factura con la columna «Precio con IVA» en lugar de «Precio»: la línea muestra 8,99 € y el neto 7,43 €.
+            'g_unit_price_with_vat_12px' => ['cols' => self::GROSS_PRICE_COLUMNS, 'widths' => [0, 0, 0, 0, 0, 0], 'lines' => 1, 'obs' => '', 'rec' => 1, 'ext' => false, 'font' => 12,
+                'explicit' => [$this->osmosisLine()], 'line_band' => ['8,99 €', '7,43 €', '21,00%'], 'line_band_absent' => [], 'vat_inside' => '21,00%',
+                'header_phrase' => ['PRECIO', 'CON', 'IVA'], 'header_next' => 'NETO'],
         ];
 
         $issuerTaxId = $this->issuerTaxId();
@@ -146,8 +165,8 @@ final class BeplyPlantillasSuite
                 if ($case['ext']) {
                     BeplyPdfDocumentExtensionRegistry::addLineColumnProvider(new BeplyPlantillasLotColumnProvider());
                 }
-                $doc = new BeplyPlantillasDoc($case['lines'], $case['obs'], $case['rec']);
-                $cfg = $this->config($design, $case['cols'], $case['widths'], $case['paper'] ?? 'A4', $case['orientation'] ?? 'portrait');
+                $doc = new BeplyPlantillasDoc($case['lines'], $case['obs'], $case['rec'], $case['explicit'] ?? null);
+                $cfg = $this->config($design, $case['cols'], $case['widths'], $case['paper'] ?? 'A4', $case['orientation'] ?? 'portrait', (int) ($case['font'] ?? 10));
                 $html = $this->renderer->buildHtml($cfg, $doc);
                 $pdf = $this->renderer->render($cfg, $doc);
                 if ($this->outDir !== null) {
@@ -185,6 +204,32 @@ final class BeplyPlantillasSuite
                     $this->assert('número de línea entero bajo la cabecera # (no partido dígito a dígito)', $hash !== null && $split === [], 'hash=' . json_encode($hash) . ' missing ' . json_encode($split));
                     $this->assert('última línea presente', strpos($text, 'REF-0040') !== false, 'REF-0040 missing');
                     $this->assert('columna externa presente', strpos($text, 'L-2040') !== false, 'external column value missing');
+                }
+                if (isset($case['line_band'])) {
+                    // Los importes se miden EN LA FILA de la línea (misma altura que su primera palabra), no en el
+                    // documento: el total y el recibo también dicen «8,99 €» y no discriminarían nada.
+                    $band = $this->lineBandText($probe, 'MEDIDOR-TDS-OSMOSIS');
+                    $remaining = $band;
+                    foreach ($case['line_band'] as $expected) {
+                        $pos = strpos($remaining, $expected);
+                        $this->assert('la fila de la línea contiene «' . $expected . '»', $pos !== false, 'band=' . $band);
+                        if ($pos !== false) {
+                            $remaining = substr($remaining, $pos + strlen($expected));
+                        }
+                    }
+                    foreach ($case['line_band_absent'] as $absent) {
+                        $this->assert('la fila de la línea NO contiene «' . $absent . '»', strpos($band, $absent) === false, 'band=' . $band);
+                    }
+                }
+                if (isset($case['header_phrase'])) {
+                    // La cabecera de varias palabras va en UNA línea dentro de su celda: palabras consecutivas en la banda
+                    // de cabeceras, con huecos de espacio, y la cabecera siguiente empieza más a la derecha.
+                    $this->assert('cabecera «' . implode(' ', $case['header_phrase']) . '» en una línea y dentro de su columna', $this->headerPhraseFits($probe, $case['header_phrase'], $case['header_next'], (int) ($case['font'] ?? 10)), json_encode($this->headerBand($probe), JSON_UNESCAPED_UNICODE));
+                }
+                if (isset($case['vat_inside'])) {
+                    $vat = $probe->findWord($case['vat_inside'], 1);
+                    $right = $probe->pageWidth(1) - self::MARGIN_PT;
+                    $this->assert('IVA de línea «' . $case['vat_inside'] . '» dentro del recuadro (borde derecho ≤ margen)', $vat !== null && $vat['x1'] <= $right + 0.5, $vat === null ? 'word missing' : sprintf('x1=%.1f right=%.1f', $vat['x1'], $right));
                 }
                 if ($case['obs'] !== '') {
                     $this->assert('observaciones largas presentes', strpos($text, 'reclamaciones en 48 horas') !== false, 'observations missing');
@@ -249,6 +294,40 @@ final class BeplyPlantillasSuite
         return $out;
     }
 
+    /** @return array<int, array> palabras de la banda de cabeceras (misma altura que «DESCRIPCIÓN»), de izquierda a derecha */
+    private function headerBand(BeplyPdfProbe $probe): array
+    {
+        $anchor = $probe->findWord(mb_strtoupper(Tools::lang()->trans('description')), 1)
+            ?? $probe->findWord(Tools::lang()->trans('description'), 1);
+        if ($anchor === null) {
+            return [];
+        }
+        $band = array_values(array_filter($probe->words(1), static fn(array $w): bool => abs($w['y0'] - $anchor['y0']) < 2.0));
+        usort($band, static fn(array $a, array $b): int => $a['x0'] <=> $b['x0']);
+        return array_map(static fn(array $w): array => ['text' => $w['text'], 'x0' => round($w['x0'], 1), 'x1' => round($w['x1'], 1)], $band);
+    }
+
+    /** @param string[] $phrase */
+    private function headerPhraseFits(BeplyPdfProbe $probe, array $phrase, string $next, int $fontPx): bool
+    {
+        $band = $this->headerBand($probe);
+        $n = count($phrase);
+        for ($i = 0; $i + $n < count($band); $i++) {
+            $slice = array_slice($band, $i, $n);
+            if (array_map(static fn(array $w): string => $w['text'], $slice) !== $phrase) {
+                continue;
+            }
+            for ($j = 1; $j < $n; $j++) {
+                if ($slice[$j]['x0'] - $slice[$j - 1]['x1'] > $fontPx * 0.75 * 0.6) {
+                    return false; // hueco mayor que un espacio: la cabecera se partió o se separó
+                }
+            }
+            $following = $band[$i + $n];
+            return $following['text'] === $next && $following['x0'] >= $slice[$n - 1]['x1'] + 4.0;
+        }
+        return false;
+    }
+
     /**
      * Palabras de la banda de cabecera de la tabla (misma altura que "DESCRIPCIÓN") cuyas cajas se
      * solapan horizontalmente: síntoma de cabeceras pisadas.
@@ -272,10 +351,34 @@ final class BeplyPlantillasSuite
         return $out;
     }
 
-    private function config(string $design, array $cols, array $widths, string $paper = 'A4', string $orientation = 'portrait'): BeplyPdfConfig
+    /** Texto de la fila de la línea cuya primera palabra es $firstWord (palabras a su misma altura, de izquierda a derecha). */
+    private function lineBandText(BeplyPdfProbe $probe, string $firstWord): string
+    {
+        $anchor = $probe->findWord($firstWord, 1);
+        if ($anchor === null) {
+            return '';
+        }
+        $band = array_values(array_filter($probe->words(1), static fn(array $w): bool => abs($w['y0'] - $anchor['y0']) < 2.5));
+        usort($band, static fn(array $a, array $b): int => $a['x0'] <=> $b['x0']);
+        return implode(' ', array_map(static fn(array $w): string => (string) $w['text'], $band));
+    }
+
+    /** Línea real de FAC2026LYM36 (Osmosis, 31-08-2026): 1 × 7,43 al 21 %, sin descuento ni recargo. */
+    private function osmosisLine(): object
+    {
+        return (object) [
+            'referencia' => 'MEDIDOR-TDS-OSMOSIS',
+            'descripcion' => 'MEDIDOR-TDS-OSMOSIS - 96009774 - JACAR Medidor TDS y Medidor EC, Medidor de Agua Potable - Analizador de Agua, Medidor Calidad Agua, TDS Medidor Agua',
+            'cantidad' => 1.0, 'pvpunitario' => 7.43, 'pvpsindto' => 7.43, 'dtopor' => 0.0, 'dtopor2' => 0.0,
+            'pvptotal' => 7.43, 'iva' => 21.0, 'recargo' => 0.0, 'irpf' => 0.0, 'suplido' => false,
+        ];
+    }
+
+    private function config(string $design, array $cols, array $widths, string $paper = 'A4', string $orientation = 'portrait', int $fontSize = 10): BeplyPdfConfig
     {
         $cfg = new BeplyPdfConfig();
         $cfg->diseno = $design;
+        $cfg->fontSize = $fontSize;
         $cfg->paperSize = $paper;
         $cfg->orientation = $orientation;
         $cfg->lineColumns = $cols;

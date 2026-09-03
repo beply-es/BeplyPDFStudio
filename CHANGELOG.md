@@ -1,5 +1,51 @@
 # Changelog
 
+## v4.0 - 2026-09-03
+
+- Los formatos internos protegidos, como el borrador de TicketBAI, ya no pueden
+  duplicar columnas cuando dos peticiones intentan asegurar el formato a la vez:
+  la regeneración se serializa con bloqueo de fila, se ejecuta dentro de una
+  transacción y revierte completa si falla cualquier borrado o inserción.
+- La regeneración es idempotente y no toca la tabla cuando las filas ya coinciden.
+  En formatos internos, la configuración escalar protegida es el origen canónico,
+  por lo que una instalación que ya tenga columnas duplicadas se autorrepara en el
+  siguiente acceso sin conservar la corrupción.
+- El render recupera el último snapshot coherente si encuentra filas duplicadas,
+  incompletas o con metadatos desalineados, evitando que una tabla dañada altere el
+  PDF mientras se repara.
+- La pestaña de columnas de un formato interno se marca además como solo lectura;
+  el bloqueo de backend existente sigue rechazando guardados y borrados manuales.
+
+## v3.9 - 2026-09-03
+
+- Nueva columna de líneas `pvpunitarioiva` («Precio con IVA»): el precio unitario con IVA
+  y recargo (`pvpunitario` × (1 + IVA % + RE %)), pensada para facturas B2C en las que el
+  comprador espera ver en la línea el precio que paga (7,43 € al 21 % → 8,99 €). Sólo cambia
+  la presentación de la línea: la base imponible, las cuotas y el total siguen saliendo de
+  la cabecera del documento. Se elige desde el editor de columnas (`BpsLineas`), está en los
+  dos motores (WeasyPrint y el de respaldo), traducida en los 25 idiomas del plugin, y en el
+  motor HTML «Documento sin IVA» la retira como al resto de columnas fiscales.
+- La última columna de la tabla de líneas ya no sale del recuadro cuando el editor deja los
+  anchos a 0: el suelo de cada columna incluye el padding real de la celda (12 px por lado),
+  no sólo el texto. Medido en Osmosis (diseño Enmarcado, 12 px, seis columnas a 0):
+  «21,00%» terminaba en 557,0 pt con el margen útil en 552,8 pt; ahora en 543,0 pt. Las
+  configuraciones cuyas celdas ya tenían sitio para texto y padding conservan sus
+  proporciones exactas; en las demás la columna corta crece a costa de la descripción
+  (configuración por defecto de seis columnas a 10 px: descripción 49,5 % → 44,9 %, dto e
+  IVA 7,2 % → ~9,3 %).
+- En densidad normal la cabecera de una columna nativa va en una sola línea, así que reclama
+  su ancho entero («PRECIO CON IVA»), no sólo su palabra más larga; en `compact`/`dense`,
+  donde las cabeceras parten por palabras, sigue bastando la palabra más larga.
+- Si en densidad normal la descripción quedara por debajo de un cuarto de la tabla y de su
+  propia cuota (siete u ocho columnas a 12 px), el motor pasa a `compact` antes que
+  estrujarla; una descripción configurada estrecha a propósito no fuerza el cambio.
+- `Tests/run-format-template.php`: los umbrales de anchos automáticos pasan de absolutos
+  (descripción > 35 %, dto/IVA < 10 %) a relativos con medida: hasta ahora se cumplían
+  porque el texto de dto/IVA invadía el padding (38 pt de celda para 52,5 pt necesarios).
+- `Tests/run-plantillas.php`: dos casos nuevos por diseño con la línea real de
+  `FAC2026LYM36` a 12 px, seis columnas a ancho 0 (con `pvpunitario` y con `pvpunitarioiva`):
+  «21,00%» dentro del recuadro y «8,99 €» / «7,43 €» presentes.
+
 ## v3.8 - 2026-09-03
 
 - Se niega a imprimir un documento que se contradice a si mismo: cabecera
