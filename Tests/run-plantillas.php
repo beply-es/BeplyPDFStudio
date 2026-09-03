@@ -150,10 +150,10 @@ final class BeplyPlantillasSuite
             // (f) Osmosis 03-09-2026: seis columnas añadidas desde el editor con ancho 0, letra 12 px y la línea real de
             // FAC2026LYM36 (1 × 7,43 al 21 %): «21,00%» se salía del recuadro por el borde derecho (x1 557,0 pt, margen 552,8).
             'f_editor_six_columns_width0_12px' => ['cols' => self::DEFAULT_COLUMNS, 'widths' => [0, 0, 0, 0, 0, 0], 'lines' => 1, 'obs' => '', 'rec' => 1, 'ext' => false, 'font' => 12,
-                'explicit' => [$this->osmosisLine()], 'expect' => ['7,43 €', '21,00%'], 'vat_inside' => '21,00%'],
+                'explicit' => [$this->osmosisLine()], 'line_band' => ['7,43 €', '7,43 €', '21,00%'], 'line_band_absent' => ['8,99 €'], 'vat_inside' => '21,00%'],
             // (g) la misma factura con la columna «Precio con IVA» en lugar de «Precio»: la línea muestra 8,99 € y el neto 7,43 €.
             'g_unit_price_with_vat_12px' => ['cols' => self::GROSS_PRICE_COLUMNS, 'widths' => [0, 0, 0, 0, 0, 0], 'lines' => 1, 'obs' => '', 'rec' => 1, 'ext' => false, 'font' => 12,
-                'explicit' => [$this->osmosisLine()], 'expect' => ['8,99 €', '7,43 €', '21,00%'], 'vat_inside' => '21,00%'],
+                'explicit' => [$this->osmosisLine()], 'line_band' => ['8,99 €', '7,43 €', '21,00%'], 'line_band_absent' => [], 'vat_inside' => '21,00%'],
         ];
 
         $issuerTaxId = $this->issuerTaxId();
@@ -204,8 +204,21 @@ final class BeplyPlantillasSuite
                     $this->assert('última línea presente', strpos($text, 'REF-0040') !== false, 'REF-0040 missing');
                     $this->assert('columna externa presente', strpos($text, 'L-2040') !== false, 'external column value missing');
                 }
-                foreach ($case['expect'] ?? [] as $expected) {
-                    $this->assert('texto esperado «' . $expected . '» presente', strpos($text, $expected) !== false, 'missing ' . $expected);
+                if (isset($case['line_band'])) {
+                    // Los importes se miden EN LA FILA de la línea (misma altura que su primera palabra), no en el
+                    // documento: el total y el recibo también dicen «8,99 €» y no discriminarían nada.
+                    $band = $this->lineBandText($probe, 'MEDIDOR-TDS-OSMOSIS');
+                    $remaining = $band;
+                    foreach ($case['line_band'] as $expected) {
+                        $pos = strpos($remaining, $expected);
+                        $this->assert('la fila de la línea contiene «' . $expected . '»', $pos !== false, 'band=' . $band);
+                        if ($pos !== false) {
+                            $remaining = substr($remaining, $pos + strlen($expected));
+                        }
+                    }
+                    foreach ($case['line_band_absent'] as $absent) {
+                        $this->assert('la fila de la línea NO contiene «' . $absent . '»', strpos($band, $absent) === false, 'band=' . $band);
+                    }
                 }
                 if (isset($case['vat_inside'])) {
                     $vat = $probe->findWord($case['vat_inside'], 1);
@@ -296,6 +309,18 @@ final class BeplyPlantillasSuite
             }
         }
         return $out;
+    }
+
+    /** Texto de la fila de la línea cuya primera palabra es $firstWord (palabras a su misma altura, de izquierda a derecha). */
+    private function lineBandText(BeplyPdfProbe $probe, string $firstWord): string
+    {
+        $anchor = $probe->findWord($firstWord, 1);
+        if ($anchor === null) {
+            return '';
+        }
+        $band = array_values(array_filter($probe->words(1), static fn(array $w): bool => abs($w['y0'] - $anchor['y0']) < 2.5));
+        usort($band, static fn(array $a, array $b): int => $a['x0'] <=> $b['x0']);
+        return implode(' ', array_map(static fn(array $w): string => (string) $w['text'], $band));
     }
 
     /** Línea real de FAC2026LYM36 (Osmosis, 31-08-2026): 1 × 7,43 al 21 %, sin descuento ni recargo. */
