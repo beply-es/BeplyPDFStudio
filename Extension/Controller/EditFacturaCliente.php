@@ -56,7 +56,7 @@ class EditFacturaCliente
             } catch (\InvalidArgumentException $error) {
                 Tools::log()->warning($error->getMessage());
             } catch (\Throwable $error) {
-                Tools::log()->error('No se ha guardado el desglose. No se han aplicado cambios; revisa la factura y sus recibos.');
+                Tools::log()->error('No se ha podido confirmar el guardado. Recarga y revisa la factura y sus recibos antes de reintentar.');
             }
             return true;
         };

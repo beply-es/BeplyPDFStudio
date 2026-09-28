@@ -59,6 +59,11 @@ final class InvoiceCertificationService
             if (!$invoice->loadFromCode($id) || !$invoice->editable || $invoice->idfacturarect) {
                 throw new \InvalidArgumentException('Solo se puede configurar una factura editable no rectificativa.');
             }
+            foreach (['bpf_certification', 'bpf_previous', 'bpf_guarantee_base', 'bpf_guarantee_percent', 'bpf_guarantee_due', 'bpf_guarantee_receipt'] as $field) {
+                if (!isset($invoice->getModelFields()[$field])) {
+                    throw new \RuntimeException('El esquema de certificaciones no está actualizado. No se modifican los recibos.');
+                }
+            }
             $actor = new User();
             if (!$actor->loadFromCode($nick)) {
                 throw new \InvalidArgumentException('Usuario no autorizado.');
@@ -145,11 +150,20 @@ final class InvoiceCertificationService
             if (!$invoice->save()) {
                 throw new \RuntimeException('No se ha podido guardar la configuración de la factura.');
             }
+            $stored = new FacturaCliente();
+            if (!$stored->loadFromCode($id) || (bool) $stored->bpf_certification !== $enabled
+                || BeplyInvoiceCertification::cents($stored->bpf_previous) !== $data['previous']
+                || BeplyInvoiceCertification::cents($stored->bpf_guarantee_base) !== BeplyInvoiceCertification::cents($input['base'])
+                || BeplyInvoiceCertification::cents($stored->bpf_guarantee_percent) !== BeplyInvoiceCertification::cents($input['percent'])
+                || (int) $stored->bpf_guarantee_receipt !== (int) $invoice->bpf_guarantee_receipt
+                || ($stored->bpf_guarantee_due ? date('Y-m-d', strtotime($stored->bpf_guarantee_due)) : '') !== $due) {
+                throw new \RuntimeException('No se ha persistido el desglose completo; se revierte el reparto.');
+            }
             $sum = array_sum(array_map(static fn($r) => BeplyInvoiceCertification::cents($r->importe), $invoice->getReceipts()));
             if ($data['guarantee'] > 0 && $sum !== $data['total']) {
                 throw new \RuntimeException('El reparto de recibos no coincide con el total.');
             }
-            $db->commit();
+            if (!$db->commit()) { throw new \RuntimeException('No se ha podido confirmar la transacción.'); }
         } catch (\Throwable $error) {
             $db->rollback();
             throw $error;
