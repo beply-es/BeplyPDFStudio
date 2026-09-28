@@ -118,5 +118,6 @@
     "beplypdf-draft-title-PedidoCliente": "Encomenda",
     "beplypdf-draft-title-PedidoProveedor": "Encomenda",
     "beplypdf-draft-title-AlbaranCliente": "Guia de remessa",
-    "beplypdf-draft-title-AlbaranProveedor": "Guia de remessa"
+    "beplypdf-draft-title-AlbaranProveedor": "Guia de remessa",
+    "beplypdf-certification-settlement": "Show certifications and guarantee retention"
 }

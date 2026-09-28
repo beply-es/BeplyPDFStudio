@@ -78,4 +78,5 @@
 
     <constraint><name>beply_pdf_styles_pkey</name><type>PRIMARY KEY (id)</type></constraint>
     <constraint><name>ca_beply_pdf_styles_formato</name><type>FOREIGN KEY (idformato) REFERENCES formatos_documentos (id) ON DELETE CASCADE ON UPDATE CASCADE</type></constraint>
+<column><name>show_certification_settlement</name><type>boolean</type><default>false</default></column>
 </table>

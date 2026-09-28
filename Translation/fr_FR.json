@@ -118,5 +118,6 @@
     "beplypdf-draft-title-PedidoCliente": "Commande",
     "beplypdf-draft-title-PedidoProveedor": "Commande",
     "beplypdf-draft-title-AlbaranCliente": "Bon de livraison",
-    "beplypdf-draft-title-AlbaranProveedor": "Bon de livraison"
+    "beplypdf-draft-title-AlbaranProveedor": "Bon de livraison",
+    "beplypdf-certification-settlement": "Show certifications and guarantee retention"
 }

@@ -118,5 +118,6 @@
     "beplypdf-draft-title-PedidoCliente": "Eskaera",
     "beplypdf-draft-title-PedidoProveedor": "Eskaera",
     "beplypdf-draft-title-AlbaranCliente": "Albarana",
-    "beplypdf-draft-title-AlbaranProveedor": "Albarana"
+    "beplypdf-draft-title-AlbaranProveedor": "Albarana",
+    "beplypdf-certification-settlement": "Show certifications and guarantee retention"
 }

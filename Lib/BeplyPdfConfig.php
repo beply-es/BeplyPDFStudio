@@ -84,6 +84,7 @@ class BeplyPdfConfig
     public bool $showDraftWarning = true;
     public bool $showParentDocs = false;
     public bool $showTotalUnits = false;
+    public bool $showCertificationSettlement = false;
     public bool $hideShippingAddress = false;
     public bool $hideInvoiceNumber = false;
     public bool $hideSeries = false;
@@ -198,6 +199,7 @@ class BeplyPdfConfig
             'show_draft_warning' => $this->showDraftWarning,
             'show_parent_docs' => $this->showParentDocs,
             'show_total_units' => $this->showTotalUnits,
+            'show_certification_settlement' => $this->showCertificationSettlement,
             'hide_shipping_address' => $this->hideShippingAddress,
             'hide_invoice_number' => $this->hideInvoiceNumber,
             'hide_series' => $this->hideSeries,

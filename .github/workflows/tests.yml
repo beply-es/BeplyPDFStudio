@@ -39,7 +39,9 @@ jobs:
         run: php scripts/ci/php84-compat-scan.php "$PWD"
 
       - name: Run unit tests
-        run: php Tests/run-unit.php
+        run: |
+          php Tests/run-unit.php
+          php Tests/run-certification.php
 
       - name: Run provenance downloader tests
         run: python3 -m unittest scripts.ci.test_download_provenance_release_asset

@@ -151,6 +151,11 @@ class PDFExport extends CorePDFExport
 
         try {
             $this->assertDocumentTotalsAreNotSelfContradictory($model);
+            if (!empty($model->bpf_certification)) {
+                (new \FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfCertificationExtension())->blocks(
+                    new \FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfDocumentContext(new BeplyPdfConfig(), $model)
+                );
+            }
 
             try {
                 $format = $this->getDocumentFormat($model);
@@ -163,6 +168,10 @@ class PDFExport extends CorePDFExport
                 if ($config !== null) {
                     $restoreLang = $this->applyCustomerLanguage($config, $model);
                     $this->beplyConfig = $config;
+                    if (!empty($model->bpf_certification) && $config->showCertificationSettlement
+                        && ($this->useCezpdfDocumentDesign($config) || !BeplyHtmlRenderService::handles($config->diseno))) {
+                        throw new BeplyPdfInconsistentDocumentException('Selecciona una plantilla HTML para imprimir certificaciones y garantías.');
+                    }
 
                     // Motor HTML (Twig + WeasyPrint) para los diseños soportados.
                     if (!$this->useCezpdfDocumentDesign($config) && BeplyHtmlRenderService::handles($config->diseno)) {
@@ -185,6 +194,10 @@ class PDFExport extends CorePDFExport
                             }
                             $this->beplyHtmlPdfs[] = $finalPdf;
                             return false; // el documento se sirve vía getDoc()
+                        }
+
+                        if (!empty($model->bpf_certification) && $config->showCertificationSettlement) {
+                            throw new BeplyPdfInconsistentDocumentException('No se ha podido imprimir el desglose de certificaciones y garantías.');
                         }
 
                         // Si llegamos aquí, WeasyPrint no devolvió nada y el documento va a

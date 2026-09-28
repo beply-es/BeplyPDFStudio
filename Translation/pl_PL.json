@@ -118,5 +118,6 @@
     "beplypdf-draft-title-PedidoCliente": "Zamówienie",
     "beplypdf-draft-title-PedidoProveedor": "Zamówienie",
     "beplypdf-draft-title-AlbaranCliente": "Dokument dostawy",
-    "beplypdf-draft-title-AlbaranProveedor": "Dokument dostawy"
+    "beplypdf-draft-title-AlbaranProveedor": "Dokument dostawy",
+    "beplypdf-certification-settlement": "Show certifications and guarantee retention"
 }

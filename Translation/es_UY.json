@@ -118,5 +118,6 @@
     "beplypdf-draft-title-PedidoCliente": "Pedido",
     "beplypdf-draft-title-PedidoProveedor": "Pedido",
     "beplypdf-draft-title-AlbaranCliente": "Albarán",
-    "beplypdf-draft-title-AlbaranProveedor": "Albarán"
+    "beplypdf-draft-title-AlbaranProveedor": "Albarán",
+    "beplypdf-certification-settlement": "Mostrar certificaciones y garantías"
 }
