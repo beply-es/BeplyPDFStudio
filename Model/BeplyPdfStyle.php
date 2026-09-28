@@ -140,6 +140,8 @@ class BeplyPdfStyle extends ModelClass
     /** @var bool */
     public $show_total_units;
     /** @var bool */
+    public $show_certification_settlement;
+    /** @var bool */
     public $hide_shipping_address;
     /** @var bool */
     public $hide_invoice_number;
@@ -283,6 +285,7 @@ class BeplyPdfStyle extends ModelClass
             'show_draft_warning' => $this->show_draft_warning,
             'show_parent_docs' => $this->show_parent_docs,
             'show_total_units' => $this->show_total_units,
+            'show_certification_settlement' => $this->show_certification_settlement,
             'hide_shipping_address' => $this->hide_shipping_address,
             'hide_invoice_number' => $this->hide_invoice_number,
             'hide_series' => $this->hide_series,

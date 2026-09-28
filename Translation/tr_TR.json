@@ -15,5 +15,6 @@
     "beplypdf-draft-title-PedidoProveedor": "Sipariş",
     "beplypdf-draft-title-AlbaranCliente": "İrsaliye",
     "beplypdf-draft-title-AlbaranProveedor": "İrsaliye",
-    "line-field-unit-price-vat": "KDV dahil birim fiyat"
+    "line-field-unit-price-vat": "KDV dahil birim fiyat",
+    "beplypdf-certification-settlement": "Show certifications and guarantee retention"
 }

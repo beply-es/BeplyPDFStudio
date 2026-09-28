@@ -1,0 +1,26 @@
+{% set invoice = fsc.getModel() %}
+<div class="card"><div class="card-body">
+<h3>Certificaciones y garantías</h3>
+<p>Las líneas de esta factura deben contener el importe del período, con las deducciones anteriores ya aplicadas si corresponden. El PDF mostrará el acumulado como la suma de esa base y lo facturado anteriormente: no se vuelve a descontar.</p>
+<p>La garantía queda pendiente de cobro en un recibo separado. No modifica la base imponible ni utiliza la retención de IRPF.</p>
+{% if invoice.idfactura %}
+<form method="post" action="{{ invoice.url() }}">
+<input type="hidden" name="action" value="beply-save-certification">
+<input type="hidden" name="activetab" value="BeplyCertification">
+<input type="hidden" name="multireqtoken" value="{{ formToken(false) }}">
+<input type="hidden" name="witness" value="{{ fsc.beplyCertificationWitness() }}">
+<fieldset {% if not invoice.editable or not fsc.permissions.allowUpdate %}disabled{% endif %}>
+<div class="form-check mb-3"><input class="form-check-input" type="checkbox" id="bpf-enabled" name="enabled" value="1" {% if invoice.bpf_certification %}checked{% endif %}><label class="form-check-label" for="bpf-enabled">Activar desglose en esta factura</label></div>
+<div class="row g-3">
+<div class="col-md-6"><label for="bpf-previous">Certificaciones anteriores facturadas, sin impuestos</label><input class="form-control" id="bpf-previous" name="previous" type="number" min="0" step="0.01" required value="{{ invoice.bpf_previous|default(0) }}"></div>
+<div class="col-md-6"><label>Base del período de esta factura</label><input class="form-control" readonly value="{{ invoice.neto }}"></div>
+<div class="col-md-4"><label for="bpf-base">Base pactada para la garantía</label><input class="form-control" id="bpf-base" name="base" type="number" min="0" step="0.01" required value="{{ invoice.bpf_guarantee_base|default(0) }}"></div>
+<div class="col-md-4"><label for="bpf-percent">Garantía (%)</label><input class="form-control" id="bpf-percent" name="percent" type="number" min="0" max="100" step="0.01" required value="{{ invoice.bpf_guarantee_percent|default(0) }}"></div>
+<div class="col-md-4"><label for="bpf-due">Vencimiento de la garantía</label><input class="form-control" id="bpf-due" name="due" type="date" value="{% if invoice.bpf_guarantee_due %}{{ invoice.bpf_guarantee_due|date('Y-m-d') }}{% endif %}"></div>
+</div>
+<p class="mt-3">Al guardar se reparte el recibo pendiente entre pago ordinario y garantía. Los recibos con pagos o en remesa no se modifican. Si cambias después los importes de la factura, revisa de nuevo este desglose antes de imprimir.</p>
+<button class="btn btn-primary" type="submit">Guardar desglose y repartir recibos</button>
+</fieldset>
+</form>
+{% else %}<p>Guarda primero la factura para configurar su desglose.</p>{% endif %}
+</div></div>

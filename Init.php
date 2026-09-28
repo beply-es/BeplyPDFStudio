@@ -80,6 +80,9 @@ class Init extends InitClass
         $this->loadExtension(new EditController());
         $this->loadExtension(new EditProducto());
         $this->loadExtension(new EditSettings());
+        $this->loadExtension(new Extension\Model\FacturaCliente());
+        $this->loadExtension(new Extension\Controller\EditFacturaCliente());
+        Lib\Document\BeplyPdfDocumentExtensionRegistry::addExtension(new Lib\Document\BeplyPdfCertificationExtension());
 
         SalesLineHTML::addMod(new BeplyRichSalesLineDescriptionMod());
         $footerObservationsMod = new BeplyRichDocumentFooterObservationsMod();
@@ -103,6 +106,7 @@ class Init extends InitClass
         $this->repairStaleSchemaChecks();
         $this->ensureStyleSchema();
         $this->ensureAttachedFileRelationSchema();
+        new \FacturaScripts\Dinamic\Model\FacturaCliente();
         if (!$this->isBaseSchemaReady()) {
             return;
         }
@@ -141,6 +145,7 @@ class Init extends InitClass
             'apply_customer_language' => 'BOOLEAN DEFAULT false',
             'print_attachments' => 'BOOLEAN DEFAULT false',
             'show_total_units' => 'BOOLEAN DEFAULT false',
+            'show_certification_settlement' => 'BOOLEAN DEFAULT false',
             'id_footer_image' => 'INTEGER',
             'footer_image_asset' => 'VARCHAR(255)',
             'footer_image_width' => 'INTEGER DEFAULT 520',

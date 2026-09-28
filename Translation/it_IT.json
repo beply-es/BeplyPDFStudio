@@ -118,5 +118,6 @@
     "beplypdf-draft-title-PedidoCliente": "Ordine",
     "beplypdf-draft-title-PedidoProveedor": "Ordine",
     "beplypdf-draft-title-AlbaranCliente": "Documento di trasporto",
-    "beplypdf-draft-title-AlbaranProveedor": "Documento di trasporto"
+    "beplypdf-draft-title-AlbaranProveedor": "Documento di trasporto",
+    "beplypdf-certification-settlement": "Show certifications and guarantee retention"
 }

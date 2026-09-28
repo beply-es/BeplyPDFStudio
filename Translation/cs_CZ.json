@@ -118,5 +118,6 @@
     "beplypdf-draft-title-PedidoCliente": "Objednávka",
     "beplypdf-draft-title-PedidoProveedor": "Objednávka",
     "beplypdf-draft-title-AlbaranCliente": "Dodací list",
-    "beplypdf-draft-title-AlbaranProveedor": "Dodací list"
+    "beplypdf-draft-title-AlbaranProveedor": "Dodací list",
+    "beplypdf-certification-settlement": "Show certifications and guarantee retention"
 }
