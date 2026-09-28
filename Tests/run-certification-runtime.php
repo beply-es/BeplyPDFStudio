@@ -27,6 +27,14 @@ function check($condition, string $message): void {
     echo 'PASS ' . $message . "\n";
 }
 $user = new User(); check($user->loadFromCode('certtest'), 'synthetic user'); Session::set('user', $user);
+// Reproduce an upgrade with a warm pre-extension model metadata cache.
+$invoiceFields = (new FacturaCliente())->getModelFields();
+$legacyFields = array_filter($invoiceFields, static fn($key) => !str_starts_with($key, 'bpf_'), ARRAY_FILTER_USE_KEY);
+\FacturaScripts\Core\Cache::set('model-fields-FacturaCliente', $legacyFields);
+$fieldsProperty = (new ReflectionClass(FacturaCliente::class))->getProperty('fields');
+$fieldsProperty->setAccessible(true); $fieldsProperty->setValue(null, $legacyFields);
+(new \FacturaScripts\Plugins\BeplyPDFStudio\Init())->update();
+check(isset((new FacturaCliente())->getModelFields()['bpf_guarantee_receipt']), 'upgrade refreshes warm invoice model metadata');
 $tax = new Impuesto();
 $tax->codimpuesto='CERT21';$tax->descripcion='Synthetic 21%';$tax->iva=21;check($tax->save(), 'tax');
 $customer = new Cliente(); $customer->nombre='CERTIFICATION TEST ONLY';$customer->cifnif=''; check($customer->save(), 'customer');
@@ -38,8 +46,17 @@ try {
     $lines=[$line];check(Calculator::calculate($invoice,$lines,true),'real calculator');
     check((float)$invoice->neto===10000.0 && (float)$invoice->total===12100.0,'10000 base / 12100 total');
     $input=['enabled'=>'1','previous'=>'20000','percent'=>'5','base'=>'10000','due'=>'2027-09-28','witness'=>InvoiceCertificationService::witness($invoice)];
+    \FacturaScripts\Core\Cache::set('model-fields-FacturaCliente', $legacyFields);
+    $fieldsProperty->setValue(null, $legacyFields);
+    $invoice->loadFromCode($invoice->id());$input['witness']=InvoiceCertificationService::witness($invoice);
+    try { InvoiceCertificationService::save((int)$invoice->id(),$input,$user->nick);check(false,'stale schema rejected'); }
+    catch (RuntimeException $error) { check(str_contains($error->getMessage(),'esquema'),'stale schema fails before receipt changes'); }
+    check(count($invoice->getReceipts())===1 && (float)$invoice->getReceipts()[0]->importe===12100.0,'stale schema leaves original receipt intact');
+    (new \FacturaScripts\Plugins\BeplyPDFStudio\Init())->update();
+    $invoice->loadFromCode($invoice->id());$input['witness']=InvoiceCertificationService::witness($invoice);
     try { InvoiceCertificationService::save((int)$invoice->id(),$input,$user->nick); } catch (\Throwable $e) { foreach(Tools::log()->read() as $log) echo json_encode($log)."\n"; throw $e; }
     $invoice->loadFromCode($invoice->id());
+    check($invoice->bpf_certification && (float)$invoice->bpf_previous===20000.0 && (float)$invoice->bpf_guarantee_percent===5.0 && $invoice->bpf_guarantee_receipt, 'settlement metadata persisted and reread');
     $receipts=$invoice->getReceipts();$amounts=array_map(static fn($r)=>(float)$r->importe,$receipts);sort($amounts);
     check($amounts === [500.0,11600.0],'two real receipts sum to fiscal total');
     check((float)$invoice->neto===10000.0 && (float)$invoice->total===12100.0,'fiscal totals preserved');
@@ -58,6 +75,29 @@ try {
     $input['witness']=$oldWitness; $input['percent']='101';
     try { InvoiceCertificationService::save((int)$invoice->id(),$input,$user->nick); check(false,'invalid percentage rejected'); }
     catch (InvalidArgumentException $error) { $invoice->loadFromCode($invoice->id());check($oldWitness===InvoiceCertificationService::witness($invoice),'invalid change fully rolled back'); }
+    // A competing model hook corrupts the just-saved metadata: all prior receipt writes must roll back.
+    $fault = new class {
+        public static bool $enabled = false;
+        public function save(): Closure {
+            $faultClass = self::class;
+            return function () use ($faultClass): bool {
+                if ($faultClass::$enabled) {
+                    $db = new \FacturaScripts\Core\Base\DataBase();
+                    $db->exec('UPDATE facturascli SET bpf_previous=0 WHERE idfactura='.(int)$this->id());
+                }
+                return true;
+            };
+        }
+    };
+    FacturaCliente::addExtension($fault);
+    $input['witness']=InvoiceCertificationService::witness($invoice);$input['percent']='6';
+    $fault::$enabled=true;
+    try { InvoiceCertificationService::save((int)$invoice->id(),$input,$user->nick);check(false,'corrupt persistence rejected'); }
+    catch (RuntimeException $error) {
+        check(str_contains($error->getMessage(),'persistido'),'persisted metadata discrepancy detected');
+        $invoice->loadFromCode($invoice->id());
+        check($input['witness']===InvoiceCertificationService::witness($invoice),'rollback restores receipts and terms after partial writes');
+    } finally { $fault::$enabled=false; }
     $savedReceipt=$invoice->bpf_guarantee_receipt;$invoice->bpf_guarantee_receipt=999999;
     try { (new BeplyPdfCertificationExtension())->blocks(new BeplyPdfDocumentContext($config,$invoice)); check(false,'mismatched receipt refused'); }
     catch (\FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfInconsistentDocumentException $error) { check(true,'mismatched receipt refuses PDF'); }

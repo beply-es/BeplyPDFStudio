@@ -107,6 +107,11 @@ class Init extends InitClass
         $this->ensureStyleSchema();
         $this->ensureAttachedFileRelationSchema();
         new \FacturaScripts\Dinamic\Model\FacturaCliente();
+        // DbUpdater can add columns while a previously warmed model field list survives.
+        Cache::delete('model-fields-FacturaCliente');
+        $fields = new \ReflectionProperty(\FacturaScripts\Dinamic\Model\FacturaCliente::class, 'fields');
+        $fields->setAccessible(true);
+        $fields->setValue(null, []);
         if (!$this->isBaseSchemaReady()) {
             return;
         }
