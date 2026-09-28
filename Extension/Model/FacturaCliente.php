@@ -54,8 +54,13 @@ class FacturaCliente
             }
             try {
                 BeplyInvoiceCertification::fromInvoice($this);
+                if (!$this->editable) {
+                    (new \FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfCertificationExtension())->blocks(
+                        new \FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfDocumentContext(
+                            new \FacturaScripts\Plugins\BeplyPDFStudio\Lib\BeplyPdfConfig(), $this));
+                }
                 return true;
-            } catch (\InvalidArgumentException $error) {
+            } catch (\InvalidArgumentException | \FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfInconsistentDocumentException $error) {
                 Tools::log()->warning($error->getMessage());
                 return false;
             }

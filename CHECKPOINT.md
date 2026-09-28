@@ -18,3 +18,12 @@
 - Detectado Core del lab antiguo distinto del cliente; retirado ese baseline, no cambios ajenos para acomodarlo. Detectado tipo int/string al comparar preimagen -> canonicalización estable, misma identidad sin casts de importes distintos.
 - Estado 30%: local funcional preliminar; pendiente revisión adversarial, CI exacta, DEV100 y PROD100. Nunca publicar alcance global. No se ha escrito en PROD.
 - Evidencia sintética local /tmp/beply-certificaciones-20260928; fixtures previos de exploración quedan en DB propia a destruir al cierre. Helpers HTTP solo loopback.
+
+## Revisión adversarial y candidato final
+- Guarda de permisos revalidada bajo bloqueo de factura/recibos, incluida propiedad de cada recibo según Core. HTTP GET rechazado sin cambios; POST sin CSRF rechazado; POST válido probado.
+- Tests instalados: copia limpia, usuario sin permisos sin efectos, transición a emitida rechaza garantía inconsistente, emitida válida inmutable, servicio rechaza documento bloqueado.
+- PDF real en los nueve diseños HTML: todas las filas y 500/11600 presentes. Sin degradación silenciosa ante error de configuración/render.
+- Migración aislada 2.7 -> candidato 4.2 -> rollback 2.7: campos previos de estilo preservados, fechas comparadas por instante (Core cambia representación al releer). Datos sintéticos únicamente.
+- DEV fixture provisioning solicitado UNA vez: run 36404839146, SHA beply-k3s 37e0db3a63e362804bab757a1940f43199ad287d, retain_for_followup=true. Al terminar recuperar identidad exacta y limpiar sólo ese servicio por workflow canónico.
+- PR27 draft. CI inicial 996c4045c49e695175926f87f57cf089a0654c03 verde runs 36404653404/36404720430; nuevos guardas requieren CI sucesora.
+- Progreso 40%; local verde, CI candidato final/DEV/PROD pendientes.

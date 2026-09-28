@@ -62,6 +62,40 @@ try {
     try { (new BeplyPdfCertificationExtension())->blocks(new BeplyPdfDocumentContext($config,$invoice)); check(false,'mismatched receipt refused'); }
     catch (\FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfInconsistentDocumentException $error) { check(true,'mismatched receipt refuses PDF'); }
     $invoice->bpf_guarantee_receipt=$savedReceipt;
+    $copy = new FacturaCliente();
+    $copy->idestado = $invoice->idestado;
+    $copy->setSubject($customer);
+    $copy->bpf_certification = true; $copy->bpf_previous = 20000;
+    $copy->bpf_guarantee_receipt = $savedReceipt;
+    check($copy->save(), 'copy saved');
+    $copy->loadFromCode($copy->id());
+    check(!$copy->bpf_certification && !$copy->bpf_guarantee_receipt && !$copy->bpf_previous, 'copy does not inherit settlement or foreign receipt');
+    check($copy->delete(), 'copy cleanup');
+    new \FacturaScripts\Dinamic\Model\RoleUser();
+    new \FacturaScripts\Dinamic\Model\RoleAccess();
+    $reader = new User(); $reader->nick = 'certreader'; $reader->admin = false;
+    $reader->setPassword('SyntheticLocalOnly2026'); check($reader->save(), 'restricted synthetic user');
+    $input['percent'] = '6'; $input['witness'] = InvoiceCertificationService::witness($invoice);
+    try { InvoiceCertificationService::save((int)$invoice->id(), $input, $reader->nick); check(false, 'restricted save rejected'); }
+    catch (InvalidArgumentException $error) {
+        $invoice->loadFromCode($invoice->id());
+        check($input['witness'] === InvoiceCertificationService::witness($invoice), 'no write without invoice and receipt permissions');
+    }
+    check($reader->delete(), 'restricted user cleanup');
+    $draftStatus = $invoice->idestado;
+    foreach (\FacturaScripts\Dinamic\Model\EstadoDocumento::all([new \FacturaScripts\Core\Base\DataBase\DataBaseWhere('tipodoc','FacturaCliente'),new \FacturaScripts\Core\Base\DataBase\DataBaseWhere('editable',false)]) as $state) { $issuedStatus=$state->idestado;break; }
+    check(isset($issuedStatus), 'issued state exists');
+    $invoice->idestado = $issuedStatus; $invoice->bpf_guarantee_receipt = 999999;
+    check(!$invoice->save(), 'cannot lock invoice with inconsistent guarantee');
+    $invoice->loadFromCode($invoice->id());
+    $invoice->idestado = $issuedStatus; check($invoice->save(), 'consistent invoice can be locked');
+    $invoice->loadFromCode($invoice->id());
+    $invoice->bpf_previous = 25000; check(!$invoice->save(), 'issued metadata cannot change');
+    $invoice->loadFromCode($invoice->id());
+    $input['witness'] = InvoiceCertificationService::witness($invoice);
+    try { InvoiceCertificationService::save((int)$invoice->id(), $input, $user->nick); check(false, 'locked service rejected'); }
+    catch (InvalidArgumentException $error) { check(true, 'service rejects locked document'); }
+    $invoice->idestado = $draftStatus; check($invoice->save(), 'synthetic fixture unlock for cleanup');
     file_put_contents('/tmp/certification-test-invoice-id',(string)$invoice->id());
     // Keep only on request so an operator can inspect the actual PDF before cleanup.
     if (getenv('BEPDF_KEEP_SYNTHETIC_FIXTURE') === '1') { echo "FIXTURE " . $invoice->id() . "\n"; exit(0); }

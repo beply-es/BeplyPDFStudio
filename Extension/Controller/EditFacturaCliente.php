@@ -41,9 +41,7 @@ class EditFacturaCliente
             $receiptsPermission = new ControllerPermissions($this->user, 'EditReciboCliente');
             if ($this->request->method() !== 'POST' || !$this->permissions->allowUpdate
                 || !$receiptsPermission->allowAccess || !$receiptsPermission->allowUpdate
-                || !$invoice->id() || ($this->permissions->onlyOwnerData
-                    && (!$this->user->codagente || $invoice->codagente !== $this->user->codagente))
-                || ($receiptsPermission->onlyOwnerData && $invoice->nick !== $this->user->nick)) {
+                || !$invoice->id() || !$this->checkOwnerData($invoice)) {
                 Tools::log()->warning('not-allowed-modify');
                 return true;
             }

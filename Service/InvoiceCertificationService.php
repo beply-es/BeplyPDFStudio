@@ -2,6 +2,8 @@
 namespace FacturaScripts\Plugins\BeplyPDFStudio\Service;
 
 use FacturaScripts\Core\Base\DataBase;
+use FacturaScripts\Core\Base\ControllerPermissions;
+use FacturaScripts\Dinamic\Model\User;
 use FacturaScripts\Dinamic\Model\FacturaCliente;
 use FacturaScripts\Dinamic\Model\ReciboCliente;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\BeplyInvoiceCertification;
@@ -27,6 +29,19 @@ final class InvoiceCertificationService
         return $data;
     }
 
+    private static function assertMayEdit(ControllerPermissions $permission, User $user, object $model): void
+    {
+        $owned = !$permission->onlyOwnerData || !$model->id();
+        if (!$owned) {
+            // Match Core's record ownership rules, for each record we may change.
+            $owned = property_exists($model, 'nick') && ($model->nick === null || $model->nick === $user->nick);
+            $owned = $owned || (property_exists($model, 'codagente') && $user->codagente && $model->codagente === $user->codagente);
+        }
+        if (!$permission->allowAccess || !$permission->allowUpdate || !$owned) {
+            throw new \InvalidArgumentException('No tienes permiso para modificar la factura y sus recibos.');
+        }
+    }
+
     /** Caller must first prove POST, CSRF, invoice and receipt permissions/ownership. */
     public static function save(int $id, array $input, string $nick): void
     {
@@ -43,6 +58,16 @@ final class InvoiceCertificationService
             $invoice = new FacturaCliente();
             if (!$invoice->loadFromCode($id) || !$invoice->editable || $invoice->idfacturarect) {
                 throw new \InvalidArgumentException('Solo se puede configurar una factura editable no rectificativa.');
+            }
+            $actor = new User();
+            if (!$actor->loadFromCode($nick)) {
+                throw new \InvalidArgumentException('Usuario no autorizado.');
+            }
+            self::assertMayEdit(new ControllerPermissions($actor, 'EditFacturaCliente'), $actor, $invoice);
+            $receiptPermission = new ControllerPermissions($actor, 'EditReciboCliente');
+            self::assertMayEdit($receiptPermission, $actor, new ReciboCliente());
+            foreach ($invoice->getReceipts() as $receipt) {
+                self::assertMayEdit($receiptPermission, $actor, $receipt);
             }
             if (!hash_equals(self::witness($invoice), (string) ($input['witness'] ?? ''))) {
                 throw new \InvalidArgumentException('La factura o sus recibos han cambiado. Recarga y revisa los importes.');

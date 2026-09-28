@@ -222,6 +222,9 @@ class PDFExport extends CorePDFExport
                 // No degrada al core: hacerlo volveria a emitir el documento falso.
                 throw $e;
             } catch (\Throwable $e) {
+                if (!empty($model->bpf_certification)) {
+                    throw new BeplyPdfInconsistentDocumentException('No se ha podido verificar el formato de certificaciones y garantías.');
+                }
                 Tools::log()->warning('beplypdf-render-fallback: ' . $e->getMessage());
                 $this->beplyConfig = null;
             }
