@@ -60,6 +60,9 @@ class BeplyPdfFormatStyleService
             $config = new BeplyPdfConfig();
             $this->applyNativeFormatDefaults($config, $format);
         }
+        // A format without its own footer image follows the global one: never copy it into the design.
+        $config->idFooterImage = 0;
+        $config->footerImageAsset = '';
 
         $style = new BeplyPdfStyle();
         $style->setConfig($config);

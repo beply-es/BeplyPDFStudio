@@ -159,7 +159,10 @@ jobs:
           cd /tmp/build
           zip -r "/tmp/${PLUGIN_ASSET_NAME}" "${PLUGIN_NAME}/"
           test -s "/tmp/${PLUGIN_ASSET_NAME}"
-          if zipinfo -1 "/tmp/${PLUGIN_ASSET_NAME}" | grep -E '\.md$' | grep -vxE "${PLUGIN_NAME}/(README|CHANGELOG)\.md"; then
+          # Fail closed: a ZIP that cannot be listed is never published.
+          ZIP_ENTRIES="$(zipinfo -1 "/tmp/${PLUGIN_ASSET_NAME}")" || { echo "::error::Cannot list plugin ZIP"; exit 1; }
+          printf '%s\n' "${ZIP_ENTRIES}" | grep -qxF "${PLUGIN_NAME}/facturascripts.ini" || { echo "::error::Cannot list plugin ZIP"; exit 1; }
+          if printf '%s\n' "${ZIP_ENTRIES}" | grep -E '\.md$' | grep -vxE "${PLUGIN_NAME}/(README|CHANGELOG)\.md"; then
             echo "::error::Unexpected Markdown in plugin ZIP"
             exit 1
           fi

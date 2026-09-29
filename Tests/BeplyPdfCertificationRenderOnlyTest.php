@@ -87,6 +87,8 @@ final class BeplyPdfCertificationRenderOnlyTest extends TestCase
         $seed = strpos($source, '$config = (new BeplyPdfRenderService())->resolveConfig((int) $format->id,');
         $save = strpos($source, '$style->setConfig($config);');
         $this->assertTrue($seed !== false && $save !== false && $seed < $save, 'a new format design is seeded from the effective configuration');
+        $footer = strpos($source, "\$config->idFooterImage = 0;\n        \$config->footerImageAsset = '';");
+        $this->assertTrue($footer !== false && $seed < $footer && $footer < $save, 'the global footer image is inherited, never copied into the format design');
     }
 
     public function testThePrintOptionIsHiddenWithoutTheModule(): void

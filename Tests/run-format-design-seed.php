@@ -111,3 +111,49 @@ try {
     }
     check($global->save(), 'global template restored');
 }
+
+// The footer image is inherited while a format has none of its own: opening the design must not freeze it.
+$footers = [];
+foreach (['a' => [200, 30, 30], 'b' => [30, 30, 200]] as $name => [$r, $g, $b]) {
+    $image = imagecreatetruecolor(40, 10);
+    imagefill($image, 0, 0, imagecolorallocate($image, $r, $g, $b));
+    $relative = 'bepdf-seed-footer-' . $name . '-' . getmypid() . '.png';
+    imagepng($image, FS_FOLDER . '/MyFiles/' . $relative);
+    $footers[$name] = ['asset' => $relative, 'uri' => 'data:image/png;base64,' . base64_encode((string) file_get_contents(FS_FOLDER . '/MyFiles/' . $relative))];
+}
+$style = null;
+$global->loadFromCode($global->id);
+$preimage = $global->toArray();
+try {
+    check($service->styleForFormat($format) === null, 'the format has no design of its own before the footer check');
+    $global->id_footer_image = null;
+    $global->footer_image_asset = $footers['a']['asset'];
+    check($global->save(), 'global footer image A');
+    check(str_contains($render(), $footers['a']['uri']), 'the format prints global footer A before opening its design');
+
+    $style = $service->getOrCreateForFormat($format);
+    check($style !== null, 'opening the design creates the format design');
+    check(str_contains($render(), $footers['a']['uri']), 'the format prints global footer A after opening its design');
+
+    $global->footer_image_asset = $footers['b']['asset'];
+    check($global->save(), 'global footer image changed to B');
+    $html = $render();
+    check(str_contains($html, $footers['b']['uri']) && !str_contains($html, $footers['a']['uri']), 'the opened format follows the new global footer B');
+
+    $global->footer_image_asset = '';
+    check($global->save(), 'global footer image removed');
+    $html = $render();
+    check(!str_contains($html, $footers['a']['uri']) && !str_contains($html, $footers['b']['uri']), 'the opened format drops the removed global footer');
+    $stored = new BeplyPdfStyle();
+    check($stored->loadFromCode($style->id) && empty($stored->id_footer_image) && trim((string) $stored->footer_image_asset) === '', 'the format design keeps no footer image of its own');
+} finally {
+    if ($style !== null) {
+        check($style->delete(), 'synthetic format design cleanup');
+    }
+    $global->id_footer_image = $preimage['id_footer_image'];
+    $global->footer_image_asset = $preimage['footer_image_asset'];
+    check($global->save(), 'global footer restored');
+    foreach ($footers as $footer) {
+        check(unlink(FS_FOLDER . '/MyFiles/' . $footer['asset']), 'synthetic footer image cleanup');
+    }
+}

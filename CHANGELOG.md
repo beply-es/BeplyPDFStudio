@@ -14,6 +14,8 @@
   en la plantilla y en los formatos mientras BeplyObras no está activo (guardar conserva su valor).
 - Abrir el diseño de un formato que aún no tenía diseño propio parte de lo que ese formato imprime
   (plantilla general activa), no de los valores por defecto: abrirlo ya no cambia sus documentos.
+  La imagen de pie no se copia: el formato sigue usando la de la plantilla general mientras no
+  elija una propia.
 - El ZIP publicado solo lleva `README.md` y `CHANGELOG.md` como Markdown; se retiran las notas
   internas del repositorio.
 
