@@ -25,7 +25,9 @@ final class ReleaseWorkflowContractTest extends TestCase
         $this->assertTrue(strpos($workflow, "--include='/README.md'") < strpos($workflow, "--exclude='*.md'"), 'rsync applies the first matching rule');
         $this->assertTrue(str_contains($workflow, 'Unexpected Markdown in plugin ZIP'));
         $this->assertTrue(str_contains($workflow, 'ZIP_ENTRIES="$(zipinfo -1 "/tmp/${PLUGIN_ASSET_NAME}")" || { echo "::error::Cannot list plugin ZIP"; exit 1; }'), 'the guard fails closed when the ZIP cannot be listed');
-        $this->assertTrue(str_contains($workflow, 'grep -qxF "${PLUGIN_NAME}/facturascripts.ini"'), 'an empty listing is not a clean ZIP');
+        $this->assertTrue(str_contains($workflow, 'grep -qxF "${PLUGIN_NAME}/facturascripts.ini" <<<"${ZIP_ENTRIES}" || { echo "::error::Cannot list plugin ZIP"; exit 1; }'), 'an empty listing is not a clean ZIP');
+        // Under pipefail, grep -q exits early and a printf feeding it dies of SIGPIPE: a good ZIP would fail.
+        $this->assertFalse((bool) preg_match('/printf[^\n]*ZIP_ENTRIES[^\n]*\|\s*grep -q/', $workflow), 'never pipe the listing into an early-exiting grep');
         $this->assertFalse(file_exists(dirname(__DIR__) . '/CHECKPOINT.md'), 'operator checkpoints live in the infra workspace, not in the plugin');
     }
 

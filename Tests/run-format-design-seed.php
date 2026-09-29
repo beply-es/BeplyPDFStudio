@@ -114,7 +114,7 @@ try {
 
 // The footer image is inherited while a format has none of its own: opening the design must not freeze it.
 $footers = [];
-foreach (['a' => [200, 30, 30], 'b' => [30, 30, 200]] as $name => [$r, $g, $b]) {
+foreach (['a' => [200, 30, 30], 'b' => [30, 30, 200], 'own' => [30, 160, 30]] as $name => [$r, $g, $b]) {
     $image = imagecreatetruecolor(40, 10);
     imagefill($image, 0, 0, imagecolorallocate($image, $r, $g, $b));
     $relative = 'bepdf-seed-footer-' . $name . '-' . getmypid() . '.png';
@@ -146,6 +146,17 @@ try {
     check(!str_contains($html, $footers['a']['uri']) && !str_contains($html, $footers['b']['uri']), 'the opened format drops the removed global footer');
     $stored = new BeplyPdfStyle();
     check($stored->loadFromCode($style->id) && empty($stored->id_footer_image) && trim((string) $stored->footer_image_asset) === '', 'the format design keeps no footer image of its own');
+
+    // A format that picks its own footer image keeps it, whatever the global template does.
+    $stored->footer_image_asset = $footers['own']['asset'];
+    check($stored->save(), 'the format design picks its own footer image');
+    foreach (['a', 'b', ''] as $globalFooter) {
+        $global->footer_image_asset = $globalFooter === '' ? '' : $footers[$globalFooter]['asset'];
+        check($global->save(), 'global footer image set to ' . ($globalFooter === '' ? 'none' : strtoupper($globalFooter)));
+        $html = $render();
+        check(str_contains($html, $footers['own']['uri']) && !str_contains($html, $footers['a']['uri']) && !str_contains($html, $footers['b']['uri']),
+            'the format keeps its own footer image with global footer ' . ($globalFooter === '' ? 'none' : strtoupper($globalFooter)));
+    }
 } finally {
     if ($style !== null) {
         check($style->delete(), 'synthetic format design cleanup');

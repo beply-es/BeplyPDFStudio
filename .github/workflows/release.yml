@@ -161,8 +161,9 @@ jobs:
           test -s "/tmp/${PLUGIN_ASSET_NAME}"
           # Fail closed: a ZIP that cannot be listed is never published.
           ZIP_ENTRIES="$(zipinfo -1 "/tmp/${PLUGIN_ASSET_NAME}")" || { echo "::error::Cannot list plugin ZIP"; exit 1; }
-          printf '%s\n' "${ZIP_ENTRIES}" | grep -qxF "${PLUGIN_NAME}/facturascripts.ini" || { echo "::error::Cannot list plugin ZIP"; exit 1; }
-          if printf '%s\n' "${ZIP_ENTRIES}" | grep -E '\.md$' | grep -vxE "${PLUGIN_NAME}/(README|CHANGELOG)\.md"; then
+          # Here-strings, not printf pipes: under pipefail an early-exiting grep -q sends SIGPIPE to printf.
+          grep -qxF "${PLUGIN_NAME}/facturascripts.ini" <<<"${ZIP_ENTRIES}" || { echo "::error::Cannot list plugin ZIP"; exit 1; }
+          if grep -E '\.md$' <<<"${ZIP_ENTRIES}" | grep -vxE "${PLUGIN_NAME}/(README|CHANGELOG)\.md"; then
             echo "::error::Unexpected Markdown in plugin ZIP"
             exit 1
           fi
