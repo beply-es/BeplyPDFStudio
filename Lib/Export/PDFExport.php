@@ -32,6 +32,7 @@ use FacturaScripts\Plugins\BeplyPDFStudio\Lib\BeplyPdfConfig;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\BeplyPdfDocumentCacheService;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\BeplyPdfGenericReportBuffer;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\BeplyPdfRenderService;
+use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfCertificationExtension;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfDocumentTotalsConsistency;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfInconsistentDocumentException;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Html\BeplyHtmlRenderService;
@@ -151,11 +152,8 @@ class PDFExport extends CorePDFExport
 
         try {
             $this->assertDocumentTotalsAreNotSelfContradictory($model);
-            if (!empty($model->bpf_certification)) {
-                (new \FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfCertificationExtension())->blocks(
-                    new \FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfDocumentContext(new BeplyPdfConfig(), $model)
-                );
-            }
+            // Validate the settlement even if this print format hides it: never print a false settlement.
+            $certification = BeplyPdfCertificationExtension::settlement($model) !== null;
 
             try {
                 $format = $this->getDocumentFormat($model);
@@ -168,7 +166,7 @@ class PDFExport extends CorePDFExport
                 if ($config !== null) {
                     $restoreLang = $this->applyCustomerLanguage($config, $model);
                     $this->beplyConfig = $config;
-                    if (!empty($model->bpf_certification) && $config->showCertificationSettlement
+                    if ($certification && $config->showCertificationSettlement
                         && ($this->useCezpdfDocumentDesign($config) || !BeplyHtmlRenderService::handles($config->diseno))) {
                         throw new BeplyPdfInconsistentDocumentException('Selecciona una plantilla HTML para imprimir certificaciones y garantías.');
                     }
@@ -196,7 +194,7 @@ class PDFExport extends CorePDFExport
                             return false; // el documento se sirve vía getDoc()
                         }
 
-                        if (!empty($model->bpf_certification) && $config->showCertificationSettlement) {
+                        if ($certification && $config->showCertificationSettlement) {
                             throw new BeplyPdfInconsistentDocumentException('No se ha podido imprimir el desglose de certificaciones y garantías.');
                         }
 
@@ -222,7 +220,7 @@ class PDFExport extends CorePDFExport
                 // No degrada al core: hacerlo volveria a emitir el documento falso.
                 throw $e;
             } catch (\Throwable $e) {
-                if (!empty($model->bpf_certification)) {
+                if ($certification) {
                     throw new BeplyPdfInconsistentDocumentException('No se ha podido verificar el formato de certificaciones y garantías.');
                 }
                 Tools::log()->warning('beplypdf-render-fallback: ' . $e->getMessage());

@@ -1,5 +1,25 @@
 # Changelog
 
+## v4.4 - 2026-09-29
+
+- Certificaciones de obra y retención por garantía pasan al módulo BeplyObras («Obras y
+  certificaciones»). PDFStudio ya no añade columnas a `facturascli`, ni la pestaña de la
+  factura, ni reparte recibos.
+- PDFStudio solo dibuja el desglose (mismas etiquetas, hueco y formato que 4.3) con los datos
+  del contrato de lectura de BeplyObras, y solo si ese módulo está activo. Sin el módulo no se
+  dibuja nada y el PDF es igual que antes. Se mantiene la opción «Mostrar certificaciones y
+  garantías» del formato y las guardas que impiden imprimir un desglose incoherente.
+- Las columnas `bpf_*` que crearon 4.2/4.3 se quedan sin uso; no se borran.
+
+## v4.3 - 2026-09-28
+
+- Invalida los metadatos de campos de `FacturaCliente` tras migrar sus columnas y relee lo
+  guardado antes de confirmar el reparto de recibos.
+
+## v4.2 - 2026-09-28
+
+- Certificaciones anteriores y garantías en facturas de venta y en el PDF.
+
 ## v4.1 - 2026-09-03
 
 - Sin cambios funcionales respecto a 4.0. Versión dedicada a la aprobación cerrada
