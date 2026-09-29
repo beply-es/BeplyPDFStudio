@@ -53,8 +53,13 @@ class BeplyPdfFormatStyleService
             return null;
         }
 
-        $config = new BeplyPdfConfig();
-        $this->applyNativeFormatDefaults($config, $format);
+        // Start from what this format prints today, so opening its design never changes documents.
+        $config = (new BeplyPdfRenderService())->resolveConfig((int) $format->id,
+            !empty($format->idempresa) ? (int) $format->idempresa : null);
+        if ($config === null) {
+            $config = new BeplyPdfConfig();
+            $this->applyNativeFormatDefaults($config, $format);
+        }
 
         $style = new BeplyPdfStyle();
         $style->setConfig($config);

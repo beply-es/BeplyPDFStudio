@@ -16,6 +16,7 @@
             <column name="show-agent" numcolumns="4" order="135"><widget type="checkbox" fieldname="show_agent"/></column>
             <column name="show-draft-warning" numcolumns="4" order="140"><widget type="checkbox" fieldname="show_draft_warning"/></column>
             <column name="show-parent-docs" numcolumns="4" order="145"><widget type="checkbox" fieldname="show_parent_docs"/></column>
+            <column name="show-certification-settlement" title="beplypdf-certification-settlement" numcolumns="4" order="149"><widget type="checkbox" fieldname="show_certification_settlement"/></column>
             <column name="show-total-units" numcolumns="4" order="150"><widget type="checkbox" fieldname="show_total_units"/></column>
             <column name="hide-shipping-address" numcolumns="4" order="155"><widget type="checkbox" fieldname="hide_shipping_address"/></column>
             <column name="hide-invoice-number" numcolumns="4" order="160"><widget type="checkbox" fieldname="hide_invoice_number"/></column>

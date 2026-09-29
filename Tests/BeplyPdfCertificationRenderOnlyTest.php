@@ -81,11 +81,20 @@ final class BeplyPdfCertificationRenderOnlyTest extends TestCase
         $this->assertSame(4, substr_count($source, '$certification'), 'one computation and three guards');
     }
 
+    public function testOpeningAFormatDesignStartsFromWhatTheFormatPrints(): void
+    {
+        $source = $this->read('Lib/BeplyPdfFormatStyleService.php');
+        $seed = strpos($source, '$config = (new BeplyPdfRenderService())->resolveConfig((int) $format->id,');
+        $save = strpos($source, '$style->setConfig($config);');
+        $this->assertTrue($seed !== false && $save !== false && $seed < $save, 'a new format design is seeded from the effective configuration');
+    }
+
     public function testThePrintOptionIsKept(): void
     {
         $this->assertTrue(str_contains($this->read('Lib/BeplyPdfConfig.php'), 'public bool $showCertificationSettlement = false;'));
         $this->assertTrue(str_contains($this->read('Table/beply_pdf_styles.xml'), '<name>show_certification_settlement</name>'));
         $this->assertTrue(str_contains($this->read('XMLView/BpfVisibilidad.xml'), 'fieldname="show_certification_settlement"'));
+        $this->assertTrue(str_contains($this->read('XMLView/BpsDatos.xml'), 'fieldname="show_certification_settlement"'), 'the global template exposes the option it stores');
         $this->assertTrue(str_contains($this->read('Init.php'), "'show_certification_settlement' => 'BOOLEAN DEFAULT false'"));
     }
 }
