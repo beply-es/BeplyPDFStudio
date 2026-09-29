@@ -142,19 +142,27 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p "/tmp/build/${PLUGIN_NAME}"
-          rsync -a \
+          rsync -a --prune-empty-dirs \
             --exclude='.git' \
             --exclude='.github' \
             --exclude='.venv' \
             --exclude='.phpunit.result.cache' \
             --exclude='Tests' \
             --exclude='scripts' \
+            --exclude='docs' \
             --exclude='test-results' \
             --exclude='.gitignore' \
+            --include='/README.md' \
+            --include='/CHANGELOG.md' \
+            --exclude='*.md' \
             ./ "/tmp/build/${PLUGIN_NAME}/"
           cd /tmp/build
           zip -r "/tmp/${PLUGIN_ASSET_NAME}" "${PLUGIN_NAME}/"
           test -s "/tmp/${PLUGIN_ASSET_NAME}"
+          if zipinfo -1 "/tmp/${PLUGIN_ASSET_NAME}" | grep -E '\.md$' | grep -vxE "${PLUGIN_NAME}/(README|CHANGELOG)\.md"; then
+            echo "::error::Unexpected Markdown in plugin ZIP"
+            exit 1
+          fi
 
       - name: Publish dev provenance release
         if: github.ref == 'refs/heads/main'

@@ -13,6 +13,20 @@ final class ReleaseWorkflowContractTest extends TestCase
         return (string) file_get_contents(dirname(__DIR__) . '/.github/workflows/release.yml');
     }
 
+    public function testTheZipShipsNoInternalNotes(): void
+    {
+        $workflow = $this->workflow();
+
+        // Operator notes and internal docs must never reach tenants: only README and CHANGELOG ship.
+        $this->assertTrue(str_contains($workflow, "--include='/README.md'"));
+        $this->assertTrue(str_contains($workflow, "--include='/CHANGELOG.md'"));
+        $this->assertTrue(str_contains($workflow, "--exclude='*.md'"));
+        $this->assertTrue(str_contains($workflow, "--exclude='docs'"));
+        $this->assertTrue(strpos($workflow, "--include='/README.md'") < strpos($workflow, "--exclude='*.md'"), 'rsync applies the first matching rule');
+        $this->assertTrue(str_contains($workflow, 'Unexpected Markdown in plugin ZIP'));
+        $this->assertFalse(file_exists(dirname(__DIR__) . '/CHECKPOINT.md'), 'operator checkpoints live in the infra workspace, not in the plugin');
+    }
+
     public function testMainPublishesOnlyADevCandidate(): void
     {
         $workflow = $this->workflow();

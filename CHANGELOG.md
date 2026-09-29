@@ -10,6 +10,12 @@
   dibuja nada y el PDF es igual que antes. Se mantiene la opción «Mostrar certificaciones y
   garantías» del formato y las guardas que impiden imprimir un desglose incoherente.
 - Las columnas `bpf_*` que crearon 4.2/4.3 se quedan sin uso; no se borran.
+- La opción del desglose aparece también en «Datos visibles» de la plantilla general, y se oculta
+  en la plantilla y en los formatos mientras BeplyObras no está activo (guardar conserva su valor).
+- Abrir el diseño de un formato que aún no tenía diseño propio parte de lo que ese formato imprime
+  (plantilla general activa), no de los valores por defecto: abrirlo ya no cambia sus documentos.
+- El ZIP publicado solo lleva `README.md` y `CHANGELOG.md` como Markdown; se retiran las notas
+  internas del repositorio.
 
 ## v4.3 - 2026-09-28
 

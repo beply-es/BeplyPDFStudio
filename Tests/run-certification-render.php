@@ -26,6 +26,7 @@ use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfCertificationExte
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfDocumentContext;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfInconsistentDocumentException;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Export\PDFExport;
+use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Html\BeplyHtmlRenderService;
 
 function check($condition, string $message): void
 {
@@ -104,7 +105,22 @@ try {
         $export->newDoc('certification-render', 0, '');
         $export->addBusinessDocPage($invoice);
     }, 'the export never prints an inconsistent settlement');
+
+    // The columns and values stay when the module is disabled; the PDF must then ignore them.
+    $invoice->loadFromCode($invoice->id());
+    check((bool) $invoice->obr_certification, 'the invoice still carries the certification data');
+    check(Plugins::disable('BeplyObras', false) && !Plugins::isEnabled('BeplyObras'), 'BeplyObras disabled');
+    check(BeplyPdfCertificationExtension::settlement($invoice) === null && blocksFor($invoice, true) === [], 'no settlement and no block without the module');
+    $invoice->obr_guarantee_receipt = 999999;
+    check(blocksFor($invoice, true, true) === [], 'without the module stale data neither blocks nor refuses printing');
+    $config = new BeplyPdfConfig();
+    $config->showCertificationSettlement = true;
+    $html = (new BeplyHtmlRenderService())->buildHtml($config, $invoice);
+    check($html !== '' && !str_contains($html, 'Certificación acumulada') && !str_contains($html, 'Líquido a abonar'), 'the printed invoice carries no settlement without the module');
 } finally {
+    if (!Plugins::isEnabled('BeplyObras')) {
+        check(Plugins::enable('BeplyObras'), 'BeplyObras enabled again');
+    }
     foreach ([$invoice, $plain] as $document) {
         if ($document->id()) {
             $document->loadFromCode($document->id());

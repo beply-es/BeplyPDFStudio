@@ -13,6 +13,7 @@ namespace FacturaScripts\Plugins\BeplyPDFStudio\Controller;
 
 use FacturaScripts\Core\Base\DataBase\DataBaseWhere;
 use FacturaScripts\Core\Lib\ExtendedController\PanelController;
+use FacturaScripts\Core\Plugins;
 use FacturaScripts\Dinamic\Model\BeplyPdfFormatoDocumento;
 use FacturaScripts\Dinamic\Model\BeplyPdfStyle;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\BeplyPdfFormatStyleService;
@@ -126,6 +127,10 @@ class EditBeplyPdfFormat extends PanelController
                 }
                 $this->applyLockedFormatUi($this->formatForCurrentCode());
                 $view->loadData((string) $style->id);
+                // The hidden input keeps the stored value, so saving this tab does not change it.
+                if (!Plugins::isEnabled('BeplyObras')) {
+                    $view->disableColumn('show-certification-settlement');
+                }
                 if ($this->lockedFormat && method_exists($view, 'setReadOnly')) {
                     $view->setReadOnly(true);
                 }

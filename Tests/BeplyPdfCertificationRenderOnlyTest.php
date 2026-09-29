@@ -89,6 +89,15 @@ final class BeplyPdfCertificationRenderOnlyTest extends TestCase
         $this->assertTrue($seed !== false && $save !== false && $seed < $save, 'a new format design is seeded from the effective configuration');
     }
 
+    public function testThePrintOptionIsHiddenWithoutTheModule(): void
+    {
+        foreach (['Controller/EditBeplyPdfFormat.php', 'Controller/EditBeplyPdfStyle.php'] as $path) {
+            $source = $this->read($path);
+            $this->assertTrue(str_contains($source, "if (!Plugins::isEnabled('BeplyObras')) {\n")
+                && str_contains($source, "->disableColumn('show-certification-settlement');"), $path . ' hides the option while BeplyObras is disabled');
+        }
+    }
+
     public function testThePrintOptionIsKept(): void
     {
         $this->assertTrue(str_contains($this->read('Lib/BeplyPdfConfig.php'), 'public bool $showCertificationSettlement = false;'));
