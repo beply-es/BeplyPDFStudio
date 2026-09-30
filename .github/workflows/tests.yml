@@ -70,7 +70,7 @@ jobs:
   runtime:
     name: Runtime FS v2025.71 PostgreSQL
     timeout-minutes: 25
-    runs-on: ${{ vars.BEPLY_GHA_RUNNER || 'arc-runner-set' }}
+    runs-on: ${{ vars.BEPLY_GHA_RUNNER || 'ubuntu-latest' }}
 
     steps:
       - name: Checkout FacturaScripts

@@ -159,6 +159,19 @@ final class ReleaseWorkflowContractTest extends TestCase
         $this->assertTrue(str_contains($workflow, '- name: Create GitHub release'));
     }
 
+    public function testEveryTestJobRunsOnARunnerThisPublicRepositoryGets(): void
+    {
+        // The self-hosted runner set does not serve this public repository: a job there stays queued and the release,
+        // which waits for the whole Tests workflow, never starts.
+        $testsWorkflow = (string) file_get_contents(dirname(__DIR__) . '/.github/workflows/tests.yml');
+
+        preg_match_all('/runs-on:\s*(.+)/', $testsWorkflow, $matches);
+        $this->assertTrue(count($matches[1]) === 3);
+        foreach ($matches[1] as $runner) {
+            $this->assertSame("\${{ vars.BEPLY_GHA_RUNNER || 'ubuntu-latest' }}", trim($runner));
+        }
+    }
+
     public function testReleaseWaitsForTheFullTestWorkflow(): void
     {
         $workflow = $this->workflow();
