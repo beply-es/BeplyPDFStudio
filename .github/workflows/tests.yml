@@ -24,7 +24,7 @@ jobs:
   php84_compat:
     name: PHP 8.4 Compatibility and Unit
     timeout-minutes: 10
-    runs-on: ${{ vars.BEPLY_GHA_RUNNER || 'ubuntu-latest' }}
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout Plugin
@@ -51,7 +51,7 @@ jobs:
   lint:
     name: PHP Lint
     timeout-minutes: 10
-    runs-on: ${{ vars.BEPLY_GHA_RUNNER || 'ubuntu-latest' }}
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout Plugin
@@ -70,7 +70,7 @@ jobs:
   runtime:
     name: Runtime FS v2025.71 PostgreSQL
     timeout-minutes: 25
-    runs-on: ${{ vars.BEPLY_GHA_RUNNER || 'ubuntu-latest' }}
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout FacturaScripts
