@@ -53,8 +53,16 @@ class BeplyPdfFormatStyleService
             return null;
         }
 
-        $config = new BeplyPdfConfig();
-        $this->applyNativeFormatDefaults($config, $format);
+        // Start from what this format prints today, so opening its design never changes documents.
+        $config = (new BeplyPdfRenderService())->resolveConfig((int) $format->id,
+            !empty($format->idempresa) ? (int) $format->idempresa : null);
+        if ($config === null) {
+            $config = new BeplyPdfConfig();
+            $this->applyNativeFormatDefaults($config, $format);
+        }
+        // A format without its own footer image follows the global one: never copy it into the design.
+        $config->idFooterImage = 0;
+        $config->footerImageAsset = '';
 
         $style = new BeplyPdfStyle();
         $style->setConfig($config);

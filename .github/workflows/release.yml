@@ -142,19 +142,31 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p "/tmp/build/${PLUGIN_NAME}"
-          rsync -a \
+          rsync -a --prune-empty-dirs \
             --exclude='.git' \
             --exclude='.github' \
             --exclude='.venv' \
             --exclude='.phpunit.result.cache' \
             --exclude='Tests' \
             --exclude='scripts' \
+            --exclude='docs' \
             --exclude='test-results' \
             --exclude='.gitignore' \
+            --include='/README.md' \
+            --include='/CHANGELOG.md' \
+            --exclude='*.md' \
             ./ "/tmp/build/${PLUGIN_NAME}/"
           cd /tmp/build
           zip -r "/tmp/${PLUGIN_ASSET_NAME}" "${PLUGIN_NAME}/"
           test -s "/tmp/${PLUGIN_ASSET_NAME}"
+          # Fail closed: a ZIP that cannot be listed is never published.
+          ZIP_ENTRIES="$(zipinfo -1 "/tmp/${PLUGIN_ASSET_NAME}")" || { echo "::error::Cannot list plugin ZIP"; exit 1; }
+          # Here-strings, not printf pipes: under pipefail an early-exiting grep -q sends SIGPIPE to printf.
+          grep -qxF "${PLUGIN_NAME}/facturascripts.ini" <<<"${ZIP_ENTRIES}" || { echo "::error::Cannot list plugin ZIP"; exit 1; }
+          if grep -E '\.md$' <<<"${ZIP_ENTRIES}" | grep -vxE "${PLUGIN_NAME}/(README|CHANGELOG)\.md"; then
+            echo "::error::Unexpected Markdown in plugin ZIP"
+            exit 1
+          fi
 
       - name: Publish dev provenance release
         if: github.ref == 'refs/heads/main'

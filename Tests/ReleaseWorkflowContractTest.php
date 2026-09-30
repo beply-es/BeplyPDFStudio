@@ -13,6 +13,24 @@ final class ReleaseWorkflowContractTest extends TestCase
         return (string) file_get_contents(dirname(__DIR__) . '/.github/workflows/release.yml');
     }
 
+    public function testTheZipShipsNoInternalNotes(): void
+    {
+        $workflow = $this->workflow();
+
+        // Operator notes and internal docs must never reach tenants: only README and CHANGELOG ship.
+        $this->assertTrue(str_contains($workflow, "--include='/README.md'"));
+        $this->assertTrue(str_contains($workflow, "--include='/CHANGELOG.md'"));
+        $this->assertTrue(str_contains($workflow, "--exclude='*.md'"));
+        $this->assertTrue(str_contains($workflow, "--exclude='docs'"));
+        $this->assertTrue(strpos($workflow, "--include='/README.md'") < strpos($workflow, "--exclude='*.md'"), 'rsync applies the first matching rule');
+        $this->assertTrue(str_contains($workflow, 'Unexpected Markdown in plugin ZIP'));
+        $this->assertTrue(str_contains($workflow, 'ZIP_ENTRIES="$(zipinfo -1 "/tmp/${PLUGIN_ASSET_NAME}")" || { echo "::error::Cannot list plugin ZIP"; exit 1; }'), 'the guard fails closed when the ZIP cannot be listed');
+        $this->assertTrue(str_contains($workflow, 'grep -qxF "${PLUGIN_NAME}/facturascripts.ini" <<<"${ZIP_ENTRIES}" || { echo "::error::Cannot list plugin ZIP"; exit 1; }'), 'an empty listing is not a clean ZIP');
+        // Under pipefail, grep -q exits early and a printf feeding it dies of SIGPIPE: a good ZIP would fail.
+        $this->assertFalse((bool) preg_match('/printf[^\n]*ZIP_ENTRIES[^\n]*\|\s*grep -q/', $workflow), 'never pipe the listing into an early-exiting grep');
+        $this->assertFalse(file_exists(dirname(__DIR__) . '/CHECKPOINT.md'), 'operator checkpoints live in the infra workspace, not in the plugin');
+    }
+
     public function testMainPublishesOnlyADevCandidate(): void
     {
         $workflow = $this->workflow();
@@ -139,6 +157,19 @@ final class ReleaseWorkflowContractTest extends TestCase
         // exigiendo tag exacto es la creacion de la release y el aviso del camino canonico.
         $this->assertTrue(str_contains($workflow, 'Announce canonical production ingest path'));
         $this->assertTrue(str_contains($workflow, '- name: Create GitHub release'));
+    }
+
+    public function testEveryTestJobRunsOnARunnerThisPublicRepositoryGets(): void
+    {
+        // The self-hosted runner set does not serve this public repository: a job there stays queued and the release,
+        // which waits for the whole Tests workflow, never starts.
+        $testsWorkflow = (string) file_get_contents(dirname(__DIR__) . '/.github/workflows/tests.yml');
+
+        preg_match_all('/runs-on:\s*(.+)/', $testsWorkflow, $matches);
+        $this->assertTrue(count($matches[1]) === 3);
+        foreach ($matches[1] as $runner) {
+            $this->assertSame("\${{ vars.BEPLY_GHA_RUNNER || 'ubuntu-latest' }}", trim($runner));
+        }
     }
 
     public function testReleaseWaitsForTheFullTestWorkflow(): void

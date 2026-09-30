@@ -80,8 +80,6 @@ class Init extends InitClass
         $this->loadExtension(new EditController());
         $this->loadExtension(new EditProducto());
         $this->loadExtension(new EditSettings());
-        $this->loadExtension(new Extension\Model\FacturaCliente());
-        $this->loadExtension(new Extension\Controller\EditFacturaCliente());
         Lib\Document\BeplyPdfDocumentExtensionRegistry::addExtension(new Lib\Document\BeplyPdfCertificationExtension());
 
         SalesLineHTML::addMod(new BeplyRichSalesLineDescriptionMod());
@@ -106,12 +104,6 @@ class Init extends InitClass
         $this->repairStaleSchemaChecks();
         $this->ensureStyleSchema();
         $this->ensureAttachedFileRelationSchema();
-        new \FacturaScripts\Dinamic\Model\FacturaCliente();
-        // DbUpdater can add columns while a previously warmed model field list survives.
-        Cache::delete('model-fields-FacturaCliente');
-        $fields = new \ReflectionProperty(\FacturaScripts\Dinamic\Model\FacturaCliente::class, 'fields');
-        $fields->setAccessible(true);
-        $fields->setValue(null, []);
         if (!$this->isBaseSchemaReady()) {
             return;
         }

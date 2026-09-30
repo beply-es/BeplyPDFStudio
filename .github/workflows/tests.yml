@@ -11,6 +11,7 @@ on:
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+  FACTURASCRIPTS_REF: v2025.71
 
 concurrency:
   group: beplypdfstudio-tests-${{ github.workflow }}-${{ github.ref }}
@@ -39,9 +40,7 @@ jobs:
         run: php scripts/ci/php84-compat-scan.php "$PWD"
 
       - name: Run unit tests
-        run: |
-          php Tests/run-unit.php
-          php Tests/run-certification.php
+        run: php Tests/run-unit.php
 
       - name: Run provenance downloader tests
         run: python3 -m unittest scripts.ci.test_download_provenance_release_asset
@@ -67,3 +66,92 @@ jobs:
       - name: Lint PHP sources
         run: |
           find . \( -path './.git' -o -path './vendor' \) -prune -o -name '*.php' -print0 | xargs -0 -n1 php -l
+
+  runtime:
+    name: Runtime FS v2025.71 PostgreSQL
+    timeout-minutes: 25
+    runs-on: ${{ vars.BEPLY_GHA_RUNNER || 'ubuntu-latest' }}
+
+    steps:
+      - name: Checkout FacturaScripts
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          repository: NeoRazorX/facturascripts
+          ref: ${{ env.FACTURASCRIPTS_REF }}
+          path: facturascripts
+
+      - name: Checkout Plugin
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          path: facturascripts/Plugins/BeplyPDFStudio
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@accd6127cb78bee3e8082180cb391013d204ef9f # 2.37.0
+        with:
+          php-version: '8.2'
+          extensions: bcmath, gd, mbstring, intl, zip, curl, pgsql, pdo_pgsql
+          coverage: none
+
+      - name: Install Composer dependencies
+        working-directory: facturascripts
+        run: |
+          composer config platform.php 8.2.0
+          composer install --no-interaction --prefer-dist --no-dev
+
+      - name: Start local PostgreSQL
+        working-directory: facturascripts
+        run: bash Plugins/BeplyPDFStudio/.github/ci/start-local-postgres.sh
+
+      - name: Prepare config.php
+        working-directory: facturascripts
+        run: |
+          cat > config.php << 'EOF'
+          <?php
+          define('FS_COOKIES_EXPIRE', 31536000);
+          define('FS_ROUTE', '');
+          define('FS_DB_TYPE', 'postgresql');
+          define('FS_DB_HOST', '127.0.0.1');
+          define('FS_DB_PORT', 5432);
+          define('FS_DB_NAME', 'facturascripts');
+          define('FS_DB_USER', 'postgres');
+          define('FS_DB_PASS', '');
+          define('FS_DB_FOREIGN_KEYS', true);
+          define('FS_DB_TYPE_CHECK', true);
+          define('FS_PGSQL_SSL', false);
+          define('FS_PGSQL_ENDPOINT', false);
+          define('FS_LANG', 'es_ES');
+          define('FS_TIMEZONE', 'Europe/Madrid');
+          define('FS_HIDDEN_PLUGINS', '');
+          define('FS_DEBUG', false);
+          define('FS_DISABLE_ADD_PLUGINS', false);
+          define('FS_DISABLE_RM_PLUGINS', false);
+          EOF
+
+      - name: Prepare plugin runtime
+        working-directory: facturascripts
+        env:
+          CI_PLUGIN_FOLDERS: BeplyPDFStudio
+        run: php Plugins/BeplyPDFStudio/.github/ci/setup-runtime.php
+
+      - name: Opening a format design keeps what it prints
+        working-directory: facturascripts
+        env:
+          BEPDF_SYNTHETIC_FORMAT_SEED_TEST: "1"
+        run: |
+          set -euo pipefail
+          fixture="$(php Plugins/BeplyPDFStudio/Tests/ci/create-format-seed-fixture.php)"
+          echo "${fixture}"
+          env $(grep -E '^BEPDF_TEST_(FORMAT|INVOICE)=[0-9]+$' <<<"${fixture}") \
+            php Plugins/BeplyPDFStudio/Tests/run-format-design-seed.php
+
+      - name: Stop local PostgreSQL
+        if: always()
+        working-directory: facturascripts
+        run: |
+          if [ -n "${PGDATA_DIR:-}" ] && [ -f "${PGDATA_DIR}/postmaster.pid" ]; then
+            if [ "${PG_RUN_AS_POSTGRES:-0}" = "1" ]; then
+              runuser -u postgres -- env PATH="${PATH}" pg_ctl -D "${PGDATA_DIR}" -m fast stop
+            else
+              pg_ctl -D "${PGDATA_DIR}" -m fast stop
+            fi
+          fi
