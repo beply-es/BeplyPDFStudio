@@ -14,6 +14,7 @@ require FS_FOLDER . '/config.php';
 \FacturaScripts\Core\Kernel::init();
 \FacturaScripts\Core\Plugins::init();
 
+use FacturaScripts\Core\Model\AttachedFile;
 use FacturaScripts\Core\Model\FormatoDocumento;
 use FacturaScripts\Dinamic\Model\BeplyPdfStyle;
 use FacturaScripts\Dinamic\Model\FacturaCliente;
@@ -121,26 +122,39 @@ foreach (['a' => [200, 30, 30], 'b' => [30, 30, 200], 'own' => [30, 160, 30]] as
     imagepng($image, FS_FOLDER . '/MyFiles/' . $relative);
     $footers[$name] = ['asset' => $relative, 'uri' => 'data:image/png;base64,' . base64_encode((string) file_get_contents(FS_FOLDER . '/MyFiles/' . $relative))];
 }
+// The screens pick footer images from the library (id_footer_image); a MyFiles asset (footer_image_asset) also works.
+$library = [];
+foreach (['a', 'own'] as $name) {
+    $copy = 'bepdf-seed-library-' . $name . '-' . getmypid() . '.png';
+    check(copy(FS_FOLDER . '/MyFiles/' . $footers[$name]['asset'], FS_FOLDER . '/MyFiles/' . $copy), 'library copy of footer ' . $name);
+    $file = new AttachedFile();
+    $file->path = $copy;
+    check($file->save(), 'footer ' . $name . ' in the library');
+    $library[$name] = $file;
+}
+$setFooter = static function ($design, ?string $name, string $how) use ($footers, $library): void {
+    $design->id_footer_image = $name !== null && $how === 'library' ? $library[$name]->idfile : null;
+    $design->footer_image_asset = $name !== null && $how === 'asset' ? $footers[$name]['asset'] : '';
+};
 $style = null;
 $global->loadFromCode($global->id);
 $preimage = $global->toArray();
 try {
     check($service->styleForFormat($format) === null, 'the format has no design of its own before the footer check');
-    $global->id_footer_image = null;
-    $global->footer_image_asset = $footers['a']['asset'];
-    check($global->save(), 'global footer image A');
+    $setFooter($global, 'a', 'library');
+    check($global->save(), 'global footer image A from the library');
     check(str_contains($render(), $footers['a']['uri']), 'the format prints global footer A before opening its design');
 
     $style = $service->getOrCreateForFormat($format);
     check($style !== null, 'opening the design creates the format design');
     check(str_contains($render(), $footers['a']['uri']), 'the format prints global footer A after opening its design');
 
-    $global->footer_image_asset = $footers['b']['asset'];
+    $setFooter($global, 'b', 'asset');
     check($global->save(), 'global footer image changed to B');
     $html = $render();
     check(str_contains($html, $footers['b']['uri']) && !str_contains($html, $footers['a']['uri']), 'the opened format follows the new global footer B');
 
-    $global->footer_image_asset = '';
+    $setFooter($global, null, 'asset');
     check($global->save(), 'global footer image removed');
     $html = $render();
     check(!str_contains($html, $footers['a']['uri']) && !str_contains($html, $footers['b']['uri']), 'the opened format drops the removed global footer');
@@ -148,14 +162,17 @@ try {
     check($stored->loadFromCode($style->id) && empty($stored->id_footer_image) && trim((string) $stored->footer_image_asset) === '', 'the format design keeps no footer image of its own');
 
     // A format that picks its own footer image keeps it, whatever the global template does.
-    $stored->footer_image_asset = $footers['own']['asset'];
-    check($stored->save(), 'the format design picks its own footer image');
-    foreach (['a', 'b', ''] as $globalFooter) {
-        $global->footer_image_asset = $globalFooter === '' ? '' : $footers[$globalFooter]['asset'];
-        check($global->save(), 'global footer image set to ' . ($globalFooter === '' ? 'none' : strtoupper($globalFooter)));
-        $html = $render();
-        check(str_contains($html, $footers['own']['uri']) && !str_contains($html, $footers['a']['uri']) && !str_contains($html, $footers['b']['uri']),
-            'the format keeps its own footer image with global footer ' . ($globalFooter === '' ? 'none' : strtoupper($globalFooter)));
+    foreach (['asset', 'library'] as $ownHow) {
+        $setFooter($stored, 'own', $ownHow);
+        check($stored->save(), 'the format design picks its own footer image (' . $ownHow . ')');
+        foreach ([['a', 'library'], ['b', 'asset'], [null, 'asset']] as [$globalFooter, $globalHow]) {
+            $label = $globalFooter === null ? 'none' : strtoupper($globalFooter);
+            $setFooter($global, $globalFooter, $globalHow);
+            check($global->save(), 'global footer image set to ' . $label);
+            $html = $render();
+            check(str_contains($html, $footers['own']['uri']) && !str_contains($html, $footers['a']['uri']) && !str_contains($html, $footers['b']['uri']),
+                'the format keeps its own footer image (' . $ownHow . ') with global footer ' . $label);
+        }
     }
 } finally {
     if ($style !== null) {
@@ -164,6 +181,9 @@ try {
     $global->id_footer_image = $preimage['id_footer_image'];
     $global->footer_image_asset = $preimage['footer_image_asset'];
     check($global->save(), 'global footer restored');
+    foreach ($library as $file) {
+        check($file->delete(), 'synthetic library footer cleanup');
+    }
     foreach ($footers as $footer) {
         check(unlink(FS_FOLDER . '/MyFiles/' . $footer['asset']), 'synthetic footer image cleanup');
     }

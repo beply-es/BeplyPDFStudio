@@ -22,7 +22,7 @@ jobs:
   verify_tests:
     name: Verify Tests Workflow
     timeout-minutes: 20
-    runs-on: ${{ vars.BEPLY_GHA_RUNNER || 'ubuntu-latest' }}
+    runs-on: ubuntu-latest
 
     steps:
       - name: Wait for Tests workflow on this commit
@@ -90,7 +90,7 @@ jobs:
     name: Publish Candidate
     needs: verify_tests
     timeout-minutes: 15
-    runs-on: ${{ vars.BEPLY_GHA_RUNNER || 'ubuntu-latest' }}
+    runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
