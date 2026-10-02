@@ -12,6 +12,7 @@ on:
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
   FACTURASCRIPTS_REF: v2025.71
+  TZ: Europe/Madrid
 
 concurrency:
   group: beplypdfstudio-tests-${{ github.workflow }}-${{ github.ref }}
@@ -143,6 +144,17 @@ jobs:
           echo "${fixture}"
           env $(grep -E '^BEPDF_TEST_(FORMAT|INVOICE)=[0-9]+$' <<<"${fixture}") \
             php Plugins/BeplyPDFStudio/Tests/run-format-design-seed.php
+
+      - name: Install PDF engine for receipt contracts
+        working-directory: facturascripts/Plugins/BeplyPDFStudio
+        run: |
+          python3 -m venv .venv
+          .venv/bin/pip install --disable-pip-version-check 'weasyprint==70.0'
+          .venv/bin/weasyprint --version
+
+      - name: Domiciled accounts in both PDF renderers
+        working-directory: facturascripts
+        run: php Plugins/BeplyPDFStudio/Tests/run-template.php
 
       - name: Stop local PostgreSQL
         if: always()
