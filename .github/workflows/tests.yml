@@ -148,6 +148,9 @@ jobs:
       - name: Install PDF engine for receipt contracts
         working-directory: facturascripts/Plugins/BeplyPDFStudio
         run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends ghostscript
+          gs --version
           python3 -m venv .venv
           .venv/bin/pip install --disable-pip-version-check 'weasyprint==70.0'
           .venv/bin/weasyprint --version
