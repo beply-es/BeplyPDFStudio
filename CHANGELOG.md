@@ -4,7 +4,11 @@
 
 - Las formas de pago domiciliadas muestran el IBAN del recibo o, si falta, la
   cuenta principal del cliente con IBAN. Se imprime enmascarado y nunca se
-  añade la cuenta bancaria de la empresa. Se respeta la opción Imprimir.
+  añade la cuenta bancaria de la empresa. Con Imprimir desactivado se conserva
+  solo la descripción, sin cuenta bancaria ni texto de providers.
+- Las transferencias no repiten el IBAN si ya está en la descripción. Las
+  cuentas de menos de 15 caracteres ocultan el prefijo y solo muestran los
+  cuatro últimos, precedidos por asteriscos.
 - Los providers de información de recibos conservan el contenido completo de
   su celda; el texto se escapa antes de añadir saltos de línea. La regla se
   comparte entre HTML/WeasyPrint y el renderer legacy.

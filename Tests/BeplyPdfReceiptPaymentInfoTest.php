@@ -50,6 +50,7 @@ final class BeplyPdfReceiptPaymentInfoTest extends TestCase
             (object)['codcliente'=>'C71','codcuenta'=>'1','principal'=>true,'iban'=>'DE89370400440532013000'],
         ];
         $this->assertSame(['1','2','3'], array_map(static fn($a): string => $a->codcuenta, BeplyPdfReceiptPaymentInfo::customerAccounts($model)));
+        $this->assertSame('Domiciliado - IBAN: DE89 **** **** **** 3000', $this->service()->text($model));
     }
 
     public function testImprimirAndProviderCellOwnership(): void
@@ -58,13 +59,45 @@ final class BeplyPdfReceiptPaymentInfoTest extends TestCase
         $context=new BeplyPdfDocumentContext(new BeplyPdfConfig(), $model);
         BeplyPdfDocumentExtensionRegistry::clear();
         try {
-            BeplyPdfDocumentExtensionRegistry::addReceiptInfoProvider(new class implements BeplyPdfReceiptInfoProviderInterface {
-                public function receiptInfo(BeplyPdfDocumentContext $context, object $receipt, array $receipts): ?string { return "Provider <unsafe>\nSecond line"; }
-            });
+            $provider = new class implements BeplyPdfReceiptInfoProviderInterface {
+                public int $calls = 0;
+                public function receiptInfo(BeplyPdfDocumentContext $context, object $receipt, array $receipts): ?string { $this->calls++; return "Provider <unsafe>\nSecond line"; }
+            };
+            BeplyPdfDocumentExtensionRegistry::addReceiptInfoProvider($provider);
             $this->assertSame("Provider <unsafe>\nSecond line", $service->text($model,$receipt,$context,[$receipt]));
             $service->payment->imprimir=false;
-            $this->assertSame('', $service->text($model,$receipt,$context,[$receipt]));
+            $this->assertSame('Domiciliado', $service->text($model,$receipt,$context,[$receipt]));
+            $this->assertSame(1, $provider->calls);
+            $service->payment->domiciliado=false;
+            $service->payment->descripcion='Transferencia';
+            $this->assertSame('Transferencia', $service->text($model,$receipt,$context,[$receipt]));
+            $this->assertSame(1, $provider->calls);
         } finally { BeplyPdfDocumentExtensionRegistry::clear(); }
+    }
+
+    public function testTransferDoesNotDuplicateAnIbanAlreadyInItsDescription(): void
+    {
+        $service = new ReceiptPaymentInfoProbe();
+        $service->payment = new class {
+            public bool $imprimir = true;
+            public bool $domiciliado = false;
+            public string $descripcion = 'Transferencia a es91 2100 0418 4502 0005 1332';
+            public function getBankAccount(): object { return (object)['activa'=>true, 'iban'=>'ES9121000418450200051332']; }
+        };
+        $this->assertSame($service->payment->descripcion, $service->text($this->model()));
+        $service->payment->descripcion = 'Transferencia';
+        $this->assertSame('Transferencia - IBAN: ES91 2100 0418 4502 0005 1332', $service->text($this->model()));
+    }
+
+    public function testShortMalformedAccountsNeverRevealTheirPrefix(): void
+    {
+        foreach (['12345678', '123456789', '1234567890', '12345678901', 'NO938601111794'] as $iban) {
+            $this->assertSame('**** ' . substr($iban, -4), BeplyPdfReceiptPaymentInfo::maskedIban($iban));
+        }
+        $this->assertSame('****', BeplyPdfReceiptPaymentInfo::maskedIban('ABC'));
+        $this->assertSame('', BeplyPdfReceiptPaymentInfo::maskedIban(''));
+        $this->assertSame('NO93 **** **** **** 7947', BeplyPdfReceiptPaymentInfo::maskedIban('NO9386011117947'));
+        $this->assertSame('LC55 **** **** **** 3015', BeplyPdfReceiptPaymentInfo::maskedIban('LC55HEMM000100010012001200023015'));
     }
 
     public function testCustomerBankChangesInvalidateDocumentCache(): void

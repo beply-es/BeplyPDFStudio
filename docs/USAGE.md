@@ -34,9 +34,10 @@ enmascarado. Si el recibo no lo tiene, usa la cuenta principal del cliente que
 contenga un IBAN. Si no hay ninguna, solo muestra la descripción de la forma
 de pago. Nunca añade la cuenta de la empresa a un pago domiciliado.
 
-La opción **Imprimir** de la forma de pago debe estar activada para mostrar
-ese texto. Los pagos sin domiciliación conservan la cuenta de la empresa que
-esté asignada a su forma de pago.
+La opción **Imprimir** de la forma de pago controla si se muestra la cuenta
+bancaria. Al desactivarla, se conserva la descripción sin añadir IBAN ni texto
+de extensiones. Los pagos sin domiciliación conservan la cuenta de la empresa
+que esté asignada a su forma de pago, sin duplicarla si ya figura en la descripción.
 
 ## Notas
 - No actives a la vez otro plugin de diseño PDF para el mismo documento.

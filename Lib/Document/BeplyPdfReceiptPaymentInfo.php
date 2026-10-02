@@ -21,7 +21,7 @@ class BeplyPdfReceiptPaymentInfo
         $code = (string)($receipt->codpago ?? $model->codpago ?? '');
         $payment = $this->paymentMethod($code);
         if ($payment !== null && isset($payment->imprimir) && !(bool)$payment->imprimir) {
-            return '';
+            return (string)($payment->descripcion ?? $code);
         }
         if ($receipt !== null && $context !== null) {
             $provided = BeplyPdfDocumentExtensionRegistry::receiptInfo($context, $receipt, $receipts);
@@ -52,7 +52,8 @@ class BeplyPdfReceiptPaymentInfo
                 // Unavailable bank data must never change the payment identity.
             }
         }
-        return $iban === '' ? $text : $text . ' - ' . $this->ibanLabel() . ': ' . $iban;
+        return $iban === '' || stripos($text, $iban) !== false
+            ? $text : $text . ' - ' . $this->ibanLabel() . ': ' . $iban;
     }
 
     /** Includes all eligible accounts in deterministic priority order for cache invalidation. */
@@ -86,7 +87,10 @@ class BeplyPdfReceiptPaymentInfo
         if ($iban === '') {
             return '';
         }
-        return strlen($iban) < 8 ? '****' : substr($iban, 0, 4) . ' **** **** **** ' . substr($iban, -4);
+        if (strlen($iban) < 15) {
+            return strlen($iban) < 4 ? '****' : '**** ' . substr($iban, -4);
+        }
+        return substr($iban, 0, 4) . ' **** **** **** ' . substr($iban, -4);
     }
 
     private static function formattedIban(string $iban): string

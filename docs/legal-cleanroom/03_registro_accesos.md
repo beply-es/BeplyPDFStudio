@@ -5,7 +5,6 @@
 | 2026-05-29 | Claude Code | Repo Beply (BeplyPDFStudio) | Desarrollo clean-room | No | Inicio | Trabaja solo en el repo Beply. No accede al código de la referencia. |
 | 2026-05-29 | Claude Code / FacturaScripts | FS :8013 (mismo entorno) | Instalación de la referencia vía uploader de FS | Sí (queda en disco) | Desviación §8 registrada | PlantillasPDF instalado en el MISMO entorno por decisión del responsable. FS descomprime el ZIP; **no se abre/lee a mano**. Se trata como zona prohibida. |
 | 2026-05-29 | Playwright (navegador) | FS :8013 | Navegación UI de la referencia | No (solo navegador) | Exploración/capturas | Observación funcional por navegador. Sin filesystem, sin código. |
-
 | 2026-10-02 | Codex codex-71 | Worktree propio BeplyPDFStudio | Desarrollo desde BRIEF/INFORME funcional del chief | No | P1 domiciliación | Solo código propio BeplyPDFStudio y Core LGPL; no acceso a archivos de PlantillasPDF. |
 
 ## Notas

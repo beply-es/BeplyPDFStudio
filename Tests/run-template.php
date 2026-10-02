@@ -83,6 +83,10 @@ final class BeplyTemplateBankAccountPaymentDoc extends BeplyPdfSampleDoc
     private string $paymentCode;
     public string $receiptIban = '';
     public ?object $customerFixture = null;
+    public string $documentClass = 'FacturaCliente';
+    public bool $withReceipts = true;
+
+    public function modelClassName(): string { return $this->documentClass; }
 
     public function getSubject()
     {
@@ -98,6 +102,7 @@ final class BeplyTemplateBankAccountPaymentDoc extends BeplyPdfSampleDoc
 
     public function getReceipts(): array
     {
+        if (!$this->withReceipts) { return []; }
         return [
             (object) [
                 'numero' => '1',
@@ -721,6 +726,27 @@ final class BeplyTemplateSuite
 
             $this->assert('payment method bank account prints IBAN label', stripos($body, 'IBAN') !== false);
             $this->assert('payment method bank account prints IBAN value', strpos($body, $formattedIban) !== false);
+            foreach (['FacturaCliente', 'PresupuestoCliente', 'PedidoCliente', 'AlbaranCliente'] as $class) {
+                $doc->documentClass = $class;
+                $doc->withReceipts = false;
+                $this->assert('legacy transfer footer without receipts ' . $class, strpos($this->legacyPaymentText($doc), $formattedIban) !== false);
+            }
+            $doc->documentClass = 'FacturaCliente';
+            $doc->withReceipts = true;
+            $payment = new \FacturaScripts\Dinamic\Model\FormaPago();
+            $payment->load($paymentCode);
+            $payment->descripcion = 'E2E transferencia a iban ' . strtolower($formattedIban);
+            $this->assert('transfer description IBAN fixture saved', $payment->save());
+            $body = $this->bodyOf($this->htmlForModel($this->cfg(fn($c) => null), $doc));
+            $this->assert('transfer description does not duplicate IBAN HTML', substr_count(strtoupper($body), $formattedIban) === 1);
+            $this->assert('transfer description does not duplicate IBAN legacy', substr_count(strtoupper($this->legacyPaymentText($doc)), $formattedIban) === 1);
+            $payment->descripcion = 'E2E transferencia sin cuenta impresa';
+            $payment->imprimir = false;
+            $this->assert('transfer nonprint fixture saved', $payment->save());
+            $body = $this->bodyOf($this->htmlForModel($this->cfg(fn($c) => null), $doc));
+            $this->assert('transfer imprimir retains description HTML', strpos($body, $payment->descripcion) !== false && strpos($body, $formattedIban) === false);
+            $legacy = $this->legacyPaymentText($doc);
+            $this->assert('transfer imprimir retains description legacy', strpos($legacy, $payment->descripcion) !== false && strpos($legacy, $formattedIban) === false);
         } finally {
             $this->deletePaymentBankFixture($paymentCode, $bankCode);
             $this->registerTestExtensions();
@@ -735,6 +761,7 @@ final class BeplyTemplateSuite
         BeplyPdfDocumentExtensionRegistry::clear();
         $customer = null;
         $customerBank = null;
+        $secondCustomerBank = null;
         try {
             $this->createPaymentBankFixture($paymentCode, $bankCode, 'ES9121000418450200051332');
             $payment = new \FacturaScripts\Dinamic\Model\FormaPago();
@@ -769,12 +796,32 @@ final class BeplyTemplateSuite
             $customerBank->principal = false;
             $this->assert('changed principal fixture saved', $customerBank->save());
             $this->assert('customer principal flag invalidates cache', $before !== $cache->debugHash($config, $doc));
-            $doc->receiptIban = 'DE89370400440532013000';
+            $secondCustomerBank = new \FacturaScripts\Dinamic\Model\CuentaBancoCliente();
+            $secondCustomerBank->codcliente = $customer->codcliente;
+            $secondCustomerBank->iban = 'NL91ABNA0417164300';
+            $secondCustomerBank->principal = true;
+            $this->assert('second principal customer bank fixture saved', $secondCustomerBank->save());
+            $body = $this->bodyOf($this->htmlForModel($config, $doc));
+            $this->assert('multiple accounts select principal HTML', strpos($body, 'NL91 **** **** **** 4300') !== false && strpos($body, 'DE89') === false);
+            $this->assert('multiple accounts select principal legacy', strpos($this->legacyPaymentText($doc), 'NL91 **** **** **** 4300') !== false);
+            foreach (['FacturaCliente', 'PresupuestoCliente', 'PedidoCliente', 'AlbaranCliente'] as $class) {
+                $doc->documentClass = $class;
+                $doc->withReceipts = false;
+                $legacy = $this->legacyPaymentText($doc);
+                $this->assert('legacy domiciled footer without receipts ' . $class, strpos($legacy, 'NL91 **** **** **** 4300') !== false && strpos($legacy, 'ES91') === false);
+                $hidden = $this->cfg(fn($c) => $c->hidePaymentMethods = true);
+                $this->assert('legacy hide payment footer ' . $class, strpos($this->legacyPaymentText($doc, $hidden), 'E2E pago con cuenta asignada') === false);
+            }
+            $doc->documentClass = 'FacturaCliente';
+            $doc->withReceipts = true;
+            $doc->receiptIban = 'FR7630006000011234567890189';
             $body = $this->bodyOf($this->htmlForModel($this->cfg(fn($c) => null), $doc));
-            $this->assert('domiciled receipt account masked', strpos($body, 'DE89 **** **** **** 3000') !== false);
-            $this->assert('domiciled receipt full account hidden', strpos($body, 'DE89 3704 0044 0532 0130 00') === false);
+            $this->assert('domiciled receipt account wins over distinct customer accounts', strpos($body, 'FR76 **** **** **** 0189') !== false && strpos($body, 'NL91') === false && strpos($body, 'DE89') === false);
+            $this->assert('domiciled receipt full account hidden', strpos($body, 'FR76 3000 6000 0112 3456 7890 189') === false);
             $legacy = $this->legacyPaymentText($doc);
-            $this->assert('legacy receipt account masked without company account', strpos($legacy, 'DE89 **** **** **** 3000') !== false && strpos($legacy, 'ES91') === false);
+            $this->assert('legacy receipt account wins over distinct customer accounts', strpos($legacy, 'FR76 **** **** **** 0189') !== false && strpos($legacy, 'ES91') === false && strpos($legacy, 'NL91') === false);
+            $hidden = $this->cfg(fn($c) => $c->hidePaymentMethods = true);
+            $this->assert('legacy hide payment receipt', strpos($this->legacyPaymentText($doc, $hidden), 'FR76') === false && strpos($this->legacyPaymentText($doc, $hidden), 'E2E pago con cuenta asignada') === false);
             BeplyPdfDocumentExtensionRegistry::addReceiptInfoProvider(new class implements BeplyPdfReceiptInfoProviderInterface {
                 public function receiptInfo(BeplyPdfDocumentContext $context, object $receipt, array $receipts): ?string
                 {
@@ -789,10 +836,14 @@ final class BeplyTemplateSuite
             $payment->imprimir = false;
             $this->assert('domiciled nonprint fixture saved', $payment->save());
             $body = $this->bodyOf($this->htmlForModel($this->cfg(fn($c) => null), $doc));
-            $this->assert('payment imprimir respected', strpos($body, 'DE89') === false && strpos($body, 'E2E pago con cuenta asignada') === false);
+            $this->assert('payment imprimir retains description HTML', strpos($body, 'FR76') === false && strpos($body, 'E2E pago con cuenta asignada') !== false);
+            $this->assert('payment imprimir retains description legacy', strpos($this->legacyPaymentText($doc), 'E2E pago con cuenta asignada') !== false && strpos($this->legacyPaymentText($doc), 'FR76') === false);
             $this->assert('imprimir hides provider in HTML', strpos($body, 'Provider') === false);
             $this->assert('imprimir hides provider in legacy', strpos($this->legacyPaymentText($doc), 'Provider') === false);
         } finally {
+            if ($secondCustomerBank !== null && $secondCustomerBank->exists()) {
+                $this->assert('second customer bank fixture cleaned', $secondCustomerBank->delete());
+            }
             if ($customerBank !== null && $customerBank->exists()) {
                 $this->assert('customer bank fixture cleaned', $customerBank->delete());
                 $readback = new \FacturaScripts\Dinamic\Model\CuentaBancoCliente();
@@ -804,12 +855,12 @@ final class BeplyTemplateSuite
         }
     }
 
-    private function legacyPaymentText(object $doc): string
+    private function legacyPaymentText(object $doc, ?BeplyPdfConfig $cfg = null): string
     {
         $canvas = new BeplyTemplateReceiptCanvas();
         $renderer = new \FacturaScripts\Plugins\BeplyPDFStudio\Lib\PdfEngine\Render\FooterRenderer();
         $method = new \ReflectionMethod($renderer, 'renderPayments');
-        $method->invoke($renderer, $canvas, $this->cfg(fn($c) => null), $doc, 30.0, 565.0, 535.0, 'EUR');
+        $method->invoke($renderer, $canvas, $cfg ?? $this->cfg(fn($c) => null), $doc, 30.0, 565.0, 535.0, 'EUR');
         return implode(' ', $canvas->texts);
     }
 
