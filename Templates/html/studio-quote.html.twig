@@ -329,7 +329,7 @@
       {% for r in receipts %}
         <tr>
           <td>{{ r.numero }}</td>
-          {% if not hide_payment_methods %}<td>{{ r.forma }}</td>{% endif %}
+          {% if not hide_payment_methods %}<td>{{ r.forma|raw }}</td>{% endif %}
           <td style="text-align:right;">{{ r.importe }}</td>
           <td style="text-align:right;">{{ r.vencimiento }}</td>
         </tr>

@@ -109,6 +109,7 @@ namespace {
         \FacturaScripts\Test\Plugins\BeplyPDFStudio\BeplyPdfLogoPathResolverTest::class,
         \FacturaScripts\Test\Plugins\BeplyPDFStudio\BeplyPdfParentDocumentLinesTest::class,
         \FacturaScripts\Test\Plugins\BeplyPDFStudio\BeplyPdfPaymentDateResolverTest::class,
+        \FacturaScripts\Test\Plugins\BeplyPDFStudio\BeplyPdfReceiptPaymentInfoTest::class,
         \FacturaScripts\Test\Plugins\BeplyPDFStudio\BeplyPdfPreviewLogoTest::class,
         \FacturaScripts\Test\Plugins\BeplyPDFStudio\BeplyPdfRectificationDataTest::class,
         \FacturaScripts\Test\Plugins\BeplyPDFStudio\ReleaseWorkflowContractTest::class,

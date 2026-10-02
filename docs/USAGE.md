@@ -27,5 +27,16 @@ Si no hay estilo Beply para un formato, se usa el estilo de empresa y después e
 Abre la factura/albarán/pedido/presupuesto y usa la exportación PDF. Se aplica el estilo
 resuelto. Si algo falla, se usa el diseño estándar del core (nunca se rompe).
 
+## Cuenta bancaria en pagos domiciliados
+
+Si la forma de pago está domiciliada, el PDF muestra el IBAN del recibo,
+enmascarado. Si el recibo no lo tiene, usa la cuenta principal del cliente que
+contenga un IBAN. Si no hay ninguna, solo muestra la descripción de la forma
+de pago. Nunca añade la cuenta de la empresa a un pago domiciliado.
+
+La opción **Imprimir** de la forma de pago debe estar activada para mostrar
+ese texto. Los pagos sin domiciliación conservan la cuenta de la empresa que
+esté asignada a su forma de pago.
+
 ## Notas
 - No actives a la vez otro plugin de diseño PDF para el mismo documento.

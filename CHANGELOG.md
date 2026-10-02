@@ -1,5 +1,16 @@
 # Changelog
 
+## v4.5 - 2026-10-02
+
+- Las formas de pago domiciliadas muestran el IBAN del recibo o, si falta, la
+  cuenta principal del cliente con IBAN. Se imprime enmascarado y nunca se
+  añade la cuenta bancaria de la empresa. Se respeta la opción Imprimir.
+- Los providers de información de recibos conservan el contenido completo de
+  su celda; el texto se escapa antes de añadir saltos de línea. La regla se
+  comparte entre HTML/WeasyPrint y el renderer legacy.
+- Los cambios de IBAN o prioridad de las cuentas del cliente invalidan la
+  caché del documento, sin conservar PDFs con datos bancarios anteriores.
+
 ## v4.4 - 2026-09-29
 
 - Certificaciones de obra y retención por garantía pasan al módulo BeplyObras («Obras y
