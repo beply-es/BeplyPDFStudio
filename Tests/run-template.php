@@ -336,6 +336,7 @@ final class BeplyTemplateSuite
         $this->bodyPresent('receiptInfoProvider', fn($c) => null, 'E2E_RECEIPT_API_INFO');
         $this->paymentMethodBankAccountIncludesIban();
         $this->storedPaymentDescriptionEscapesOnce();
+        $this->legacyPaymentHeadingRespectsVisibility();
         $this->domiciledNeverPrintsCompanyIban();
         $this->taxBreakdownIncludesIrpf();
         $this->withoutVat();
@@ -758,7 +759,7 @@ final class BeplyTemplateSuite
     {
         $paymentCode = 'BPFTEXT71';
         $bankCode = '990172';
-        $description = "E2E Domiciliació d'aigua <b>literal</b> & \"quote\"\nSegona línia";
+        $description = "E2E Domiciliació d'aigua <b>literal</b> & \"quote\" &amp;\nSegona línia";
         $this->deletePaymentBankFixture($paymentCode, $bankCode);
         BeplyPdfDocumentExtensionRegistry::clear();
         try {
@@ -793,6 +794,30 @@ final class BeplyTemplateSuite
             $bank = new \FacturaScripts\Dinamic\Model\CuentaBanco();
             $this->assert('entity description payment cleanup readback', !$payment->load($paymentCode));
             $this->assert('entity description bank cleanup readback', !$bank->load($bankCode));
+            $this->registerTestExtensions();
+        }
+    }
+
+    private function legacyPaymentHeadingRespectsVisibility(): void
+    {
+        BeplyPdfDocumentExtensionRegistry::clear();
+        try {
+            $doc = new class(null) extends BeplyPdfSampleDoc {
+                public function getReceipts(): array
+                {
+                    return [(object)['numero' => 'H71', 'importe' => 123.45, 'vencimiento' => '15-10-2026', 'pagado' => false, 'codpago' => 'H71PAY']];
+                }
+            };
+            $heading = mb_strtoupper(Tools::trans('payment-method'));
+            $visible = $this->legacyPaymentText($doc, $this->cfg(fn($c) => $c->hidePaymentMethods = false));
+            $this->assert('legacy payment heading and value visible', strpos($visible, $heading) !== false && strpos($visible, 'H71PAY') !== false);
+            $hidden = $this->legacyPaymentText($doc, $this->cfg(fn($c) => $c->hidePaymentMethods = true));
+            $this->assert('legacy hidden payment heading and value absent', strpos($hidden, $heading) === false && strpos($hidden, 'H71PAY') === false);
+            foreach (['receipt', 'amount', 'expiration'] as $label) {
+                $this->assert('legacy hide payment retains heading ' . $label, strpos($hidden, mb_strtoupper(Tools::trans($label))) !== false);
+            }
+            $this->assert('legacy hide payment retains receipt amount and due date', strpos($hidden, 'H71') !== false && strpos($hidden, Tools::money(123.45, 'EUR')) !== false && strpos($hidden, '15-10-2026') !== false);
+        } finally {
             $this->registerTestExtensions();
         }
     }

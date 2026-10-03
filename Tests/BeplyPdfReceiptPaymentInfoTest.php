@@ -101,6 +101,10 @@ final class BeplyPdfReceiptPaymentInfoTest extends TestCase
         $this->assertSame($service->payment->descripcion, $service->text($this->model()));
         $service->payment->descripcion = 'Transferencia';
         $this->assertSame('Transferencia - IBAN: ES91 2100 0418 4502 0005 1332', $service->text($this->model()));
+        $service->payment->descripcion = '';
+        $this->assertSame('IBAN: ES91 2100 0418 4502 0005 1332', $service->text($this->model()));
+        $service->payment->imprimir = false;
+        $this->assertSame('', $service->text($this->model()));
     }
 
     public function testShortMalformedAccountsNeverRevealTheirPrefix(): void

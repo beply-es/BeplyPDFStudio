@@ -261,6 +261,7 @@ jobs:
         with:
           tag_name: ${{ github.ref_name }}
           name: ${{ steps.ini.outputs.name }} ${{ github.ref_name }}
+          make_latest: false
           body: |
             Version `${{ steps.ini.outputs.version }}` · FacturaScripts `${{ steps.ini.outputs.min_version }}`–`${{ steps.ini.outputs.max_version || 'sin límite' }}` · PHP `${{ steps.ini.outputs.min_php }}`.
 
