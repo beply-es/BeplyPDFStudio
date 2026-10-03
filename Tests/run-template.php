@@ -335,6 +335,7 @@ final class BeplyTemplateSuite
         $this->extensionSlots();
         $this->bodyPresent('receiptInfoProvider', fn($c) => null, 'E2E_RECEIPT_API_INFO');
         $this->paymentMethodBankAccountIncludesIban();
+        $this->storedPaymentDescriptionEscapesOnce();
         $this->domiciledNeverPrintsCompanyIban();
         $this->taxBreakdownIncludesIrpf();
         $this->withoutVat();
@@ -753,6 +754,49 @@ final class BeplyTemplateSuite
         }
     }
 
+    private function storedPaymentDescriptionEscapesOnce(): void
+    {
+        $paymentCode = 'BPFTEXT71';
+        $bankCode = '990172';
+        $description = "E2E Domiciliació d'aigua <b>literal</b> & \"quote\"\nSegona línia";
+        $this->deletePaymentBankFixture($paymentCode, $bankCode);
+        BeplyPdfDocumentExtensionRegistry::clear();
+        try {
+            $this->createPaymentBankFixture($paymentCode, $bankCode, 'ES9121000418450200051332');
+            foreach ([true, false] as $print) {
+                foreach ([true, false] as $domiciled) {
+                    $payment = new \FacturaScripts\Dinamic\Model\FormaPago();
+                    $payment->load($paymentCode);
+                    $payment->descripcion = $description;
+                    $payment->imprimir = $print;
+                    $payment->domiciliado = $domiciled;
+                    $this->assert('entity description fixture saved', $payment->save());
+                    $stored = new \FacturaScripts\Dinamic\Model\FormaPago();
+                    $this->assert('entity description reload', $stored->load($paymentCode));
+                    $this->assert('Core persisted description entities', strpos($stored->descripcion, 'd&#39;aigua &lt;b&gt;') !== false);
+                    $doc = new BeplyTemplateBankAccountPaymentDoc($paymentCode);
+                    $body = $this->bodyOf($this->htmlForModel($this->cfg(fn($c) => null), $doc));
+                    $escaped = nl2br(htmlspecialchars($description, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'));
+                    $this->assert('stored description escaped once HTML', strpos($body, $escaped) !== false && strpos($body, 'd&amp;#39;aigua') === false && strpos($body, '<b>literal</b>') === false);
+                    foreach ([true, false] as $receipts) {
+                        $doc->withReceipts = $receipts;
+                        $legacy = $this->legacyPaymentText($doc);
+                        $this->assert('stored description escaped once legacy', strpos($legacy, "Domiciliació d'aigua &lt;b&gt;literal&lt;/b&gt;") !== false && strpos($legacy, 'd&#39;aigua') === false && strpos($legacy, '<b>literal</b>') === false);
+                        $this->assert('entity description preserves bank guard legacy', ($print && !$domiciled) === (strpos($legacy, 'ES91 2100 0418 4502 0005 1332') !== false));
+                    }
+                    $this->assert('entity description preserves bank guard HTML', ($print && !$domiciled) === (strpos($body, 'ES91 2100 0418 4502 0005 1332') !== false));
+                }
+            }
+        } finally {
+            $this->deletePaymentBankFixture($paymentCode, $bankCode);
+            $payment = new \FacturaScripts\Dinamic\Model\FormaPago();
+            $bank = new \FacturaScripts\Dinamic\Model\CuentaBanco();
+            $this->assert('entity description payment cleanup readback', !$payment->load($paymentCode));
+            $this->assert('entity description bank cleanup readback', !$bank->load($bankCode));
+            $this->registerTestExtensions();
+        }
+    }
+
     private function domiciledNeverPrintsCompanyIban(): void
     {
         $paymentCode = 'BPFSEPA71';
@@ -825,14 +869,14 @@ final class BeplyTemplateSuite
             BeplyPdfDocumentExtensionRegistry::addReceiptInfoProvider(new class implements BeplyPdfReceiptInfoProviderInterface {
                 public function receiptInfo(BeplyPdfDocumentContext $context, object $receipt, array $receipts): ?string
                 {
-                    return "Provider <unsafe>\nSecond line";
+                    return "Provider &#39; <unsafe>\nSecond line";
                 }
             });
             $body = $this->bodyOf($this->htmlForModel($config, $doc));
-            $this->assert('provider text escaped then nl2br', strpos($body, 'Provider &lt;unsafe&gt;<br />') !== false && strpos($body, 'Second line') !== false);
+            $this->assert('provider text escaped then nl2br without decoding raw entities', strpos($body, 'Provider &amp;#39; &lt;unsafe&gt;<br />') !== false && strpos($body, 'Second line') !== false);
             $this->assert('provider owns cell without appended bank data', strpos($body, 'DE89') === false && strpos($body, 'ES91') === false);
             $legacy = $this->legacyPaymentText($doc);
-            $this->assert('legacy provider owns cell with escaped markup', strpos($legacy, 'Provider &lt;unsafe&gt;') !== false && strpos($legacy, 'DE89') === false && strpos($legacy, 'ES91') === false);
+            $this->assert('legacy provider owns cell with escaped markup and raw entities', strpos($legacy, 'Provider &#39; &lt;unsafe&gt;') !== false && strpos($legacy, 'DE89') === false && strpos($legacy, 'ES91') === false);
             $payment->imprimir = false;
             $this->assert('domiciled nonprint fixture saved', $payment->save());
             $body = $this->bodyOf($this->htmlForModel($this->cfg(fn($c) => null), $doc));

@@ -86,6 +86,17 @@ namespace PHPUnit\Framework {
     }
 }
 
+namespace FacturaScripts\Core {
+    /** Core-free runner: persistence decoding is also tested against the real Core in run-template.php. */
+    final class Tools
+    {
+        public static function fixHtml(?string $text = null): ?string
+        {
+            return $text === null ? null : str_replace(['&lt;', '&gt;', '&quot;', '&#39;'], ['<', '>', '"', "'"], trim($text));
+        }
+    }
+}
+
 namespace {
     require __DIR__ . '/bootstrap.php';
 

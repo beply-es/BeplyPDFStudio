@@ -28,6 +28,20 @@ final class ReceiptPaymentInfoProbe extends BeplyPdfReceiptPaymentInfo
 
 final class BeplyPdfReceiptPaymentInfoTest extends TestCase
 {
+    public function testStoredDescriptionsBecomePlainTextBeforeEitherRendererEscapesThem(): void
+    {
+        $service = $this->service();
+        $service->payment->descripcion = 'Domiciliació d&#39;aigua &lt;b&gt;literal&lt;/b&gt; &quot;quote&quot; &amp;';
+        $expected = 'Domiciliació d\'aigua <b>literal</b> "quote" &amp;';
+        foreach ([true, false] as $print) {
+            foreach ([true, false] as $domiciled) {
+                $service->payment->imprimir = $print;
+                $service->payment->domiciliado = $domiciled;
+                $this->assertSame($expected, $service->text($this->model()));
+            }
+        }
+    }
+
     public function testDomiciledNeverUsesCompanyBankWithOrWithoutCustomerData(): void
     {
         $service = $this->service();
@@ -61,10 +75,10 @@ final class BeplyPdfReceiptPaymentInfoTest extends TestCase
         try {
             $provider = new class implements BeplyPdfReceiptInfoProviderInterface {
                 public int $calls = 0;
-                public function receiptInfo(BeplyPdfDocumentContext $context, object $receipt, array $receipts): ?string { $this->calls++; return "Provider <unsafe>\nSecond line"; }
+                public function receiptInfo(BeplyPdfDocumentContext $context, object $receipt, array $receipts): ?string { $this->calls++; return "Provider &#39; <unsafe>\nSecond line"; }
             };
             BeplyPdfDocumentExtensionRegistry::addReceiptInfoProvider($provider);
-            $this->assertSame("Provider <unsafe>\nSecond line", $service->text($model,$receipt,$context,[$receipt]));
+            $this->assertSame("Provider &#39; <unsafe>\nSecond line", $service->text($model,$receipt,$context,[$receipt]));
             $service->payment->imprimir=false;
             $this->assertSame('Domiciliado', $service->text($model,$receipt,$context,[$receipt]));
             $this->assertSame(1, $provider->calls);

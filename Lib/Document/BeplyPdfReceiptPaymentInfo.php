@@ -21,7 +21,7 @@ class BeplyPdfReceiptPaymentInfo
         $code = (string)($receipt->codpago ?? $model->codpago ?? '');
         $payment = $this->paymentMethod($code);
         if ($payment !== null && isset($payment->imprimir) && !(bool)$payment->imprimir) {
-            return (string)($payment->descripcion ?? $code);
+            return (string)Tools::fixHtml((string)($payment->descripcion ?? $code));
         }
         if ($receipt !== null && $context !== null) {
             $provided = BeplyPdfDocumentExtensionRegistry::receiptInfo($context, $receipt, $receipts);
@@ -33,7 +33,7 @@ class BeplyPdfReceiptPaymentInfo
             return $code;
         }
 
-        $text = (string)($payment->descripcion ?? $code);
+        $text = (string)Tools::fixHtml((string)($payment->descripcion ?? $code));
         if (!empty($payment->domiciliado)) {
             $iban = trim((string)($receipt->iban ?? ''));
             if ($iban === '') {

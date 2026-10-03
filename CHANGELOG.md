@@ -14,6 +14,8 @@
   comparte entre HTML/WeasyPrint y el renderer legacy.
 - Los cambios de IBAN o prioridad de las cuentas del cliente invalidan la
   caché del documento, sin conservar PDFs con datos bancarios anteriores.
+- Las descripciones de pago conservan apóstrofos y comillas tras guardarse,
+  también con Imprimir desactivado; el marcado literal se imprime como texto.
 
 ## v4.4 - 2026-09-29
 
