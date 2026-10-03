@@ -18,6 +18,7 @@ use FacturaScripts\Plugins\BeplyPDFStudio\Lib\BeplyPdfConfig;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\BeplyPdfPaymentDateResolver;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\BeplyPdfRichTextLite;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfDocumentContext;
+use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfReceiptPaymentInfo;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfDocumentExtensionRegistry;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfDocumentSlot;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfBuyerFiscalIdentity;
@@ -1844,10 +1845,11 @@ class BeplyHtmlRenderService
                 : (!$cfg->hideDueDates && !empty($r->vencimiento) ? Tools::date($r->vencimiento) : '');
             $out[] = [
                 'numero' => (string) ($r->numero ?? ''),
-                'forma' => $this->payMethod(
-                    $r->codpago ?? ($model->codpago ?? ''),
-                    BeplyPdfDocumentExtensionRegistry::receiptInfo($context, $r, $receipts)
-                ),
+                'forma' => nl2br(htmlspecialchars(
+                    (new BeplyPdfReceiptPaymentInfo())->text($model, $r, $context, $receipts),
+                    ENT_QUOTES | ENT_SUBSTITUTE,
+                    'UTF-8'
+                )),
                 'importe' => isset($r->importe) ? Tools::money((float) $r->importe, $coddivisa) : '',
                 'vencimiento' => $venc,
             ];
@@ -1989,85 +1991,6 @@ class BeplyHtmlRenderService
         $value = preg_replace('#<(br|/p|/li|/div|/ul|/ol)\b[^>]*>#i', "\n", $value) ?? $value;
         $value = strip_tags($value);
         return trim(preg_replace('/[ \t]+/u', ' ', $value) ?? $value);
-    }
-
-    private function payMethod($codpago, ?string $overrideText = null): string
-    {
-        if (empty($codpago)) {
-            return trim((string) ($overrideText ?? ''));
-        }
-
-        $overrideText = trim((string) ($overrideText ?? ''));
-        $cls = '\\FacturaScripts\\Dinamic\\Model\\FormaPago';
-        if (!class_exists($cls)) {
-            $cls = '\\FacturaScripts\\Core\\Model\\FormaPago';
-        }
-        if (!class_exists($cls)) {
-            return $overrideText !== '' ? $overrideText : (string) $codpago;
-        }
-        try {
-            $fp = new $cls();
-            if (method_exists($fp, 'load') && $fp->load($codpago)) {
-                $text = $overrideText !== '' ? $overrideText : (string) ($fp->descripcion ?? $codpago);
-                return $this->appendBankAccountIban($text, $fp);
-            }
-        } catch (\Throwable $e) {
-            // fallback al código
-        }
-        return $overrideText !== '' ? $overrideText : (string) $codpago;
-    }
-
-    private function appendBankAccountIban(string $text, $paymentMethod): string
-    {
-        $ibanLine = $this->paymentMethodIbanLine($paymentMethod);
-        if ($ibanLine === '') {
-            return $text;
-        }
-
-        if (stripos($text, 'IBAN') !== false) {
-            return $text;
-        }
-
-        return trim($text) === '' ? $ibanLine : trim($text) . ' - ' . $ibanLine;
-    }
-
-    private function paymentMethodIbanLine($paymentMethod): string
-    {
-        if (!is_object($paymentMethod) || empty($paymentMethod->codcuentabanco)) {
-            return '';
-        }
-
-        try {
-            $bank = method_exists($paymentMethod, 'getBankAccount') ? $paymentMethod->getBankAccount() : null;
-            if (!is_object($bank)) {
-                $cls = '\\FacturaScripts\\Dinamic\\Model\\CuentaBanco';
-                if (!class_exists($cls)) {
-                    $cls = '\\FacturaScripts\\Core\\Model\\CuentaBanco';
-                }
-                if (!class_exists($cls)) {
-                    return '';
-                }
-                $bank = new $cls();
-                if (!method_exists($bank, 'load') || false === $bank->load($paymentMethod->codcuentabanco)) {
-                    return '';
-                }
-            }
-
-            if (isset($bank->activa) && false === (bool) $bank->activa) {
-                return '';
-            }
-
-            $iban = $this->formatIban((string) ($bank->iban ?? ''));
-            return $iban === '' ? '' : Tools::lang()->trans('iban') . ': ' . $iban;
-        } catch (\Throwable $e) {
-            return '';
-        }
-    }
-
-    private function formatIban(string $iban): string
-    {
-        $iban = strtoupper(preg_replace('/\s+/', '', trim($iban)) ?? '');
-        return $iban === '' ? '' : trim(chunk_split($iban, 4, ' '));
     }
 
     private function logoDataUri(BeplyPdfConfig $cfg): string

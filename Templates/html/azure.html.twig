@@ -382,7 +382,7 @@
             {% for r in receipts %}
               <tr>
                 <td style="text-align:center;">{{ r.numero }}</td>
-                <td style="text-align:left;">{{ r.forma }}</td>
+                <td style="text-align:left;">{{ r.forma|raw }}</td>
                 <td style="text-align:right;">{{ r.importe }}</td>
                 <td style="text-align:right;">{{ r.vencimiento }}</td>
               </tr>

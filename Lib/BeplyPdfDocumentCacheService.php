@@ -15,10 +15,11 @@ use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfDocumentContext;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfDocumentExtensionRegistry;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfFiscalQrRegistry;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfLineColumn;
+use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfReceiptPaymentInfo;
 
 final class BeplyPdfDocumentCacheService
 {
-    private const VERSION = '1';
+    private const VERSION = '2';
     private const SUBDIR = 'beplypdf/document-cache';
     private const HASH_ALGO = 'sha256';
     private const SUPPORTED_DOCUMENTS = [
@@ -280,6 +281,9 @@ final class BeplyPdfDocumentCacheService
             'currency' => $this->loadModelByCode('Divisa', $model->coddivisa ?? null),
             'agent' => $this->loadModelByCode('Agente', $model->codagente ?? null),
             'payments' => $this->paymentsSignature($paymentCodes),
+            'customer_bank_accounts' => hash(self::HASH_ALGO, $this->stableJson(
+                $this->modelListSnapshot(BeplyPdfReceiptPaymentInfo::customerAccounts($model))
+            )),
             'parents' => $this->parentsSignature($model),
             'shipping' => isset($model->shippingAddress) && is_object($model->shippingAddress)
                 ? $this->modelSnapshot($model->shippingAddress)

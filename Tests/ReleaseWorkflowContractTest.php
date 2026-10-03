@@ -159,6 +159,13 @@ final class ReleaseWorkflowContractTest extends TestCase
         $this->assertTrue(str_contains($workflow, '- name: Create GitHub release'));
     }
 
+    public function testCiExercisesDomiciledPaymentsWithTheRealPdfEngine(): void
+    {
+        $workflow = (string) file_get_contents(dirname(__DIR__) . '/.github/workflows/tests.yml');
+        $this->assertTrue(str_contains($workflow, 'php Plugins/BeplyPDFStudio/Tests/run-template.php'), 'CI must run the receipt contracts in both renderers');
+        $this->assertTrue(str_contains($workflow, 'weasyprint==70.0'), 'CI must install the PDF engine validated by the synthetic comparison');
+    }
+
     public function testEveryTestJobRunsOnARunnerThisPublicRepositoryGets(): void
     {
         // The self-hosted runner set does not serve this public repository: a job there stays queued and the release,
