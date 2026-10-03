@@ -99,6 +99,12 @@ final class BeplyPdfReceiptPaymentInfoTest extends TestCase
             public function getBankAccount(): object { return (object)['activa'=>true, 'iban'=>'ES9121000418450200051332']; }
         };
         $this->assertSame($service->payment->descripcion, $service->text($this->model()));
+        foreach (['Transferencia IBAN:ES9121000418450200051332', "Transferencia a es91\u{00a0}2100\u{00a0}0418\u{00a0}4502\u{00a0}0005\u{00a0}1332"] as $description) {
+            $service->payment->descripcion = $description;
+            $this->assertSame($description, $service->text($this->model()));
+        }
+        $service->payment->descripcion = 'Transferencia IBAN del banco indicado';
+        $this->assertSame('Transferencia IBAN del banco indicado - IBAN: ES91 2100 0418 4502 0005 1332', $service->text($this->model()));
         $service->payment->descripcion = 'Transferencia';
         $this->assertSame('Transferencia - IBAN: ES91 2100 0418 4502 0005 1332', $service->text($this->model()));
         $service->payment->descripcion = '';

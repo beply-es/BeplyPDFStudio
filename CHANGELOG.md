@@ -1,5 +1,14 @@
 # Changelog
 
+## v4.6 - 2026-10-03
+
+- Incluye las correcciones de domiciliación, descripciones y cabecera legacy
+  revisadas para 4.5. La nueva versión permite publicar el candidato final
+  sin sustituir el artefacto 4.5 ya sellado en el catálogo DEV.
+- Publicación e instalación dirigidas; no se promueve a latest ni stable.
+- Las transferencias conservan una sola cuenta si su descripción ya incluye
+  el mismo IBAN compacto o separado por espacios, incluidos los inseparables.
+
 ## v4.5 - 2026-10-02
 
 - Las formas de pago domiciliadas muestran el IBAN del recibo o, si falta, la

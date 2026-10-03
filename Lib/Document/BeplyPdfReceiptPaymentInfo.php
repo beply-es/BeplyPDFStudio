@@ -52,7 +52,11 @@ class BeplyPdfReceiptPaymentInfo
                 // Unavailable bank data must never change the payment identity.
             }
         }
-        return $iban === '' || stripos($text, $iban) !== false
+        $containsIban = $iban !== '' && stripos(
+            preg_replace('/\s+/u', '', $text) ?? $text,
+            preg_replace('/\s+/', '', $iban) ?? $iban
+        ) !== false;
+        return $iban === '' || $containsIban
             ? $text : ($text === '' ? '' : $text . ' - ') . $this->ibanLabel() . ': ' . $iban;
     }
 
