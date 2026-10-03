@@ -6,6 +6,8 @@
   revisadas para 4.5. La nueva versión permite publicar el candidato final
   sin sustituir el artefacto 4.5 ya sellado en el catálogo DEV.
 - Publicación e instalación dirigidas; no se promueve a latest ni stable.
+- Las transferencias conservan una sola cuenta si su descripción ya incluye
+  el mismo IBAN compacto o separado por espacios, incluidos los inseparables.
 
 ## v4.5 - 2026-10-02
 

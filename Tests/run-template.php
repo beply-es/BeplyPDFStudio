@@ -737,11 +737,13 @@ final class BeplyTemplateSuite
             $doc->withReceipts = true;
             $payment = new \FacturaScripts\Dinamic\Model\FormaPago();
             $payment->load($paymentCode);
-            $payment->descripcion = 'E2E transferencia a iban ' . strtolower($formattedIban);
-            $this->assert('transfer description IBAN fixture saved', $payment->save());
-            $body = $this->bodyOf($this->htmlForModel($this->cfg(fn($c) => null), $doc));
-            $this->assert('transfer description does not duplicate IBAN HTML', substr_count(strtoupper($body), $formattedIban) === 1);
-            $this->assert('transfer description does not duplicate IBAN legacy', substr_count(strtoupper($this->legacyPaymentText($doc)), $formattedIban) === 1);
+            foreach (['E2E transferencia a iban ' . strtolower($formattedIban), 'E2E transferencia IBAN:' . $iban] as $description) {
+                $payment->descripcion = $description;
+                $this->assert('transfer description IBAN fixture saved', $payment->save());
+                $body = $this->bodyOf($this->htmlForModel($this->cfg(fn($c) => null), $doc));
+                $this->assert('transfer description does not duplicate IBAN HTML', substr_count(preg_replace('/\s+/u', '', strtoupper($body)), $iban) === 1);
+                $this->assert('transfer description does not duplicate IBAN legacy', substr_count(preg_replace('/\s+/u', '', strtoupper($this->legacyPaymentText($doc))), $iban) === 1);
+            }
             $payment->descripcion = 'E2E transferencia sin cuenta impresa';
             $payment->imprimir = false;
             $this->assert('transfer nonprint fixture saved', $payment->save());
