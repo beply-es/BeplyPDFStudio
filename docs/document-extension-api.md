@@ -124,7 +124,7 @@ final class BankReceiptInfoProvider implements BeplyPdfReceiptInfoProviderInterf
             return null;
         }
 
-        return 'Domiciliado<br/>IBAN ' . substr((string) $receipt->iban, -4);
+        return "Domiciliado\nIBAN: **** " . substr((string) $receipt->iban, -4);
     }
 }
 

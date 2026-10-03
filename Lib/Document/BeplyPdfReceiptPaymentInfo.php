@@ -53,7 +53,7 @@ class BeplyPdfReceiptPaymentInfo
             }
         }
         return $iban === '' || stripos($text, $iban) !== false
-            ? $text : $text . ' - ' . $this->ibanLabel() . ': ' . $iban;
+            ? $text : ($text === '' ? '' : $text . ' - ') . $this->ibanLabel() . ': ' . $iban;
     }
 
     /** Includes all eligible accounts in deterministic priority order for cache invalidation. */

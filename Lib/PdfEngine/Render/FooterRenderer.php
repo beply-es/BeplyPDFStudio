@@ -760,7 +760,7 @@ class FooterRenderer
         // columnas: etiqueta, peso relativo, alineación (orden observable del Template2)
         $cols = [
             [Tools::trans('receipt'), 0.16, 'center'],
-            [Tools::trans('payment-method'), 0.40, 'center'],
+            [$cfg->hidePaymentMethods ? '' : Tools::trans('payment-method'), 0.40, 'center'],
             [Tools::trans('amount'), 0.20, 'right'],
             [Tools::trans('expiration'), 0.24, 'right'],
         ];

@@ -16,6 +16,8 @@
   caché del documento, sin conservar PDFs con datos bancarios anteriores.
 - Las descripciones de pago conservan apóstrofos y comillas tras guardarse,
   también con Imprimir desactivado; el marcado literal se imprime como texto.
+- Ocultar las formas de pago también oculta su cabecera en los recibos legacy.
+  Si la descripción está vacía, la cuenta se muestra sin un separador inicial.
 
 ## v4.4 - 2026-09-29
 
