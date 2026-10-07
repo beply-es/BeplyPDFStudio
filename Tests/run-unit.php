@@ -128,6 +128,7 @@ namespace {
         \FacturaScripts\Test\Plugins\BeplyPDFStudio\BeplyPdfStyleResolverTest::class,
         \FacturaScripts\Test\Plugins\BeplyPDFStudio\BeplyPdfTemplateLayoutGuardTest::class,
         \FacturaScripts\Test\Plugins\BeplyPDFStudio\BeplyPdfXmlTranslationTest::class,
+        \FacturaScripts\Test\Plugins\BeplyPDFStudio\TablePortableDdlContractTest::class,
     ];
 
     foreach (glob(__DIR__ . '/*Test.php') ?: [] as $file) {
