@@ -1,5 +1,17 @@
 # Changelog
 
+## v4.7 - 2026-10-07
+
+- BeplyPDFStudio se instala en MySQL 8: `beply_pdf_columns` declara su clave
+  primaria `beply_pdf_columns_pkey (id)`, igual que `beply_pdf_styles`. Sin
+  ella MySQL rechaza la columna AUTO_INCREMENT (ERROR 1075) y falla la
+  inicialización del plugin.
+- PostgreSQL: las instalaciones nuevas crean la clave. En las existentes, Core
+  no añade claves primarias al actualizar: la tabla sigue igual y sin cambios
+  en sus filas.
+- Test de contrato: toda columna serial es la clave primaria y ninguna columna
+  TEXT/BLOB/JSON declara un default literal.
+
 ## v4.6 - 2026-10-03
 
 - Incluye las correcciones de domiciliación, descripciones y cabecera legacy
