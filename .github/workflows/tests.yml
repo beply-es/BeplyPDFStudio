@@ -3,10 +3,11 @@ name: Tests
 on:
   push:
     branches:
-      - '**'
+      - main
     tags:
       - 'v*'
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
   workflow_dispatch:
 
 env:
@@ -15,8 +16,8 @@ env:
   TZ: Europe/Madrid
 
 concurrency:
-  group: beplypdfstudio-tests-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  group: beplypdfstudio-tests-${{ github.workflow }}-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || format('{0}-{1}-{2}', github.event_name, github.ref, github.sha) }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
@@ -49,6 +50,9 @@ jobs:
       - name: Run catalog release witness tests
         run: python3 -m unittest scripts.ci.test_verify_release_witness scripts.ci.test_upload_catalog_release
 
+      - name: Unit test one Tests run per SHA and draft PR gating
+        run: python3 .github/ci/test_tests_workflow_triggers.py
+
   lint:
     name: PHP Lint
     timeout-minutes: 10
@@ -71,6 +75,7 @@ jobs:
   runtime:
     name: Runtime FS v2025.71 PostgreSQL
     timeout-minutes: 25
+    if: github.event.pull_request.draft != true
     runs-on: ${{ vars.BEPLY_GHA_RUNNER || 'ubuntu-latest' }}
 
     steps:
