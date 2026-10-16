@@ -399,8 +399,9 @@ class BeplyHtmlRenderService
             'text_color' => $textColor,
             'muted_color' => $this->mix($textColor, '#ffffff', 0.25),
             'border_color' => $this->mix($textColor, '#ffffff', 0.82),
-            'font_size' => max(9, min(13, (int) $cfg->fontSize)),
-            'title_font_size' => max(16, min(26, (int) $cfg->titleFontSize)),
+            // Texto corrido en puntos (cartas, contratos): 9-12 pt y título 16-24 pt.
+            'font_size' => max(9, min(12, (int) $cfg->fontSize)),
+            'title_font_size' => max(16, min(24, (int) $cfg->titleFontSize)),
             'logo_size' => max(60, min(220, (int) $cfg->logoSize * 2)),
             'logo_position' => in_array($cfg->logoPosition, ['left', 'center', 'right'], true) ? $cfg->logoPosition : 'left',
             'font_family' => $font['family'],

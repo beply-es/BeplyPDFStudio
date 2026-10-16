@@ -28,7 +28,7 @@
     margin: 0;
     color: {{ text_color }};
     font-family: "{{ font_family }}", Arial, sans-serif;
-    font-size: {{ font_size }}px;
+    font-size: {{ font_size }}pt;
     line-height: 1.5;
   }
   .doc-footer-text { string-set: docfooter content(); display: none; }
@@ -37,8 +37,8 @@
   .letterhead { width: 100%; border-collapse: collapse; margin-bottom: 6mm; }
   .letterhead td { vertical-align: middle; padding: 0; }
   .letterhead .logo { max-height: 56px; max-width: {{ logo_size }}px; }
-  .letterhead .company { text-align: right; font-size: {{ font_size - 1 }}px; color: {{ muted_color }}; line-height: 1.35; }
-  .letterhead .company-name { color: {{ text_color }}; font-weight: 700; font-size: {{ font_size + 1 }}px; }
+  .letterhead .company { text-align: right; font-size: {{ font_size - 1.5 }}pt; color: {{ muted_color }}; line-height: 1.35; }
+  .letterhead .company-name { color: {{ text_color }}; font-weight: 700; font-size: {{ font_size + 0.5 }}pt; }
   .letterhead-rule { border: 0; border-top: 2px solid {{ color1 }}; margin: 0 0 8mm; }
 
   /* Apertura: lugar y fecha, destinatario, referencia, asunto y título */
@@ -47,21 +47,21 @@
   .bd-meta-line { margin: 0 0 2mm; }
   .bd-meta-label { color: {{ color1 }}; font-weight: 700; }
   .bd-subject { margin-bottom: 6mm; }
-  .bd-title { color: {{ color1 }}; font-size: {{ title_font_size }}px; font-weight: 800; margin: 2mm 0 1mm; line-height: 1.2; }
+  .bd-title { color: {{ color1 }}; font-size: {{ title_font_size }}pt; font-weight: 800; margin: 2mm 0 1mm; line-height: 1.2; }
   .bd-subtitle { color: {{ muted_color }}; margin: 0 0 6mm; }
 
   /* Bloques */
   .bd-heading { color: {{ color1 }}; page-break-after: avoid; break-after: avoid; line-height: 1.25; }
-  h2.bd-heading { font-size: {{ title_font_size - 4 }}px; margin: 7mm 0 2.5mm; padding-bottom: 1.5mm; border-bottom: 1.5px solid {{ color1 }}; }
-  h3.bd-heading { font-size: {{ font_size + 3 }}px; margin: 5mm 0 2mm; }
-  h4.bd-heading { font-size: {{ font_size + 1 }}px; margin: 4mm 0 1.5mm; color: {{ text_color }}; }
+  h2.bd-heading { font-size: {{ font_size + 4 }}pt; margin: 7mm 0 2.5mm; padding-bottom: 1.5mm; border-bottom: 1.5px solid {{ color1 }}; }
+  h3.bd-heading { font-size: {{ font_size + 2 }}pt; margin: 5mm 0 2mm; }
+  h4.bd-heading { font-size: {{ font_size + 1 }}pt; margin: 4mm 0 1.5mm; color: {{ text_color }}; }
   .bd-paragraph { margin: 0 0 3mm; orphans: 3; widows: 3; }
   .bd-align-center { text-align: center; }
   .bd-align-right { text-align: right; }
   .bd-align-justify { text-align: justify; }
   .bd-list { margin: 0 0 3mm; padding-left: 6mm; }
   .bd-list li { margin-bottom: 1.2mm; }
-  .bd-table { width: 100%; border-collapse: collapse; margin: 2mm 0 4mm; font-size: {{ font_size - 0.5 }}px; }
+  .bd-table { width: 100%; border-collapse: collapse; margin: 2mm 0 4mm; font-size: {{ font_size - 1 }}pt; }
   .bd-table thead { display: table-header-group; }
   .bd-table caption { caption-side: top; text-align: left; font-weight: 700; color: {{ text_color }}; margin-bottom: 1.5mm; }
   .bd-table th { background: {{ color1 }}; color: {{ color2 }}; font-weight: 700; text-align: left; padding: 2mm 2.5mm; }
