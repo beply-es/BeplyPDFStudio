@@ -131,7 +131,7 @@ same('invalid-value', $service->save('ana', 1, $letter, 'contract')[1][0]['code'
 same(['audit'], array_column($service->list('ana', 'audit'), 'kind'), 'Listing filters by kind.');
 same(2, count($service->list('ana')), 'Listing returns only own documents.');
 same([], $service->list('luis'), 'Other users see nothing.');
-same(['id', 'kind', 'title', 'status', 'revision', 'version', 'last_update', 'blocks'], array_keys(DocumentService::summary($audit)), 'Summaries have no spec.');
+same(['id', 'kind', 'title', 'status', 'revision', 'version', 'doc_type', 'last_update', 'blocks'], array_keys(DocumentService::summary($audit)), 'Summaries have no spec.');
 check(false === $service->delete('luis', (int) $audit['id']), 'Another user cannot delete.');
 check($service->delete('ana', (int) $audit['id']), 'The owner deletes.');
 

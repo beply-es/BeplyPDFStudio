@@ -8,6 +8,7 @@ use FacturaScripts\Core\Tools;
 use FacturaScripts\Core\Where;
 use FacturaScripts\Dinamic\Model\BeplyPdfChatDocument;
 use FacturaScripts\Dinamic\Model\BeplyPdfChatDocumentVersion;
+use FacturaScripts\Dinamic\Model\BeplyPdfChatStyle;
 
 /** DocumentStore sobre el modelo BeplyPdfChatDocument (tabla beply_pdf_chat_documents). */
 final class ModelDocumentStore implements DocumentStore
@@ -88,6 +89,68 @@ final class ModelDocumentStore implements DocumentStore
         ];
     }
 
+    public function findStyle(?string $nick, ?int $idempresa, string $docType): ?array
+    {
+        $model = new BeplyPdfChatStyle();
+        $where = [
+            Where::eq('doc_type', $docType),
+            $nick === null ? Where::isNull('nick') : Where::eq('nick', $nick),
+            $idempresa === null || $nick !== null ? Where::isNull('idempresa') : Where::eq('idempresa', $idempresa),
+        ];
+
+        return $model->loadWhere($where) ? self::styleToArray($model) : null;
+    }
+
+    public function saveStyle(array $style): ?int
+    {
+        $nick = $style['nick'] ?? null;
+        $idempresa = $nick === null ? ($style['idempresa'] ?? null) : null;
+        $existing = $this->findStyle($nick, $idempresa, (string) $style['doc_type']);
+        $model = new BeplyPdfChatStyle();
+        if ($existing !== null) {
+            $model->load((int) $existing['id']);
+        } else {
+            $model->creation_date = Tools::dateTime();
+        }
+        $model->nick = $nick;
+        $model->idempresa = $idempresa;
+        $model->doc_type = (string) $style['doc_type'];
+        $model->label = (string) $style['label'];
+        $model->overrides = (string) json_encode($style['overrides'], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        $model->last_update = Tools::dateTime();
+
+        return $model->save() ? (int) $model->id : null;
+    }
+
+    public function listStyles(string $nick, ?int $idempresa): array
+    {
+        $rows = [];
+        foreach (BeplyPdfChatStyle::all([], ['doc_type' => 'ASC', 'id' => 'ASC'], 0, 0) as $model) {
+            $mine = $model->nick === $nick;
+            $shared = $model->nick === null && ($model->idempresa === null || (int) $model->idempresa === $idempresa);
+            if ($mine || $shared) {
+                $rows[] = self::styleToArray($model);
+            }
+        }
+
+        return $rows;
+    }
+
+    private static function styleToArray(BeplyPdfChatStyle $model): array
+    {
+        $overrides = json_decode((string) $model->overrides, true);
+
+        return [
+            'id' => (int) $model->id,
+            'nick' => $model->nick === null ? null : (string) $model->nick,
+            'idempresa' => $model->idempresa === null ? null : (int) $model->idempresa,
+            'doc_type' => (string) $model->doc_type,
+            'label' => (string) $model->label,
+            'overrides' => is_array($overrides) ? $overrides : [],
+            'last_update' => (string) ($model->last_update ?? $model->creation_date),
+        ];
+    }
+
     private static function fill(BeplyPdfChatDocument $model, array $document): void
     {
         $model->nick = $document['nick'];
@@ -97,6 +160,7 @@ final class ModelDocumentStore implements DocumentStore
         $model->status = $document['status'];
         $model->revision = (int) $document['revision'];
         $model->version = max(1, (int) ($document['version'] ?? 1));
+        $model->doc_type = $document['doc_type'] ?? null;
         $model->conversation_id = $document['conversation_id'] ?? null;
         $model->spec = (string) json_encode($document['spec'], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     }
@@ -115,6 +179,7 @@ final class ModelDocumentStore implements DocumentStore
             'spec' => is_array($spec) ? $spec : [],
             'revision' => (int) $model->revision,
             'version' => max(1, (int) $model->version),
+            'doc_type' => $model->doc_type === null || $model->doc_type === '' ? null : (string) $model->doc_type,
             'conversation_id' => $model->conversation_id,
             'creation_date' => (string) $model->creation_date,
             'last_update' => (string) ($model->last_update ?? $model->creation_date),

@@ -76,6 +76,37 @@ final class InMemoryDocumentStore implements DocumentStore
         return $this->versions[$documentId . ':' . $version] ?? null;
     }
 
+    /** @var array<int, array> */
+    public array $styles = [];
+
+    public function findStyle(?string $nick, ?int $idempresa, string $docType): ?array
+    {
+        $idempresa = $nick !== null ? null : $idempresa;
+        foreach ($this->styles as $style) {
+            if ($style['doc_type'] === $docType && $style['nick'] === $nick && $style['idempresa'] === $idempresa) {
+                return $style;
+            }
+        }
+
+        return null;
+    }
+
+    public function saveStyle(array $style): ?int
+    {
+        $nick = $style['nick'] ?? null;
+        $idempresa = $nick === null ? ($style['idempresa'] ?? null) : null;
+        $existing = $this->findStyle($nick, $idempresa, $style['doc_type']);
+        $id = $existing['id'] ?? (count($this->styles) + 1);
+        $this->styles[$id] = ['id' => $id, 'nick' => $nick, 'idempresa' => $idempresa, 'doc_type' => $style['doc_type'], 'label' => $style['label'], 'overrides' => $style['overrides'], 'last_update' => $this->tick()];
+
+        return $id;
+    }
+
+    public function listStyles(string $nick, ?int $idempresa): array
+    {
+        return array_values(array_filter($this->styles, static fn(array $s): bool => $s['nick'] === $nick || ($s['nick'] === null && ($s['idempresa'] === null || $s['idempresa'] === $idempresa))));
+    }
+
     private function tick(): string
     {
         $this->clock++;

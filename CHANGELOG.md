@@ -18,6 +18,9 @@
   siguiente y la anterior se conserva (tabla `beply_pdf_chat_document_versions`);
   `PdfStudioChatDocument?…&version=N` sirve cualquiera de ellas.
 - Tope de extensión de 10 páginas (60 000 caracteres de texto) por documento.
+- Estilos por tipo de documento del chat (`beply_pdf_chat_styles`, tools
+  `document_style_list|document_style_save`): colores, fuente, tamaños y logo
+  sobre el estilo de la empresa, sin tocar facturas ni otros formatos.
 - Contrato completo: `docs/chat-documents.md`. BeplyChatAI sólo ofrece el modo
   Documentos con este plugin habilitado.
 

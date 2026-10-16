@@ -7,7 +7,9 @@ declare(strict_types=1);
  * beply.tools/v1), llamado directamente como lo hace la pasarela del chat.
  */
 
+use FacturaScripts\Plugins\BeplyPDFStudio\Lib\BeplyPdfConfig;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\BeplyToolProvider;
+use FacturaScripts\Plugins\BeplyPDFStudio\Lib\ChatDocument\DocumentStyle;
 
 require_once __DIR__ . '/InMemoryDocumentStore.php';
 require_once __DIR__ . '/asserts.php';
@@ -27,7 +29,7 @@ $luis = new class {
 
 same('beply.tools/v1', BeplyToolProvider::beplyToolContract(), 'Contract.');
 $names = array_column(BeplyToolProvider::tools(), 'name');
-same(['beplypdfstudio.document_catalog', 'beplypdfstudio.document_list', 'beplypdfstudio.document_get', 'beplypdfstudio.document_save', 'beplypdfstudio.document_append'], $names, 'Tools live in the plugin namespace.');
+same(['beplypdfstudio.document_catalog', 'beplypdfstudio.document_list', 'beplypdfstudio.document_get', 'beplypdfstudio.document_save', 'beplypdfstudio.document_append', 'beplypdfstudio.document_style_list', 'beplypdfstudio.document_style_save'], $names, 'Tools live in the plugin namespace.');
 foreach (BeplyToolProvider::tools() as $tool) {
     same('documents_canvas', $tool['domain'], $tool['name'] . ' is only for the native documents toolset.');
     same(['ChatAPI'], $tool['policy']['permissions'], $tool['name'] . ' needs chat access.');
@@ -81,5 +83,48 @@ same('Plan director (revisado)', $service->findVersion('ana', $id, 2)['title'], 
 same('Plan director (revisado)', $service->findVersion('ana', $id, null)['title'], 'No version means the current one.');
 same(null, $service->findVersion('ana', $id, 3), 'A future version does not exist.');
 same(null, $service->findVersion('luis', $id, 1), 'Another user cannot open an old version.');
+
+// Estilos por tipo de documento: sobre el estilo de PDF Studio, nunca sobre facturas.
+DocumentStyle::$fontValidator = static fn(string $font): ?string => strcasecmp($font, 'raleway') === 0 ? 'Raleway' : null;
+$boss = new class {
+    public function nick(): string { return 'jefa'; }
+    public function isAdmin(): bool { return true; }
+};
+$contract = BeplyToolProvider::execute('beplypdfstudio.document_save', ['spec' => $spec, 'doc_type' => 'Contrato'], $ana);
+same('contrato', $contract['document']['doc_type'], 'The document type is normalized.');
+$contractDoc = $service->find('ana', (int) $contract['document']['id']);
+same([], $service->styleFor($contractDoc), 'Without a style the PDF Studio style is used as is.');
+
+$bad = BeplyToolProvider::execute('beplypdfstudio.document_style_save', ['doc_type' => 'contrato', 'color_primary' => 'azul', 'font_family' => 'Comic', 'font_size' => 30], $ana);
+check($bad['ok'] === false, 'Invalid style changes are rejected.');
+same(['color_primary', 'font_family', 'font_size'], array_column($bad['errors'], 'path'), 'Style errors point to each field.');
+same(false, BeplyToolProvider::execute('beplypdfstudio.document_style_save', ['doc_type' => 'contrato'], $ana)['ok'], 'A style needs at least one change.');
+
+$company = BeplyToolProvider::execute('beplypdfstudio.document_style_save', ['doc_type' => 'contrato', 'label' => 'Contratos', 'color_primary' => '#0a3d62', 'font_family' => 'raleway'], $boss);
+check($company['ok'] === true, 'An administrator saves a company style.');
+same('company', $company['style']['scope'], 'Administrators style the whole company.');
+same(['color_primary' => '#0A3D62', 'font_family' => 'Raleway'], $company['style']['changes'], 'Colors and fonts are normalized.');
+same(['color_primary' => '#0A3D62', 'font_family' => 'Raleway'], $service->styleFor($contractDoc), 'Every contract of the company uses it.');
+
+$personal = BeplyToolProvider::execute('beplypdfstudio.document_style_save', ['doc_type' => 'contrato', 'font_size' => 12, 'document_id' => (int) $contract['document']['id']], $ana);
+check($personal['ok'] === true, 'A user saves a personal style.');
+same('personal', $personal['style']['scope'], 'Without PDF Studio access the style is personal.');
+same(2, $personal['artifact']['revision'], 'Applying a style refreshes the open document.');
+same(1, $personal['artifact']['version'], 'A style change is not a new version.');
+same(['font_size' => 12], $service->styleFor($service->find('ana', (int) $contract['document']['id'])), 'The personal style wins for its owner.');
+$merged = BeplyToolProvider::execute('beplypdfstudio.document_style_save', ['doc_type' => 'contrato', 'color_text' => '#333'], $ana);
+same(['font_size' => 12, 'color_text' => '#333333'], $merged['style']['changes'], 'New changes keep the previous ones.');
+same(2, count(BeplyToolProvider::execute('beplypdfstudio.document_style_list', [], $ana)['styles']), 'The list shows the personal and the company style.');
+same(false, BeplyToolProvider::execute('beplypdfstudio.document_style_save', ['doc_type' => 'contrato', 'font_size' => 11, 'document_id' => (int) $contract['document']['id']], $luis)['ok'], 'Nobody styles another user\'s document.');
+
+$config = DocumentStyle::applyToConfig(new BeplyPdfConfig(), ['color_primary' => '#0A3D62', 'font_family' => 'Raleway', 'title_font_size' => 24]);
+same('#0A3D62', $config->colorPrimary, 'The PDF gets the color.');
+same('Raleway', $config->fontFamily, 'The PDF gets the font.');
+same(24, $config->titleFontSize, 'The PDF gets the title size.');
+same('#1A1A2E', (new BeplyPdfConfig())->colorPrimary, 'The PDF Studio config is never modified.');
+$branding = DocumentStyle::applyToBranding(['primary' => '#000000', 'text' => '#111111', 'font' => ['name' => 'Helvetica']], ['color_primary' => '#0A3D62', 'font_family' => 'Raleway']);
+same('#0A3D62', $branding['primary'], 'The DOCX gets the color.');
+same('Raleway', $branding['font']['name'], 'The DOCX gets the font.');
+DocumentStyle::$fontValidator = null;
 
 BeplyToolProvider::$factories = [];

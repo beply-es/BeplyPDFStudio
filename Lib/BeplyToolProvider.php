@@ -8,6 +8,7 @@ use FacturaScripts\Plugins\BeplyPDFStudio\Lib\ChatDocument\DocumentBranding;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\ChatDocument\DocumentService;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\ChatDocument\DocumentSpec;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\ChatDocument\DocumentStore;
+use FacturaScripts\Plugins\BeplyPDFStudio\Lib\ChatDocument\DocumentStyle;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\ChatDocument\ModelDocumentStore;
 
 /**
@@ -26,6 +27,8 @@ final class BeplyToolProvider
     public const VERSION = '1.0.0';
     public const PERMISSION = 'ChatAPI';
     public const DOMAIN = 'documents_canvas';
+    /** Quien entra aquí crea estilos de documentos para toda la empresa. */
+    public const STYLE_ADMIN_PAGE = 'AdminBeplyPdf';
 
     /** @var array{store?: callable, company?: callable, branding?: callable} Sustitutos para tests. */
     public static array $factories = [];
@@ -93,6 +96,7 @@ final class BeplyToolProvider
                         'spec' => ['type' => 'object', 'description' => 'Especificación beply.document/v1 completa'],
                         'document_id' => $documentId,
                         'kind' => ['type' => 'string', 'enum' => DocumentService::KINDS],
+                        'doc_type' => ['type' => 'string', 'maxLength' => 60, 'description' => 'Tipo de documento (contrato, propuesta, carta, acta…): aplica su estilo si existe'],
                         'conversation_id' => ['type' => 'string', 'pattern' => '^[A-Za-z0-9_-]{1,64}$'],
                     ],
                     'required' => ['spec'],
@@ -117,6 +121,41 @@ final class BeplyToolProvider
                     'additionalProperties' => false,
                 ],
                 'annotations' => ['readOnly' => false, 'destructive' => false, 'idempotent' => false],
+                'policy' => $policy('autonomous'),
+            ],
+            [
+                'name' => 'beplypdfstudio.document_style_list',
+                'version' => self::VERSION,
+                'description' => 'Estilos por tipo de documento (colores, fuente, tamaños, logo sobre el estilo de PDF Studio de la empresa) y las fuentes instaladas.',
+                'domain' => self::DOMAIN,
+                'inputSchema' => ['type' => 'object', 'additionalProperties' => false],
+                'annotations' => $readOnly,
+                'policy' => $policy('read_only'),
+            ],
+            [
+                'name' => 'beplypdfstudio.document_style_save',
+                'version' => self::VERSION,
+                'description' => 'Crea o cambia el estilo de un TIPO de documento (p. ej. «contrato») cuando el usuario pide otros colores, otra fuente u otro tamaño: se guarda en PDF Studio y se aplica a todos los documentos de ese tipo. Con document_id lo aplica también a ese documento. No cambia facturas ni otros formatos de impresión.',
+                'domain' => self::DOMAIN,
+                'inputSchema' => [
+                    'type' => 'object',
+                    'properties' => [
+                        'doc_type' => ['type' => 'string', 'maxLength' => 60, 'description' => 'Tipo de documento: contrato, propuesta, carta, acta, memoria…'],
+                        'label' => ['type' => 'string', 'maxLength' => 80, 'description' => 'Nombre del estilo («Contratos azul corporativo»)'],
+                        'color_primary' => ['type' => 'string', 'description' => '#RRGGBB títulos, líneas y cabeceras de tabla'],
+                        'color_secondary' => ['type' => 'string', 'description' => '#RRGGBB acento (avisos, citas)'],
+                        'color_tertiary' => ['type' => 'string', 'description' => '#RRGGBB fondo de filas alternas y notas'],
+                        'color_text' => ['type' => 'string', 'description' => '#RRGGBB texto'],
+                        'font_family' => ['type' => 'string', 'description' => 'Una de font_families de document_style_list'],
+                        'font_size' => ['type' => 'integer', 'minimum' => DocumentStyle::FONT_SIZE[0], 'maximum' => DocumentStyle::FONT_SIZE[1]],
+                        'title_font_size' => ['type' => 'integer', 'minimum' => DocumentStyle::TITLE_FONT_SIZE[0], 'maximum' => DocumentStyle::TITLE_FONT_SIZE[1]],
+                        'logo_position' => ['type' => 'string', 'enum' => BeplyPdfConfig::POSICIONES],
+                        'document_id' => $documentId,
+                    ],
+                    'required' => ['doc_type'],
+                    'additionalProperties' => false,
+                ],
+                'annotations' => ['readOnly' => false, 'destructive' => false, 'idempotent' => true],
                 'policy' => $policy('autonomous'),
             ],
         ];
@@ -156,6 +195,35 @@ final class BeplyToolProvider
             case 'beplypdfstudio.document_save':
                 return self::save($arguments, $nick);
 
+            case 'beplypdfstudio.document_style_list':
+                return [
+                    'ok' => true,
+                    'styles' => self::service()->listStyles($nick, self::company($nick)),
+                    'font_families' => DocumentStyle::families(),
+                    'scope' => self::companyWide($actor) ? 'company' : 'personal',
+                    'mutations_committed' => false,
+                ];
+
+            case 'beplypdfstudio.document_style_save':
+                $documentId = isset($arguments['document_id']) ? (int) $arguments['document_id'] : null;
+                [$style, $document, $errors] = self::service()->saveStyle(
+                    $nick,
+                    self::company($nick),
+                    self::companyWide($actor),
+                    $arguments['doc_type'] ?? null,
+                    $arguments['label'] ?? null,
+                    array_intersect_key($arguments, array_flip(['color_primary', 'color_secondary', 'color_tertiary', 'color_text', 'font_family', 'font_size', 'title_font_size', 'logo_position'])),
+                    $documentId
+                );
+                if ($style === null) {
+                    return ['ok' => false, 'errors' => $errors, 'mutations_committed' => false];
+                }
+                return [
+                    'ok' => true,
+                    'style' => $style,
+                    'mutations_committed' => true,
+                ] + ($document !== null ? ['document' => DocumentService::summary($document), 'artifact' => DocumentService::artifact($document)] : []);
+
             case 'beplypdfstudio.document_append':
                 $conversationId = isset($arguments['conversation_id']) ? (string) $arguments['conversation_id'] : null;
                 [$document, $errors, $warnings] = self::service()->append($nick, (int) ($arguments['document_id'] ?? 0), $arguments['blocks'] ?? null, $conversationId);
@@ -180,7 +248,8 @@ final class BeplyToolProvider
         $documentId = isset($arguments['document_id']) ? (int) $arguments['document_id'] : null;
         $conversationId = isset($arguments['conversation_id']) ? (string) $arguments['conversation_id'] : null;
 
-        [$document, $errors, $warnings] = self::service()->save($nick, self::company($nick), $arguments['spec'] ?? null, $kind, $documentId, $conversationId);
+        $docType = isset($arguments['doc_type']) && is_string($arguments['doc_type']) ? $arguments['doc_type'] : null;
+        [$document, $errors, $warnings] = self::service()->save($nick, self::company($nick), $arguments['spec'] ?? null, $kind, $documentId, $conversationId, true, $docType);
         if ($document === null) {
             return ['ok' => false, 'errors' => $errors, 'mutations_committed' => false];
         }
@@ -229,6 +298,7 @@ final class BeplyToolProvider
             'limits' => ['blocks' => DocumentSpec::MAX_BLOCKS, 'title' => DocumentSpec::MAX_TITLE, 'total_chars' => DocumentSpec::MAX_TOTAL_CHARS],
             'long_documents' => 'Máximo 10 páginas A4 (≈ ' . DocumentSpec::MAX_TOTAL_CHARS . ' caracteres de texto). Para documentos largos crea el documento con document_save (título, apertura y primeras secciones) y añade el resto página a página con document_append (una o dos páginas por llamada). Una página A4 son unas 450-550 palabras de texto corrido; secciones completas, no esquemas.',
             'design' => self::design($nick),
+            'styles' => 'Indica doc_type en document_save (contrato, propuesta, carta…). Si el usuario pide otros colores, otra fuente u otro tamaño, guarda un estilo para ese tipo con document_style_save (con document_id para aplicarlo ya) en vez de cambiar el texto: el diseño siempre lo pone PDF Studio.',
             'branding' => $branding,
             'example' => [
                 'schema' => DocumentSpec::CONTRACT,
@@ -267,6 +337,16 @@ final class BeplyToolProvider
             'style' => $style !== null ? (string) ($style->nombre ?? '') : null,
             'layout' => $config !== null ? (string) $config->diseno : null,
         ];
+    }
+
+    /** Estilos para toda la empresa: administradores y quien gestiona PDF Studio. */
+    private static function companyWide(object $actor): bool
+    {
+        if (method_exists($actor, 'isAdmin') && $actor->isAdmin()) {
+            return true;
+        }
+
+        return method_exists($actor, 'can') && $actor->can(self::STYLE_ADMIN_PAGE);
     }
 
     private static function failure(string $path, string $code, string $message): array

@@ -61,7 +61,7 @@ final class DocumentService
      *
      * @return array{0: ?array, 1: list<array{path: string, code: string, message: string}>, 2: list<string>}
      */
-    public function save(string $nick, ?int $idempresa, $spec, string $kind = 'document', ?int $documentId = null, ?string $conversationId = null, bool $newVersion = true): array
+    public function save(string $nick, ?int $idempresa, $spec, string $kind = 'document', ?int $documentId = null, ?string $conversationId = null, bool $newVersion = true, ?string $docType = null): array
     {
         if (false === in_array($kind, self::KINDS, true)) {
             return [null, [['path' => 'kind', 'code' => 'invalid-value', 'message' => 'kind es document o audit.']], []];
@@ -75,6 +75,7 @@ final class DocumentService
         if ($conversationId !== null && preg_match('/^[A-Za-z0-9_-]{1,64}$/', $conversationId) !== 1) {
             $conversationId = null;
         }
+        $docType = DocumentStyle::normalizeType($docType);
 
         if ($documentId !== null) {
             $document = $this->find($nick, $documentId);
@@ -93,6 +94,9 @@ final class DocumentService
             }
             $document['spec'] = $normalized;
             $document['title'] = $normalized['title'];
+            if ($docType !== null) {
+                $document['doc_type'] = $docType;
+            }
             $document['revision'] = (int) $document['revision'] + 1;
             if ($conversationId !== null) {
                 $document['conversation_id'] = $conversationId;
@@ -113,6 +117,7 @@ final class DocumentService
             'spec' => $normalized,
             'revision' => 1,
             'version' => 1,
+            'doc_type' => $docType,
             'conversation_id' => $conversationId,
         ]);
 
@@ -152,6 +157,97 @@ final class DocumentService
         return [$saved, $errors, $warnings];
     }
 
+    /**
+     * Cambios de estilo del tipo de documento: el personal del propietario, si
+     * no el de su empresa y si no el global. Vacío si no hay ninguno.
+     */
+    public function styleFor(array $document): array
+    {
+        $style = $this->styleRowFor($document);
+
+        return $style === null ? [] : $style['overrides'];
+    }
+
+    private function styleRowFor(array $document): ?array
+    {
+        $type = $document['doc_type'] ?? null;
+        if (false === is_string($type) || $type === '') {
+            return null;
+        }
+        $idempresa = isset($document['idempresa']) ? (int) $document['idempresa'] : null;
+
+        return $this->store->findStyle((string) $document['nick'], null, $type)
+            ?? ($idempresa !== null ? $this->store->findStyle(null, $idempresa, $type) : null)
+            ?? $this->store->findStyle(null, null, $type);
+    }
+
+    public function listStyles(string $nick, ?int $idempresa): array
+    {
+        return array_map([self::class, 'styleSummary'], $this->store->listStyles($nick, $idempresa));
+    }
+
+    /**
+     * Crea o cambia el estilo de un tipo de documento. `$companyWide`: para toda
+     * la empresa (quien administra PDF Studio); si no, personal. Con
+     * `$documentId`, ese documento pasa a ser de ese tipo y se vuelve a pintar
+     * (sube la revisión, no crea versión: el texto no cambia).
+     *
+     * @return array{0: ?array, 1: ?array, 2: list<array{path: string, code: string, message: string}>}
+     */
+    public function saveStyle(string $nick, ?int $idempresa, bool $companyWide, $docType, $label, array $changes, ?int $documentId = null): array
+    {
+        $type = DocumentStyle::normalizeType($docType);
+        if ($type === null) {
+            return [null, null, [['path' => 'doc_type', 'code' => 'required', 'message' => 'Indica el tipo de documento (contrato, propuesta, carta…).']]];
+        }
+        $document = null;
+        if ($documentId !== null) {
+            $document = $this->find($nick, $documentId);
+            if ($document === null) {
+                return [null, null, [['path' => 'document_id', 'code' => 'document-not-found', 'message' => 'Ese documento no existe o no es tuyo.']]];
+            }
+        }
+        [$overrides, $errors] = DocumentStyle::validate($changes);
+        if ($errors !== []) {
+            return [null, null, $errors];
+        }
+        $scopeNick = $companyWide ? null : $nick;
+        $scopeCompany = $companyWide ? $idempresa : null;
+        $existing = $this->store->findStyle($scopeNick, $scopeCompany, $type);
+        if ($existing === null && count($this->store->listStyles($nick, $idempresa)) >= DocumentStyle::MAX_STYLES) {
+            return [null, null, [['path' => 'doc_type', 'code' => 'too-many-styles', 'message' => 'Ya hay ' . DocumentStyle::MAX_STYLES . ' estilos de documentos; cambia uno existente.']]];
+        }
+        // Lo no indicado se conserva del estilo que ya tenía ese tipo.
+        $merged = array_merge($existing['overrides'] ?? [], $overrides);
+        $title = is_string($label) && trim($label) !== '' ? mb_substr(trim(DocumentSpec::text($label, false) ?? ''), 0, 80) : ($existing['label'] ?? ucfirst(str_replace('-', ' ', $type)));
+        $id = $this->store->saveStyle(['nick' => $scopeNick, 'idempresa' => $scopeCompany, 'doc_type' => $type, 'label' => $title, 'overrides' => $merged]);
+        if ($id === null) {
+            return [null, null, [['path' => '', 'code' => 'save-failed', 'message' => 'No se pudo guardar el estilo.']]];
+        }
+        $style = $this->store->findStyle($scopeNick, $scopeCompany, $type);
+
+        if ($document !== null) {
+            $document['doc_type'] = $type;
+            $document['revision'] = (int) $document['revision'] + 1;
+            $document = $this->store->update($document) ? $this->store->find((int) $document['id']) : null;
+            if ($document === null) {
+                return [null, null, [['path' => '', 'code' => 'save-failed', 'message' => 'Se guardó el estilo pero no se pudo aplicar al documento.']]];
+            }
+        }
+
+        return [self::styleSummary($style), $document, []];
+    }
+
+    public static function styleSummary(array $style): array
+    {
+        return [
+            'doc_type' => (string) $style['doc_type'],
+            'label' => (string) $style['label'],
+            'scope' => $style['nick'] !== null ? 'personal' : ($style['idempresa'] !== null ? 'company' : 'global'),
+            'changes' => $style['overrides'],
+        ];
+    }
+
     public function delete(string $nick, int $id): bool
     {
         return $this->find($nick, $id) !== null && $this->store->delete($id);
@@ -181,6 +277,7 @@ final class DocumentService
             'status' => (string) $document['status'],
             'revision' => (int) $document['revision'],
             'version' => max(1, (int) ($document['version'] ?? 1)),
+            'doc_type' => $document['doc_type'] ?? null,
             'last_update' => $document['last_update'] ?? null,
             'blocks' => count($document['spec']['blocks'] ?? []),
         ];

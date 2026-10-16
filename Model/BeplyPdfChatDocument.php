@@ -29,6 +29,9 @@ class BeplyPdfChatDocument extends ModelClass
     /** @var string */
     public $creation_date;
 
+    /** @var string|null Tipo de documento («contrato»…): elige su estilo de BeplyPdfChatStyle. */
+    public $doc_type;
+
     /** @var int */
     public $id;
 

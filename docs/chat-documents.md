@@ -116,6 +116,26 @@ El DOCX usa `Lib/ChatDocument/DocumentBranding`, que lee la misma configuración
 (colores, fuente, tamaño, papel, márgenes, logo y pie) más el logo y los datos de
 la empresa. Un logo sólo vale si sus bytes son PNG, JPEG o GIF (≤ 2 MB).
 
+## 5 bis. Estilos por tipo de documento (`BeplyPdfChatStyle`)
+
+Cuando el usuario pide otros colores, otra fuente, otro tamaño u otra posición del
+logo para un tipo de documento («los contratos en azul y con Raleway»), el
+asistente guarda un estilo con `beplypdfstudio.document_style_save` en vez de
+tocar el texto. Tabla `beply_pdf_chat_styles` (`nick, idempresa, doc_type, label,
+overrides`): cambios sobre el estilo de PDF Studio de la empresa — colores
+(`color_primary|secondary|tertiary|text`), `font_family` (sólo fuentes del
+manifiesto), `font_size` 8-14, `title_font_size` 14-32 y `logo_position`. No es un
+`BeplyPdfStyle`: nunca cambia facturas ni otros formatos de impresión.
+
+- Ámbito: administradores o quien entra en `AdminBeplyPdf` → toda la empresa; el
+  resto → estilo personal. Resolución de un documento: personal del propietario →
+  empresa → global.
+- `document_save` acepta `doc_type` («Contrato» → `contrato`); con `document_id`,
+  `document_style_save` aplica el estilo al documento abierto (sube la revisión,
+  no crea versión). Máximo 30 estilos visibles por usuario.
+- `PdfStudioChatDocument` aplica los cambios al PDF (`DocumentStyle::applyToConfig`
+  sobre una copia de la configuración) y al DOCX (`applyToBranding`).
+
 ## 6. Vista previa y exportación (`Controller/PdfStudioChatDocument`)
 
 | Petición | Respuesta |

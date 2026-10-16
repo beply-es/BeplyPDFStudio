@@ -7,7 +7,7 @@ namespace FacturaScripts\Plugins\BeplyPDFStudio\Lib\ChatDocument;
 /**
  * Persistencia de documentos del chat. Las filas viajan como arrays:
  * {id, nick, idempresa, kind, title, status, spec (array), version, revision,
- *  conversation_id, creation_date, last_update}. `version` es la versión vigente;
+ *  doc_type, conversation_id, creation_date, last_update}. `version` es la versión vigente;
  * las anteriores se guardan aparte ({title, spec, version, creation_date}).
  */
 interface DocumentStore
@@ -29,4 +29,17 @@ interface DocumentStore
 
     /** Versión anterior {version, title, spec, creation_date} o null. */
     public function findVersion(int $documentId, int $version): ?array;
+
+    /**
+     * Estilo de un tipo de documento en un ámbito exacto: personal (`nick`) o,
+     * con nick null, de la empresa (`idempresa`) o global (ambos null).
+     * Fila: {id, nick, idempresa, doc_type, label, overrides (array), last_update}.
+     */
+    public function findStyle(?string $nick, ?int $idempresa, string $docType): ?array;
+
+    /** Crea o reemplaza el estilo de ese ámbito y tipo. Devuelve su id o null. */
+    public function saveStyle(array $style): ?int;
+
+    /** Estilos que ve un usuario: los suyos, los de su empresa y los globales. */
+    public function listStyles(string $nick, ?int $idempresa): array;
 }

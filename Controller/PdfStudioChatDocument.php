@@ -22,12 +22,14 @@ use FacturaScripts\Plugins\BeplyPDFStudio\Lib\BeplyToolProvider;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\ChatDocument\DocumentBranding;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\ChatDocument\DocumentDocxWriter;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\ChatDocument\DocumentService;
+use FacturaScripts\Plugins\BeplyPDFStudio\Lib\ChatDocument\DocumentStyle;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Html\BeplyHtmlRenderService;
 use Throwable;
 
 /**
  * Un documento del chat (modo Documentos o informe de auditoría), pintado con el
- * estilo de PDF Studio de su empresa (o el global):
+ * estilo de PDF Studio de su empresa (o el global) y, si su tipo («contrato»…)
+ * tiene estilo propio (BeplyPdfChatStyle), con esos colores y esa fuente:
  *
  * | Petición | Respuesta |
  * |---|---|
@@ -80,13 +82,14 @@ class PdfStudioChatDocument extends Controller
         $format = (string) $this->request->query('format', '');
         $suffix = $version !== null ? ' v' . $version : '';
         $idempresa = isset($document['idempresa']) ? (int) $document['idempresa'] : null;
+        $styleChanges = BeplyToolProvider::service()->styleFor($document);
         try {
             if ($format === 'docx') {
-                $bytes = DocumentDocxWriter::render($document['spec'], DocumentBranding::resolve($idempresa));
+                $bytes = DocumentDocxWriter::render($document['spec'], DocumentStyle::applyToBranding(DocumentBranding::resolve($idempresa), $styleChanges));
                 $this->send($bytes, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', DocumentService::filename((string) $document['title'] . $suffix, 'docx'), 'attachment');
                 return;
             }
-            $config = (new BeplyPdfRenderService())->resolveConfig(null, $idempresa) ?? new BeplyPdfConfig();
+            $config = DocumentStyle::applyToConfig((new BeplyPdfRenderService())->resolveConfig(null, $idempresa) ?? new BeplyPdfConfig(), $styleChanges);
             $bytes = (new BeplyHtmlRenderService())->renderChatDocument($config, $document['spec'], $idempresa);
         } catch (Throwable $e) {
             Tools::log()->error('beplypdf-chat-document-export-failed: ' . get_class($e));
