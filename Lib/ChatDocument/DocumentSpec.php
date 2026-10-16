@@ -21,7 +21,7 @@ final class DocumentSpec
     public const CONTRACT = 'beply.document/v1';
 
     public const MAX_TITLE = 120;
-    public const MAX_BLOCKS = 600; // documentos largos (10+ páginas) por partes
+    public const MAX_BLOCKS = 600; // documentos largos (hasta 10 páginas) por partes
     public const MAX_HEADING = 200;
     public const MAX_TEXT = 6000;
     public const MAX_LIST_ITEMS = 100;
@@ -31,7 +31,7 @@ final class DocumentSpec
     public const MAX_CELL = 500;
     public const MAX_META = 200;
     public const MAX_RECIPIENT_LINES = 6;
-    public const MAX_TOTAL_CHARS = 400000;
+    public const MAX_TOTAL_CHARS = 60000; // ≈ 10 páginas A4 de texto: tope de extensión (y de coste)
     public const MAX_ERRORS = 30;
 
     public const BLOCK_TYPES = ['heading', 'paragraph', 'list', 'table', 'quote', 'note', 'signature', 'spacer', 'page_break'];

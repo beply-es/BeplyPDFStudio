@@ -7,6 +7,7 @@ namespace FacturaScripts\Plugins\BeplyPDFStudio\Lib\ChatDocument;
 use FacturaScripts\Core\Tools;
 use FacturaScripts\Core\Where;
 use FacturaScripts\Dinamic\Model\BeplyPdfChatDocument;
+use FacturaScripts\Dinamic\Model\BeplyPdfChatDocumentVersion;
 
 /** DocumentStore sobre el modelo BeplyPdfChatDocument (tabla beply_pdf_chat_documents). */
 final class ModelDocumentStore implements DocumentStore
@@ -59,6 +60,34 @@ final class ModelDocumentStore implements DocumentStore
         return $model->load($id) && $model->delete();
     }
 
+    public function insertVersion(int $documentId, int $version, string $title, array $spec): bool
+    {
+        $model = new BeplyPdfChatDocumentVersion();
+        $model->document_id = $documentId;
+        $model->version = $version;
+        $model->title = $title;
+        $model->spec = (string) json_encode($spec, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        $model->creation_date = Tools::dateTime();
+
+        return $model->save();
+    }
+
+    public function findVersion(int $documentId, int $version): ?array
+    {
+        $model = new BeplyPdfChatDocumentVersion();
+        if (false === $model->loadWhere([Where::eq('document_id', $documentId), Where::eq('version', $version)])) {
+            return null;
+        }
+        $spec = json_decode((string) $model->spec, true);
+
+        return [
+            'version' => (int) $model->version,
+            'title' => (string) $model->title,
+            'spec' => is_array($spec) ? $spec : [],
+            'creation_date' => (string) $model->creation_date,
+        ];
+    }
+
     private static function fill(BeplyPdfChatDocument $model, array $document): void
     {
         $model->nick = $document['nick'];
@@ -67,6 +96,7 @@ final class ModelDocumentStore implements DocumentStore
         $model->title = $document['title'];
         $model->status = $document['status'];
         $model->revision = (int) $document['revision'];
+        $model->version = max(1, (int) ($document['version'] ?? 1));
         $model->conversation_id = $document['conversation_id'] ?? null;
         $model->spec = (string) json_encode($document['spec'], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     }
@@ -84,6 +114,7 @@ final class ModelDocumentStore implements DocumentStore
             'status' => (string) $model->status,
             'spec' => is_array($spec) ? $spec : [],
             'revision' => (int) $model->revision,
+            'version' => max(1, (int) $model->version),
             'conversation_id' => $model->conversation_id,
             'creation_date' => (string) $model->creation_date,
             'last_update' => (string) ($model->last_update ?? $model->creation_date),

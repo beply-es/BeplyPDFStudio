@@ -63,17 +63,24 @@ con un aviso para Bep.
 ```
 
 Límites: ≤ 600 bloques, párrafo ≤ 6000, lista ≤ 100 elementos, tabla ≤ 8 columnas y 200 filas,
-documento ≤ 400 000 caracteres (10+ páginas). Marcado en línea: sólo `**negrita**`, `*cursiva*`
+documento ≤ 60 000 caracteres de texto (≈ 10 páginas A4: tope de extensión y de coste). Marcado en línea: sólo `**negrita**`, `*cursiva*`
 y `_cursiva_` (`Lib/ChatDocument/DocumentInline`).
 
 ## 3. Persistencia
 
 Tabla `beply_pdf_chat_documents` (modelo `BeplyPdfChatDocument`): `id, nick (FK users ON
 DELETE CASCADE), idempresa, kind (document|audit), title, status (draft|saved),
-spec, revision, conversation_id, creation_date, last_update`. Sólo el
+spec, version, revision, conversation_id, creation_date, last_update`. Sólo el
 propietario lo lee o lo cambia (`DocumentService`); un documento ajeno se
-comporta como inexistente. Cada guardado reemplaza la spec completa y sube la
-revisión. El informe de auditoría nace `saved`.
+comporta como inexistente. Cada escritura sube la revisión (el visor se refresca).
+El informe de auditoría nace `saved`.
+
+**Versiones.** `document_save` con `document_id` (reescritura completa: el usuario
+pide cambios) crea la versión siguiente y guarda la anterior en
+`beply_pdf_chat_document_versions` (`document_id, version, title, spec,
+creation_date`, borrado en cascada; máximo 50 por documento). `document_append`
+completa la versión actual sin crear otra. `DocumentService::findVersion` aplica
+la misma regla de propietario.
 
 ## 4. Tools de Bep (`beply.tools/v1`)
 
@@ -116,6 +123,7 @@ la empresa. Un logo sólo vale si sus bytes son PNG, JPEG o GIF (≤ 2 MB).
 | `GET ?id=N` / `?id=N&embed=1` | El PDF en línea: la vista previa del panel del chat es el mismo PDF, con sus páginas |
 | `GET ?id=N&format=pdf` | El PDF para descargar (`attachment`, nombre saneado) |
 | `GET ?id=N&format=docx` | Word (`attachment`) |
+| `…&version=V` | Lo mismo con la versión V (404 si no existe); el nombre de archivo lleva ` v<V>` |
 
 Entra quien puede usar el chat (permiso de la página `ChatAPI` si su rol no
 tiene ésta); un documento ajeno responde 404 como uno inexistente;
@@ -133,8 +141,12 @@ revisión, recarga el iframe.
 ```json
 {"contract": "beply.artifact/v1", "kind": "document", "id": "document:12",
  "title": "Propuesta de mantenimiento", "revision": 3, "status": "draft",
- "variant": "document", "url": "PdfStudioChatDocument?id=12&embed=1", "open": true}
+ "version": 2, "variant": "document", "url": "PdfStudioChatDocument?id=12&embed=1", "open": true}
 ```
+
+`version` (1-10 000) fija la versión de ESA tarjeta: el chat añade `&version=N` a la
+vista previa y a las descargas, así que una tarjeta antigua abre su versión. El
+visor muestra un selector «Versión N» cuando la conversación conoce más de una.
 
 `variant` es `document` o `audit`; `url` sólo puede ser
 `PdfStudioChatDocument?id=<n>[&embed=1]` con el mismo id (ADK, Node y navegador lo

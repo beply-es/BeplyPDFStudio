@@ -34,6 +34,7 @@ use Throwable;
  * | `GET ?id=N` / `?id=N&embed=1` | El PDF en línea (vista previa del panel del chat, con sus páginas) |
  * | `GET ?id=N&format=pdf` | El PDF para descargar |
  * | `GET ?id=N&format=docx` | Word con los colores, la fuente y el logo del estilo |
+ * | `…&version=V` | La versión V del documento (las tarjetas antiguas del chat y el selector «Versión») |
  *
  * Sólo el propietario: un documento ajeno responde 404 igual que uno
  * inexistente. Entra quien puede usar el chat (página `ChatAPI`) aunque su rol
@@ -66,20 +67,23 @@ class PdfStudioChatDocument extends Controller
         $this->response->headers->set('Referrer-Policy', 'same-origin');
 
         $id = (int) $this->request->query('id', '0');
-        $document = BeplyToolProvider::service()->find((string) $this->user->nick, $id);
+        $version = (string) $this->request->query('version', '');
+        $version = preg_match('/^[1-9]\d{0,3}$/', $version) === 1 ? (int) $version : null;
+        $document = BeplyToolProvider::service()->findVersion((string) $this->user->nick, $id, $version);
         if ($document === null) {
             $this->response->setHttpCode(404);
             $this->response->headers->set('Content-Type', 'text/plain; charset=utf-8');
-            $this->response->setContent('Este documento no existe o no es tuyo.');
+            $this->response->setContent('Este documento (o esa versión) no existe o no es tuyo.');
             return;
         }
 
         $format = (string) $this->request->query('format', '');
+        $suffix = $version !== null ? ' v' . $version : '';
         $idempresa = isset($document['idempresa']) ? (int) $document['idempresa'] : null;
         try {
             if ($format === 'docx') {
                 $bytes = DocumentDocxWriter::render($document['spec'], DocumentBranding::resolve($idempresa));
-                $this->send($bytes, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', DocumentService::filename((string) $document['title'], 'docx'), 'attachment');
+                $this->send($bytes, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', DocumentService::filename((string) $document['title'] . $suffix, 'docx'), 'attachment');
                 return;
             }
             $config = (new BeplyPdfRenderService())->resolveConfig(null, $idempresa) ?? new BeplyPdfConfig();
@@ -97,7 +101,7 @@ class PdfStudioChatDocument extends Controller
         }
 
         $disposition = $format === 'pdf' ? 'attachment' : 'inline';
-        $this->send($bytes, 'application/pdf', DocumentService::filename((string) $document['title'], 'pdf'), $disposition);
+        $this->send($bytes, 'application/pdf', DocumentService::filename((string) $document['title'] . $suffix, 'pdf'), $disposition);
     }
 
     /** URL relativa del mismo origen (el visor y las descargas nunca usan URLs del modelo). */

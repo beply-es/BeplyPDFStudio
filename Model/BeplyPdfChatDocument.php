@@ -47,6 +47,9 @@ class BeplyPdfChatDocument extends ModelClass
     /** @var int */
     public $revision;
 
+    /** @var int Versión vigente («Versión N» del visor); las anteriores, en BeplyPdfChatDocumentVersion. */
+    public $version;
+
     /** @var string */
     public $spec;
 
@@ -61,6 +64,7 @@ class BeplyPdfChatDocument extends ModelClass
         parent::clear();
         $this->kind = self::KIND_DOCUMENT;
         $this->revision = 1;
+        $this->version = 1;
         $this->status = self::STATUS_DRAFT;
     }
 

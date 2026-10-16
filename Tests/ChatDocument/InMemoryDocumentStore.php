@@ -57,6 +57,25 @@ final class InMemoryDocumentStore implements DocumentStore
         return true;
     }
 
+    /** @var array<string, array> */
+    public array $versions = [];
+
+    public function insertVersion(int $documentId, int $version, string $title, array $spec): bool
+    {
+        $key = $documentId . ':' . $version;
+        if (isset($this->versions[$key])) {
+            return false;
+        }
+        $this->versions[$key] = ['version' => $version, 'title' => $title, 'spec' => $spec, 'creation_date' => $this->tick()];
+
+        return true;
+    }
+
+    public function findVersion(int $documentId, int $version): ?array
+    {
+        return $this->versions[$documentId . ':' . $version] ?? null;
+    }
+
     private function tick(): string
     {
         $this->clock++;

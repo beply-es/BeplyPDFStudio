@@ -85,7 +85,7 @@ final class BeplyToolProvider
             [
                 'name' => 'beplypdfstudio.document_save',
                 'version' => self::VERSION,
-                'description' => 'Crea un documento (sin document_id) o reemplaza la especificación completa de uno existente. Valida beply.document/v1 y devuelve errores por ruta para corregir; no toca datos del ERP.',
+                'description' => 'Crea un documento (sin document_id) o reemplaza la especificación completa de uno existente, que pasa a ser su versión siguiente (la anterior se conserva y el usuario puede volver a ella). Valida beply.document/v1 y devuelve errores por ruta para corregir; no toca datos del ERP.',
                 'domain' => self::DOMAIN,
                 'inputSchema' => [
                     'type' => 'object',
@@ -104,7 +104,7 @@ final class BeplyToolProvider
             [
                 'name' => 'beplypdfstudio.document_append',
                 'version' => self::VERSION,
-                'description' => 'Añade bloques al FINAL de un documento existente (documentos largos: redacta sección a sección sin reenviar lo ya escrito). Valida el documento completo y devuelve errores por ruta de los bloques nuevos.',
+                'description' => 'Añade bloques al FINAL de un documento existente (documentos largos: redacta sección a sección sin reenviar lo ya escrito), dentro de su versión actual. Valida el documento completo y devuelve errores por ruta de los bloques nuevos.',
                 'domain' => self::DOMAIN,
                 'inputSchema' => [
                     'type' => 'object',
@@ -227,7 +227,7 @@ final class BeplyToolProvider
             ],
             'inline_markup' => '**negrita** y *cursiva* dentro de text, items y celdas; saltos de línea con \\n. Nada de HTML, enlaces ni estilos: el diseño lo pone el módulo.',
             'limits' => ['blocks' => DocumentSpec::MAX_BLOCKS, 'title' => DocumentSpec::MAX_TITLE, 'total_chars' => DocumentSpec::MAX_TOTAL_CHARS],
-            'long_documents' => 'Para documentos largos (5-10 páginas o más) crea el documento con document_save (título, apertura y primeras secciones) y añade cada sección siguiente con document_append. Una página A4 son unos 450-550 palabras de texto corrido; redacta con la extensión pedida, con secciones completas (no esquemas).',
+            'long_documents' => 'Máximo 10 páginas A4 (≈ ' . DocumentSpec::MAX_TOTAL_CHARS . ' caracteres de texto). Para documentos largos crea el documento con document_save (título, apertura y primeras secciones) y añade el resto página a página con document_append (una o dos páginas por llamada). Una página A4 son unas 450-550 palabras de texto corrido; secciones completas, no esquemas.',
             'design' => self::design($nick),
             'branding' => $branding,
             'example' => [

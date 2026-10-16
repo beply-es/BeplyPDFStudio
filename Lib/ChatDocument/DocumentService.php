@@ -15,6 +15,7 @@ final class DocumentService
     public const ARTIFACT_CONTRACT = 'beply.artifact/v1';
     public const KINDS = ['document', 'audit'];
     public const STATUSES = ['draft', 'saved'];
+    public const MAX_VERSIONS = 50;
 
     public function __construct(private DocumentStore $store)
     {
@@ -27,6 +28,24 @@ final class DocumentService
         return ($document !== null && $nick !== '' && $document['nick'] === $nick) ? $document : null;
     }
 
+    /**
+     * El documento tal como era en `version` (la vigente si es null o la
+     * actual). Mismo propietario; null si esa versión no existe.
+     */
+    public function findVersion(string $nick, int $id, ?int $version): ?array
+    {
+        $document = $this->find($nick, $id);
+        if ($document === null || $version === null || $version === (int) ($document['version'] ?? 1)) {
+            return $document;
+        }
+        $old = $version >= 1 && $version < (int) ($document['version'] ?? 1) ? $this->store->findVersion($id, $version) : null;
+        if ($old === null) {
+            return null;
+        }
+
+        return ['title' => $old['title'], 'spec' => $old['spec'], 'version' => (int) $old['version']] + $document;
+    }
+
     public function list(string $nick, ?string $kind = null, int $limit = 50): array
     {
         $kind = in_array($kind, self::KINDS, true) ? $kind : null;
@@ -37,10 +56,12 @@ final class DocumentService
     /**
      * Crea (sin id) o reemplaza la especificación completa (con id). Cada
      * guardado sube la revisión: el visor del chat la usa para refrescarse.
+     * Reemplazar es una versión nueva («Versión N+1»): la anterior se conserva
+     * y sigue abriéndose desde su tarjeta del chat. `append` no crea versión.
      *
      * @return array{0: ?array, 1: list<array{path: string, code: string, message: string}>, 2: list<string>}
      */
-    public function save(string $nick, ?int $idempresa, $spec, string $kind = 'document', ?int $documentId = null, ?string $conversationId = null): array
+    public function save(string $nick, ?int $idempresa, $spec, string $kind = 'document', ?int $documentId = null, ?string $conversationId = null, bool $newVersion = true): array
     {
         if (false === in_array($kind, self::KINDS, true)) {
             return [null, [['path' => 'kind', 'code' => 'invalid-value', 'message' => 'kind es document o audit.']], []];
@@ -59,6 +80,16 @@ final class DocumentService
             $document = $this->find($nick, $documentId);
             if ($document === null) {
                 return [null, [['path' => 'document_id', 'code' => 'document-not-found', 'message' => 'Ese documento no existe o no es tuyo.']], []];
+            }
+            $version = max(1, (int) ($document['version'] ?? 1));
+            if ($newVersion) {
+                if ($version >= self::MAX_VERSIONS) {
+                    return [null, [['path' => 'document_id', 'code' => 'too-many-versions', 'message' => 'Este documento ya tiene ' . self::MAX_VERSIONS . ' versiones; crea uno nuevo.']], []];
+                }
+                if (false === $this->store->insertVersion((int) $document['id'], $version, (string) $document['title'], $document['spec'])) {
+                    return [null, [['path' => '', 'code' => 'save-failed', 'message' => 'No se pudo guardar la versión anterior.']], []];
+                }
+                $document['version'] = $version + 1;
             }
             $document['spec'] = $normalized;
             $document['title'] = $normalized['title'];
@@ -81,6 +112,7 @@ final class DocumentService
             'status' => $kind === 'audit' ? 'saved' : 'draft',
             'spec' => $normalized,
             'revision' => 1,
+            'version' => 1,
             'conversation_id' => $conversationId,
         ]);
 
@@ -108,7 +140,7 @@ final class DocumentService
         $spec = $document['spec'];
         $offset = count($spec['blocks'] ?? []);
         $spec['blocks'] = array_merge($spec['blocks'] ?? [], $blocks);
-        [$saved, $errors, $warnings] = $this->save($nick, null, $spec, (string) $document['kind'], $documentId, $conversationId);
+        [$saved, $errors, $warnings] = $this->save($nick, null, $spec, (string) $document['kind'], $documentId, $conversationId, false);
         if ($saved === null) {
             // Las rutas de error apuntan a los bloques NUEVOS (blocks[0] = el primero añadido).
             $errors = array_map(static function (array $error) use ($offset): array {
@@ -148,6 +180,7 @@ final class DocumentService
             'title' => (string) $document['title'],
             'status' => (string) $document['status'],
             'revision' => (int) $document['revision'],
+            'version' => max(1, (int) ($document['version'] ?? 1)),
             'last_update' => $document['last_update'] ?? null,
             'blocks' => count($document['spec']['blocks'] ?? []),
         ];
@@ -157,6 +190,8 @@ final class DocumentService
      * Artefacto `beply.artifact/v1` para el visor del chat. El informe de
      * auditoría NUNCA se abre solo (`open:false`): queda como tarjeta «Abrir»
      * en el mensaje. El documento del modo Documentos se abre en directo.
+     * `version` fija la versión de ESTA tarjeta: el visor la abre aunque
+     * después haya versiones nuevas.
      */
     public static function artifact(array $document): array
     {
@@ -169,6 +204,7 @@ final class DocumentService
             'id' => 'document:' . $id,
             'title' => mb_substr((string) $document['title'], 0, DocumentSpec::MAX_TITLE),
             'revision' => max(1, (int) $document['revision']),
+            'version' => max(1, (int) ($document['version'] ?? 1)),
             'status' => $document['status'] === 'saved' ? 'saved' : 'draft',
             'variant' => $kind,
             'url' => 'PdfStudioChatDocument?id=' . $id . '&embed=1',

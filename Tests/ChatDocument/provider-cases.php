@@ -64,4 +64,22 @@ same(false, BeplyToolProvider::execute('beplypdfstudio.document_append', ['docum
 same(false, BeplyToolProvider::execute('beplypdfstudio.document_get', ['document_id' => $id], $luis)['ok'], 'Another user cannot read.');
 same(1, count(BeplyToolProvider::execute('beplypdfstudio.document_list', [], $ana)['documents']), 'List shows own documents.');
 
+// Versiones: append sigue en la versión 1; reemplazar crea la 2 y la 1 se conserva.
+same(1, $appended['artifact']['version'], 'Appending keeps the current version.');
+$rewrite = $spec;
+$rewrite['title'] = 'Plan director (revisado)';
+$v2 = BeplyToolProvider::execute('beplypdfstudio.document_save', ['spec' => $rewrite, 'document_id' => $id], $ana);
+check($v2['ok'] === true, 'Replacing the spec saves.');
+same(2, $v2['artifact']['version'], 'Replacing the spec creates version 2.');
+same(2, $v2['document']['version'], 'The summary tells the version.');
+$service = BeplyToolProvider::service();
+$old = $service->findVersion('ana', $id, 1);
+same('Plan director', $old['title'], 'Version 1 keeps its title.');
+same(2 + count($sections), count($old['spec']['blocks']), 'Version 1 keeps its blocks.');
+same(1, $old['version'], 'Version 1 is tagged.');
+same('Plan director (revisado)', $service->findVersion('ana', $id, 2)['title'], 'The current version is the live document.');
+same('Plan director (revisado)', $service->findVersion('ana', $id, null)['title'], 'No version means the current one.');
+same(null, $service->findVersion('ana', $id, 3), 'A future version does not exist.');
+same(null, $service->findVersion('luis', $id, 1), 'Another user cannot open an old version.');
+
 BeplyToolProvider::$factories = [];

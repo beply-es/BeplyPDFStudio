@@ -105,7 +105,7 @@ check(false === isset($doc['spec']['_warnings']), 'Warnings are not stored.');
 $artifact = DocumentService::artifact($doc);
 same([
     'contract' => 'beply.artifact/v1', 'kind' => 'document', 'id' => 'document:' . $doc['id'], 'title' => 'Reclamación de pago',
-    'revision' => 1, 'status' => 'draft', 'variant' => 'document', 'url' => 'PdfStudioChatDocument?id=' . $doc['id'] . '&embed=1', 'open' => true,
+    'revision' => 1, 'version' => 1, 'status' => 'draft', 'variant' => 'document', 'url' => 'PdfStudioChatDocument?id=' . $doc['id'] . '&embed=1', 'open' => true,
 ], $artifact, 'Documents open in the viewer.');
 
 $letter['title'] = 'Reclamación de pago (2)';
@@ -131,7 +131,7 @@ same('invalid-value', $service->save('ana', 1, $letter, 'contract')[1][0]['code'
 same(['audit'], array_column($service->list('ana', 'audit'), 'kind'), 'Listing filters by kind.');
 same(2, count($service->list('ana')), 'Listing returns only own documents.');
 same([], $service->list('luis'), 'Other users see nothing.');
-same(['id', 'kind', 'title', 'status', 'revision', 'last_update', 'blocks'], array_keys(DocumentService::summary($audit)), 'Summaries have no spec.');
+same(['id', 'kind', 'title', 'status', 'revision', 'version', 'last_update', 'blocks'], array_keys(DocumentService::summary($audit)), 'Summaries have no spec.');
 check(false === $service->delete('luis', (int) $audit['id']), 'Another user cannot delete.');
 check($service->delete('ana', (int) $audit['id']), 'The owner deletes.');
 
@@ -145,3 +145,15 @@ same("REUNIDOS\n\nDe una parte, Ana.\nDe otra, Luis.", DocumentSpec::text('REUNI
 same('Título con salto', DocumentSpec::text('Título con\nsalto', false), 'Escaped newlines become spaces in one-line text.');
 
 
+
+// Tope de extensión (≈ 10 páginas): por encima, el documento se rechaza.
+$long = ['schema' => 'beply.document/v1', 'title' => 'Largo', 'blocks' => []];
+for ($i = 0; $i < 11; $i++) {
+    $long['blocks'][] = ['type' => 'paragraph', 'text' => str_repeat('Texto de relleno. ', 330)];
+}
+[$tooLong, $errors] = DocumentSpec::validate($long);
+same(null, $tooLong, 'A document over the ten-page cap is rejected.');
+same('too-long', $errors[0]['code'] ?? null, 'The cap reports too-long.');
+array_pop($long['blocks']);
+array_pop($long['blocks']);
+check(DocumentSpec::validate($long)[0] !== null, 'A document under the cap is accepted.');

@@ -11,9 +11,13 @@
   cabecera de tabla repetida en cada página.
 - Tools `beplypdfstudio.document_catalog|list|get|save|append` en la pasarela
   neutra del chat (`beply.tools/v1`, permiso `ChatAPI`, regla de propietario);
-  `document_append` construye documentos largos (10+ páginas) por secciones.
+  `document_append` construye documentos largos (hasta 10 páginas) por secciones.
 - `PdfStudioChatDocument`: el PDF en línea (vista previa del panel del chat) y
   descargas PDF y DOCX. Tabla nueva `beply_pdf_chat_documents`.
+- Versiones de los documentos del chat: cada reescritura completa es la versión
+  siguiente y la anterior se conserva (tabla `beply_pdf_chat_document_versions`);
+  `PdfStudioChatDocument?…&version=N` sirve cualquiera de ellas.
+- Tope de extensión de 10 páginas (60 000 caracteres de texto) por documento.
 - Contrato completo: `docs/chat-documents.md`. BeplyChatAI sólo ofrece el modo
   Documentos con este plugin habilitado.
 
