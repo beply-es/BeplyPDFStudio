@@ -17,6 +17,7 @@ use FacturaScripts\Plugins\BeplyPDFStudio\Lib\BeplyPdfBrandingLogoService;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\BeplyPdfConfig;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\BeplyPdfPaymentDateResolver;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\BeplyPdfRichTextLite;
+use FacturaScripts\Plugins\BeplyPDFStudio\Lib\ChatDocument\DocumentHtmlRenderer;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfDocumentContext;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfReceiptPaymentInfo;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfDocumentExtensionRegistry;
@@ -354,6 +355,69 @@ class BeplyHtmlRenderService
         $this->measuredSpacer = max(0, $gap);
         $html = $this->buildHtml($cfg, $model, null, $format);
         return $html === '' ? '' : $this->htmlToPdf($html);
+    }
+
+    /**
+     * PDF de un documento del chat (`beply.document/v1`: cartas, contratos,
+     * propuestas, informes de auditoría…) con el estilo configurado en PDF Studio:
+     * papel, márgenes, logo, colores, fuente, pie y numeración. El contenido lo
+     * escapa Lib/ChatDocument/DocumentHtmlRenderer; aquí sólo hay diseño.
+     */
+    public function renderChatDocument(BeplyPdfConfig $cfg, array $spec, ?int $idempresa = null): string
+    {
+        try {
+            $html = $this->buildChatDocumentHtml($cfg, $spec, $idempresa);
+            if ($html === '') {
+                return '';
+            }
+            $pdf = $this->htmlToPdf($html);
+            if ($pdf !== '' && trim((string) $cfg->pdfPassword) !== '') {
+                $pdf = $this->encrypt($pdf, trim((string) $cfg->pdfPassword));
+            }
+            return $pdf;
+        } catch (\Throwable $e) {
+            Tools::log()->warning('beplypdf-chat-document-render-error: ' . $e->getMessage());
+            return '';
+        }
+    }
+
+    /** HTML del documento del chat (para WeasyPrint y los tests). */
+    public function buildChatDocumentHtml(BeplyPdfConfig $cfg, array $spec, ?int $idempresa = null): string
+    {
+        $font = $this->fontFaces($cfg->fontFamily);
+        $color1 = $this->hex($cfg->colorPrimary, '#1F3A5F');
+        $textColor = $this->hex($cfg->colorText, '#222222');
+        $meta = is_array($spec['meta'] ?? null) ? $spec['meta'] : [];
+        $margin = static fn(int $mm): int => max(8, min(40, $mm));
+
+        return $this->twig()->render('chat-document.html.twig', [
+            'title' => (string) ($spec['title'] ?? ''),
+            'color1' => $color1,
+            'color2' => $this->onColor($color1, $textColor),
+            'color3' => $this->hex($cfg->colorTertiary, '#F2F2F2'),
+            'accent' => $this->hex($cfg->colorSecondary, $color1),
+            'text_color' => $textColor,
+            'muted_color' => $this->mix($textColor, '#ffffff', 0.25),
+            'border_color' => $this->mix($textColor, '#ffffff', 0.82),
+            'font_size' => max(9, min(13, (int) $cfg->fontSize)),
+            'title_font_size' => max(16, min(26, (int) $cfg->titleFontSize)),
+            'logo_size' => max(60, min(220, (int) $cfg->logoSize * 2)),
+            'logo_position' => in_array($cfg->logoPosition, ['left', 'center', 'right'], true) ? $cfg->logoPosition : 'left',
+            'font_family' => $font['family'],
+            'font_faces' => $font['css'],
+            'page_size' => $this->pageSize($cfg),
+            'page_margin' => sprintf('%dmm %dmm %dmm %dmm', $margin($cfg->marginTop), $margin($cfg->marginRight), $margin($cfg->marginBottom), $margin($cfg->marginLeft)),
+            'html_lang' => str_replace('_', '-', Tools::lang()->getLang()),
+            'logo' => $this->logoDataUri($cfg),
+            'company' => $this->companyData((object) ['idempresa' => $idempresa]),
+            'show_company' => ($meta['show_company'] ?? true) !== false,
+            'footer_text' => $this->plain((string) $cfg->footerText),
+            'page_footer_content' => $this->pageFooterContent(trim((string) $cfg->pageFooterText) ?: '{PAGENO} / {nbpg}'),
+            'page_footer_box' => $this->footerBox($cfg->pageFooterAlign === 'left' ? 'right' : $cfg->pageFooterAlign),
+            'page_footer_size' => max(7, min(10, (int) $cfg->pageFooterFontSize)),
+            'opening_html' => DocumentHtmlRenderer::opening($spec),
+            'body_html' => DocumentHtmlRenderer::blocks(is_array($spec['blocks'] ?? null) ? $spec['blocks'] : []),
+        ]);
     }
 
     /** Renderiza solo el HTML (para depurar/preview). $generic != null => contenido genérico (listado/ficha del core). */

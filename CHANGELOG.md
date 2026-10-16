@@ -1,5 +1,22 @@
 # Changelog
 
+## v4.8 - 2026-10-16
+
+- Documentos del chat (modo Documentos de BeplyChatAI e informes de auditoría):
+  PDF Studio guarda, valida y renderiza los documentos que redacta el asistente
+  (`beply.document/v1`: cartas, contratos, propuestas, memorias, actas…) con el
+  estilo configurado de la empresa o el global — papel, márgenes, logo, colores,
+  fuente, pie y numeración — mediante su motor HTML → WeasyPrint
+  (`Templates/html/chat-document.html.twig`). Firmas consecutivas en una fila y
+  cabecera de tabla repetida en cada página.
+- Tools `beplypdfstudio.document_catalog|list|get|save|append` en la pasarela
+  neutra del chat (`beply.tools/v1`, permiso `ChatAPI`, regla de propietario);
+  `document_append` construye documentos largos (10+ páginas) por secciones.
+- `PdfStudioChatDocument`: el PDF en línea (vista previa del panel del chat) y
+  descargas PDF y DOCX. Tabla nueva `beply_pdf_chat_documents`.
+- Contrato completo: `docs/chat-documents.md`. BeplyChatAI sólo ofrece el modo
+  Documentos con este plugin habilitado.
+
 ## v4.7 - 2026-10-07
 
 - BeplyPDFStudio se instala en MySQL 8: `beply_pdf_columns` declara su clave
