@@ -569,25 +569,16 @@ final class BeplyTemplateSuite
             (bool) preg_match('#<div style="height:\s*[1-9]\d*px;"></div>#s', $this->bodyOf($html)) === false
         );
         $style = $this->styleOf($html);
-        if ($this->design === 'legacy_standard') {
-            $this->assert(
-                'Clásico usa anclaje inferior medido',
-                (bool) preg_match('/\.bottom\s*\{[^}]*transform:\s*translateY\([1-9]\d*px\)/s', $style)
-            );
-            $this->assert(
-                'Clásico no mezcla padding estimado con anclaje medido',
-                (bool) preg_match('/\.bottom\s*\{[^}]*padding-top:/s', $style) === false
-            );
-        } else {
-            $this->assert(
-                'totales/recibos anclados abajo con padding nativo',
-                (bool) preg_match('/\.bottom\s*\{[^}]*padding-top:\s*[1-9]\d*px/s', $style)
-            );
-            $this->assert(
-                'anclaje inferior no usa transform visual',
-                (bool) preg_match('/\.bottom\s*\{[^}]*transform:\s*translateY/s', $style) === false
-            );
-        }
+        // Todos los diseños usan el anclaje medido: desplazan el bloque inferior sin alterar el
+        // flujo, de modo que el hueco nunca puede empujar totales o cierre a otra página.
+        $this->assert(
+            'usa anclaje inferior medido',
+            (bool) preg_match('/\.bottom\s*\{[^}]*transform:\s*translateY\([1-9]\d*px\)/s', $style)
+        );
+        $this->assert(
+            'no mezcla padding estimado con anclaje medido',
+            (bool) preg_match('/\.bottom\s*\{[^}]*padding-top:/s', $style) === false
+        );
         $this->assert(
             'anclaje inferior no fuerza página nueva',
             stripos($style, 'break-before: page') === false

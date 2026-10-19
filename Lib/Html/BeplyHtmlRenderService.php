@@ -330,11 +330,16 @@ class BeplyHtmlRenderService
     }
 
     /**
-     * Clásico usa por defecto el anclaje medido contra el PDF real. El resto de diseños
-     * conserva la estimación de una pasada hasta migrarlos al mismo contrato.
+     * Todos los diseños de documento usan por defecto el anclaje medido contra el PDF real.
      *
-     * BEPLY_PDF_PRECISE_BOTTOM_ANCHOR permite forzar el modo para todos los diseños (1)
-     * o desactivarlo explícitamente (0), por ejemplo en pruebas de rendimiento.
+     * La estimación de una pasada rellenaba con padding un hueco calculado a partir de alturas
+     * aproximadas. Cuando la plantilla real ocupaba más (fuente propia, bloque de vehículo junto
+     * al cliente, barra final de Moderno...), el relleno empujaba los totales o el cierre del
+     * documento a una segunda página casi vacía. El anclaje medido renderiza primero sin hueco,
+     * conserva ese número de páginas y desplaza el bloque inferior sin alterar el flujo.
+     *
+     * BEPLY_PDF_PRECISE_BOTTOM_ANCHOR=0 vuelve a la estimación (por ejemplo, en pruebas de
+     * rendimiento); =1 fuerza el modo medido también cuando no se conoce el diseño.
      */
     private function preciseBottomAnchorEnabled(?BeplyPdfConfig $cfg = null): bool
     {
@@ -346,7 +351,7 @@ class BeplyHtmlRenderService
             return false;
         }
 
-        return $cfg !== null && $cfg->diseno === 'legacy_standard';
+        return $cfg !== null && isset(self::TEMPLATES[$cfg->diseno]);
     }
 
     private function renderWithBottomAnchorGap(BeplyPdfConfig $cfg, $model, ?FormatoDocumento $format, int $gap): string
