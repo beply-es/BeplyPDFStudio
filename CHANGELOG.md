@@ -1,5 +1,19 @@
 # Changelog
 
+## v4.8 - 2026-10-19
+
+- Los documentos cortos (presupuestos, facturas, albaranes y pedidos) se imprimen
+  en una sola página en todos los diseños. Solo Clásico medía el PDF real; el resto
+  rellenaba un hueco estimado que, con fuentes propias, el bloque de vehículo de
+  Taller o la barra final de Moderno, empujaba los totales o el cierre a una
+  segunda página casi vacía. Ahora todos usan el anclaje medido y nunca añaden
+  páginas respecto al documento sin anclar. Los documentos largos paginan igual.
+- Moderno: la barra inferior acompaña a los totales.
+- Los servicios nuevos creados desde el warm pool quedan con la plantilla global
+  por defecto (Resumen): si el plugin se activa antes de que el core cree sus
+  tablas, la siembra se completa en la primera carga. Los servicios existentes sin
+  ninguna plantilla la reciben al actualizar. Nunca se cambia una plantilla elegida.
+
 ## v4.7 - 2026-10-07
 
 - BeplyPDFStudio se instala en MySQL 8: `beply_pdf_columns` declara su clave
