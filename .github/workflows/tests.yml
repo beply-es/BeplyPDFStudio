@@ -164,6 +164,29 @@ jobs:
         working-directory: facturascripts
         run: php Plugins/BeplyPDFStudio/Tests/run-template.php
 
+      - name: Install page measurement tools
+        run: |
+          sudo apt-get install -y --no-install-recommends imagemagick poppler-utils
+          # Ubuntu blocks the PDF coder by default; the runtime image allows it.
+          policy_dir="${RUNNER_TEMP}/imagemagick-policy"
+          mkdir -p "${policy_dir}"
+          printf '%s\n' '<policymap><policy domain="coder" rights="read|write" pattern="PDF" /></policymap>' > "${policy_dir}/policy.xml"
+          echo "MAGICK_CONFIGURE_PATH=${policy_dir}" >> "$GITHUB_ENV"
+
+      - name: Short documents print on one page
+        working-directory: facturascripts
+        env:
+          BEPDF_SYNTHETIC_PAGINATION_TEST: "1"
+        run: |
+          export PATH="$PWD/Plugins/BeplyPDFStudio/.venv/bin:$PATH"
+          php Plugins/BeplyPDFStudio/Tests/run-short-document-pagination.php
+
+      - name: New and upgraded services get a default template
+        working-directory: facturascripts
+        env:
+          BEPDF_SYNTHETIC_SEED_TEST: "1"
+        run: php Plugins/BeplyPDFStudio/Tests/run-default-style-seed.php
+
       - name: Stop local PostgreSQL
         if: always()
         working-directory: facturascripts
