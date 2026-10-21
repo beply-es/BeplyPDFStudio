@@ -1,5 +1,12 @@
 # Changelog
 
+## v4.9 - 2026-10-21
+
+- Clásico respeta la opción nativa de ocultar totales del formato de impresión.
+  Los presupuestos configurados sin importes conservan sus líneas y texto final
+  sin mostrar el bloque de impuestos ni el total. Los formatos ordinarios siguen
+  mostrando sus totales y la exportación no modifica los documentos.
+
 ## v4.8 - 2026-10-19
 
 - Los documentos cortos (presupuestos, facturas, albaranes y pedidos) se imprimen
