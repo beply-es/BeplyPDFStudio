@@ -6,6 +6,8 @@
   Los presupuestos configurados sin importes conservan sus líneas y texto final
   sin mostrar el bloque de impuestos ni el total. Los formatos ordinarios siguen
   mostrando sus totales y la exportación no modifica los documentos.
+- Los formatos Clásico migrados conservan también su color explícito de
+  PlantillasPDF; cuando no hay uno, heredan la paleta configurada en PDF Studio.
 
 ## v4.8 - 2026-10-19
 

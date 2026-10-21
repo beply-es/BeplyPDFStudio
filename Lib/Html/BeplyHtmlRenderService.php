@@ -656,7 +656,10 @@ class BeplyHtmlRenderService
         }
         $font = $this->fontFaces($cfg->fontFamily);
 
-        $color1 = $this->hex($cfg->colorPrimary, '#555555');
+        $nativeColor = $isDoc && $cfg->diseno === 'legacy_standard' && $format !== null
+            ? ($format->color1 ?? null)
+            : null;
+        $color1 = $this->hex($nativeColor, $this->hex($cfg->colorPrimary, '#555555'));
         $textColor = $this->hex($cfg->colorText, '#222222');
 
         // Escala de densidad visual por tamaño de papel: compacta algunos espacios y assets,
@@ -713,7 +716,7 @@ class BeplyHtmlRenderService
             'page_mb' => max(0, (int) $cfg->marginBottom),
             'page_ml' => max(0, (int) $cfg->marginLeft),
             'hide_payment_methods' => (bool) $cfg->hidePaymentMethods,
-            'hide_totals' => $isDoc && $format !== null && (bool) $format->hidetotals,
+            'hide_totals' => $isDoc && $format !== null && (bool) ($format->hidetotals ?? false),
             'show_without_vat' => (bool) $cfg->showWithoutVat,
             'draft_warning' => $this->draftWarning($cfg, $model, $isDoc, $format),
             // is_document = false para listados/fichas del core: la plantilla oculta cliente/impuestos/totales.
