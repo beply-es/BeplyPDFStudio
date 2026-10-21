@@ -713,6 +713,7 @@ class BeplyHtmlRenderService
             'page_mb' => max(0, (int) $cfg->marginBottom),
             'page_ml' => max(0, (int) $cfg->marginLeft),
             'hide_payment_methods' => (bool) $cfg->hidePaymentMethods,
+            'hide_totals' => $isDoc && $format !== null && (bool) $format->hidetotals,
             'show_without_vat' => (bool) $cfg->showWithoutVat,
             'draft_warning' => $this->draftWarning($cfg, $model, $isDoc, $format),
             // is_document = false para listados/fichas del core: la plantilla oculta cliente/impuestos/totales.

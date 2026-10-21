@@ -38,7 +38,7 @@ $html = $renderer->buildHtml($config, $doc, null, $format);
 checkHiddenTotals($html !== '', 'synthetic document renders');
 checkHiddenTotals(!str_contains($html, '<table class="l-tax">'), 'native hidden-totals format suppresses the tax and grand-total block');
 checkHiddenTotals(str_contains($html, 'SYNTHETIC FOOTER MUST REMAIN'), 'hiding totals preserves the document footer');
-checkHiddenTotals(str_contains($html, 'class="l-lines"'), 'hiding totals preserves document lines');
+checkHiddenTotals(str_contains($html, 'class="desc-table"'), 'hiding totals preserves document lines');
 $format->hidetotals = false;
 $visible = $renderer->buildHtml($config, $doc, null, $format);
 checkHiddenTotals(str_contains($visible, '<table class="l-tax">'), 'ordinary formats retain visible totals');
