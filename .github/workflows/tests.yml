@@ -139,6 +139,10 @@ jobs:
           CI_PLUGIN_FOLDERS: BeplyPDFStudio
         run: php Plugins/BeplyPDFStudio/.github/ci/setup-runtime.php
 
+      - name: Native hidden totals stay hidden in classic documents
+        working-directory: facturascripts
+        run: php Plugins/BeplyPDFStudio/Tests/run-hidden-totals.php
+
       - name: Opening a format design keeps what it prints
         working-directory: facturascripts
         env:
