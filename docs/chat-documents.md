@@ -279,3 +279,49 @@ Un formato que no es del tipo (`xlsx` de una carta, `pdf` de una hoja) responde 
 `url` sólo puede ser `PdfStudioChatDocument?id=<n>&format=json` con el mismo id; el
 ADK, Node y el navegador la reconstruyen. El visor nativo del chat (BeplyChatAI
 `components/SpreadsheetViewer.js`) pinta la tabla con el tema y descarga XLSX/CSV.
+
+## 10. Presentaciones del chat (`beply.presentation/v1`, capacidad `presentation_canvas_v1`)
+
+«Hazme una presentación de las ventas del trimestre»: el asistente arma diapositivas con
+datos YA consultados al ERP; PDF Studio las guarda (`kind = presentation`, mismas
+versiones y regla de propietario), escribe el PPTX con el tema de la marca y sirve los
+datos al visor nativo del chat (carrusel propio, sin iframes).
+
+```json
+{
+  "schema": "beply.presentation/v1",
+  "title": "Ventas T3 2026", "subtitle": "Comité de dirección", "date": "2026-10-23",
+  "slides": [                                                     // 1..30
+    {"layout": "title", "title": "Ventas T3 2026", "subtitle": "Datos del ERP"},
+    {"layout": "section", "title": "Próximos pasos", "subtitle": "…"},
+    {"layout": "bullets", "title": "Conclusiones", "bullets": ["Septiembre fue el **mejor** mes"], "note": "Fuente: ERP"},   // ≤ 8 viñetas
+    {"layout": "table", "title": "Top clientes", "header": ["Cliente", "Importe"], "rows": [["Aldea", "8.387,00 €"]], "caption": "…"},  // ≤ 6 × 12
+    {"layout": "chart", "title": "Ventas por mes", "chart": {"type": "column", "categories": ["Jul", "Ago"], "unit": "€",
+      "series": [{"name": "2026", "values": [12000, 9500.5]}]}, "caption": "…"},   // bar|column|line|pie; ≤ 12 categorías, ≤ 4 series (tarta: 1)
+    {"layout": "kpis", "title": "Resumen", "items": [{"label": "Facturación", "value": "37.741,50 €", "detail": "+12 %"}]}   // ≤ 4
+  ]
+}
+```
+
+Errores por ruta (`slides[2].chart.series[0].values[1]`, `not-a-number`…); un valor por
+categoría; las propiedades de estilo se ignoran con aviso. Marcado: sólo `**negrita**` en
+viñetas.
+
+- **Tool** `beplypdfstudio.presentation_save` (`office_canvas`, `autonomous`):
+  `{spec, document_id?, doc_type?, conversation_id?}` → `{ok, document (slides), artifact,
+  generated_file (PPTX), warnings}`. Una presentación nunca pasa a otro tipo
+  (`document-kind-mismatch`).
+- **PPTX** (`PresentationPptxWriter`, PresentationML propio): 16:9, tema
+  (`ppt/theme/theme1.xml`) con los colores y la fuente del estilo, portada en el color
+  primario con banda blanca, logo y empresa; contenido con título, filete de acento, pie
+  «empresa · n / N» y logo arriba a la derecha; tabla nativa (`a:tbl`, cabecera en el
+  primario, cebra) y gráfico nativo (`c:chart` con los valores en caché, sin libro
+  incrustado: se ve y se imprime; para editar los datos en PowerPoint hay que pegarlos).
+- **PDF** (`PresentationHtmlRenderer` + WeasyPrint vía `BeplyHtmlRenderService::renderChatPresentation`):
+  una página 16:9 por diapositiva con la misma maquetación; gráficos en SVG en línea con
+  escala «redonda» (`niceScale`, la misma que el visor del chat), fuente y logo del estilo.
+- **`PdfStudioChatDocument`**: `?id=N&format=json` (visor), `format=pptx`, `format=pdf`, `format=logo`.
+- **Artefacto** `kind:"presentation"`, `id` `presentation:<n>`, `url`
+  `PdfStudioChatDocument?id=<n>&format=json`, `version`; el chat lo pinta con
+  `components/PresentationViewer.js` (diapositivas en HTML desde la spec, miniaturas,
+  teclado y pantalla completa) y descarga PPTX y PDF.

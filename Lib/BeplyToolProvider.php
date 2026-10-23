@@ -10,6 +10,7 @@ use FacturaScripts\Plugins\BeplyPDFStudio\Lib\ChatDocument\DocumentSpec;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\ChatDocument\DocumentStore;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\ChatDocument\DocumentStyle;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\ChatDocument\ModelDocumentStore;
+use FacturaScripts\Plugins\BeplyPDFStudio\Lib\ChatDocument\PresentationPptxWriter;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\ChatDocument\SpreadsheetCsvWriter;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\ChatDocument\SpreadsheetSpec;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\ChatDocument\SpreadsheetXlsxWriter;
@@ -30,7 +31,9 @@ use FacturaScripts\Plugins\BeplyPDFStudio\Lib\ChatDocument\SpreadsheetXlsxWriter
  * consultados al ERP; se guardan versionadas como los documentos y, además, se
  * escribe el XLSX (o CSV) como archivo adjunto en esta misma petición de
  * /api/3/beply-tools: BeplyChatAI lo liga al usuario y lo archiva en «Documentos
- * del chat»; por WhatsApp sale como documento.
+ * del chat»; por WhatsApp sale como documento. Presentaciones
+ * (`beplypdfstudio.presentation_save`, capacidad `presentation_canvas_v1`): igual,
+ * con el PPTX como archivo (y PDF descargable desde el visor).
  */
 final class BeplyToolProvider
 {
@@ -193,6 +196,25 @@ final class BeplyToolProvider
                 'annotations' => ['readOnly' => false, 'destructive' => false, 'idempotent' => false],
                 'policy' => $policy('autonomous'),
             ],
+            [
+                'name' => 'beplypdfstudio.presentation_save',
+                'version' => self::VERSION,
+                'description' => 'Crea (sin document_id) o reemplaza (con document_id, versión siguiente) una presentación beply.presentation/v1 con datos YA consultados al ERP: diapositivas de portada, sección, viñetas, tabla, gráfico (barras, columnas, líneas o tarta) y cifras clave. Se ve en el chat con el estilo de PDF Studio y se descarga en PPTX o PDF; el PPTX queda guardado para el usuario.',
+                'domain' => self::OFFICE_DOMAIN,
+                'inputSchema' => [
+                    'type' => 'object',
+                    'properties' => [
+                        'spec' => ['type' => 'object', 'description' => 'Especificación beply.presentation/v1 completa'],
+                        'document_id' => $documentId,
+                        'doc_type' => ['type' => 'string', 'maxLength' => 60, 'description' => 'Tipo (p. ej. «presentación»): aplica su estilo de PDF Studio si existe'],
+                        'conversation_id' => ['type' => 'string', 'pattern' => '^[A-Za-z0-9_-]{1,64}$'],
+                    ],
+                    'required' => ['spec'],
+                    'additionalProperties' => false,
+                ],
+                'annotations' => ['readOnly' => false, 'destructive' => false, 'idempotent' => false],
+                'policy' => $policy('autonomous'),
+            ],
         ];
     }
 
@@ -231,7 +253,10 @@ final class BeplyToolProvider
                 return self::save($arguments, $nick);
 
             case 'beplypdfstudio.spreadsheet_save':
-                return self::saveSpreadsheet($arguments, $nick);
+                return self::saveOffice('spreadsheet', $arguments, $nick);
+
+            case 'beplypdfstudio.presentation_save':
+                return self::saveOffice('presentation', $arguments, $nick);
 
             case 'beplypdfstudio.document_style_list':
                 return [
@@ -301,15 +326,15 @@ final class BeplyToolProvider
         ];
     }
 
-    /** Hoja de cálculo: guarda la especificación (versionada) y escribe su archivo para el usuario. */
-    private static function saveSpreadsheet(array $arguments, string $nick): array
+    /** Hoja de cálculo o presentación: guarda la especificación (versionada) y escribe su archivo para el usuario. */
+    private static function saveOffice(string $kind, array $arguments, string $nick): array
     {
         $documentId = isset($arguments['document_id']) ? (int) $arguments['document_id'] : null;
         $conversationId = isset($arguments['conversation_id']) ? (string) $arguments['conversation_id'] : null;
         $docType = isset($arguments['doc_type']) && is_string($arguments['doc_type']) ? $arguments['doc_type'] : null;
         $format = ($arguments['file_format'] ?? 'xlsx') === 'csv' ? 'csv' : 'xlsx';
         $service = self::service();
-        [$document, $errors, $warnings] = $service->save($nick, self::company($nick), $arguments['spec'] ?? null, 'spreadsheet', $documentId, $conversationId, true, $docType);
+        [$document, $errors, $warnings] = $service->save($nick, self::company($nick), $arguments['spec'] ?? null, $kind, $documentId, $conversationId, true, $docType);
         if ($document === null) {
             return ['ok' => false, 'errors' => $errors, 'mutations_committed' => false];
         }
@@ -317,17 +342,20 @@ final class BeplyToolProvider
         $file = null;
         try {
             $title = (string) $document['title'];
-            if ($format === 'csv') {
+            $branding = DocumentStyle::applyToBranding(self::renderBranding(self::company($nick)), $service->styleFor($document));
+            if ($kind === 'presentation') {
+                $format = 'pptx';
+                $file = self::storeFile(PresentationPptxWriter::render($document['spec'], $branding), DocumentService::filename($title, 'pptx'), PresentationPptxWriter::MIME);
+            } elseif ($format === 'csv') {
                 $file = self::storeFile(SpreadsheetCsvWriter::render($document['spec'], 0), DocumentService::filename($title, 'csv'), SpreadsheetCsvWriter::MIME);
             } else {
-                $branding = DocumentStyle::applyToBranding(self::renderBranding(self::company($nick)), $service->styleFor($document));
                 $file = self::storeFile(SpreadsheetXlsxWriter::render($document['spec'], $branding), DocumentService::filename($title, 'xlsx'), SpreadsheetXlsxWriter::MIME);
             }
         } catch (\Throwable $e) {
             $file = null;
         }
         if ($file === null) {
-            $warnings[] = 'La hoja se guardó, pero no se pudo crear el archivo ' . strtoupper($format) . '; se puede descargar desde el visor.';
+            $warnings[] = ($kind === 'presentation' ? 'La presentación' : 'La hoja') . ' se guardó, pero no se pudo crear el archivo ' . strtoupper($format) . '; se puede descargar desde el visor.';
         }
 
         return [

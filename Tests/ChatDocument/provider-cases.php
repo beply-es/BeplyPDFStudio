@@ -29,7 +29,7 @@ $luis = new class {
 
 same('beply.tools/v1', BeplyToolProvider::beplyToolContract(), 'Contract.');
 $names = array_column(BeplyToolProvider::tools(), 'name');
-same(['beplypdfstudio.document_catalog', 'beplypdfstudio.document_list', 'beplypdfstudio.document_get', 'beplypdfstudio.document_save', 'beplypdfstudio.document_append', 'beplypdfstudio.document_style_list', 'beplypdfstudio.document_style_save', 'beplypdfstudio.spreadsheet_save'], $names, 'Tools live in the plugin namespace.');
+same(['beplypdfstudio.document_catalog', 'beplypdfstudio.document_list', 'beplypdfstudio.document_get', 'beplypdfstudio.document_save', 'beplypdfstudio.document_append', 'beplypdfstudio.document_style_list', 'beplypdfstudio.document_style_save', 'beplypdfstudio.spreadsheet_save', 'beplypdfstudio.presentation_save'], $names, 'Tools live in the plugin namespace.');
 foreach (BeplyToolProvider::tools() as $tool) {
     $native = str_starts_with($tool['name'], 'beplypdfstudio.document_') ? 'documents_canvas' : 'office_canvas';
     same($native, $tool['domain'], $tool['name'] . ' is only for its native toolset.');

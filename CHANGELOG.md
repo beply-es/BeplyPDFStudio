@@ -18,7 +18,12 @@
   especificación guarda el XLSX (o CSV) como archivo adjunto en la misma petición,
   que BeplyChatAI liga al usuario y archiva en «Documentos del chat»; por WhatsApp
   sale como documento. `document_get`/`document_list` también las leen.
-- `PdfStudioChatDocument?id=N&format=json|xlsx|csv|logo`: datos del visor nativo
+- Presentaciones del chat (`beply.presentation/v1`, capacidad `presentation_canvas_v1`):
+  portada, sección, viñetas, tabla, gráfico (barras, columnas, líneas, tarta) y cifras
+  clave. PPTX propio (`PresentationPptxWriter`: tema con los colores y la fuente del
+  estilo, logo, tablas y gráficos nativos) y PDF 16:9 por WeasyPrint
+  (`PresentationHtmlRenderer`, gráficos SVG). Tool `beplypdfstudio.presentation_save`.
+- `PdfStudioChatDocument?id=N&format=json|xlsx|csv|pptx|pdf|logo`: datos del visor nativo
   del chat (`beply.office-view/v1`: especificación + tema, sin rutas), descargas y
   logo del estilo.
 

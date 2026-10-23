@@ -11,7 +11,8 @@ use FacturaScripts\Dinamic\Model\User;
 
 /**
  * Documento redactado en el chat (modo Documentos), informe de auditoría u
- * hoja de cálculo generada desde el chat (`spreadsheet`, beply.spreadsheet/v1). Sólo el propietario (`nick`) lo ve: el proveedor de tools y el
+ * hoja de cálculo (`spreadsheet`, beply.spreadsheet/v1) o presentación (`presentation`,
+ * beply.presentation/v1) generadas desde el chat. Sólo el propietario (`nick`) lo ve: el proveedor de tools y el
  * controlador PdfStudioChatDocument pasan siempre por Lib/ChatDocument/DocumentService.
  */
 class BeplyPdfChatDocument extends ModelClass
@@ -21,6 +22,7 @@ class BeplyPdfChatDocument extends ModelClass
     public const KIND_DOCUMENT = 'document';
     public const KIND_AUDIT = 'audit';
     public const KIND_SPREADSHEET = 'spreadsheet';
+    public const KIND_PRESENTATION = 'presentation';
     public const STATUS_DRAFT = 'draft';
     public const STATUS_SAVED = 'saved';
 
@@ -94,7 +96,7 @@ class BeplyPdfChatDocument extends ModelClass
         $this->title = trim((string) $this->title);
         if ($this->title === ''
             || empty($this->nick)
-            || false === in_array($this->kind, [self::KIND_DOCUMENT, self::KIND_AUDIT, self::KIND_SPREADSHEET], true)
+            || false === in_array($this->kind, [self::KIND_DOCUMENT, self::KIND_AUDIT, self::KIND_SPREADSHEET, self::KIND_PRESENTATION], true)
             || false === in_array($this->status, [self::STATUS_DRAFT, self::STATUS_SAVED], true)) {
             return false;
         }

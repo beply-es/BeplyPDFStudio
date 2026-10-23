@@ -24,6 +24,7 @@ use FacturaScripts\Plugins\BeplyPDFStudio\Lib\ChatDocument\DocumentDocxWriter;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\ChatDocument\DocumentService;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\ChatDocument\DocumentStyle;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\ChatDocument\OfficeViewData;
+use FacturaScripts\Plugins\BeplyPDFStudio\Lib\ChatDocument\PresentationPptxWriter;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\ChatDocument\SpreadsheetCsvWriter;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\ChatDocument\SpreadsheetXlsxWriter;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Html\BeplyHtmlRenderService;
@@ -42,6 +43,7 @@ use Throwable;
  * | `…&version=V` | La versión V del documento (las tarjetas antiguas del chat y el selector «Versión») |
  * | `GET ?id=N&format=json` | Hoja de cálculo: especificación + tema para el visor NATIVO del chat (`beply.office-view/v1`) |
  * | `GET ?id=N&format=xlsx` / `&format=csv[&sheet=K]` | Hoja de cálculo en Excel / CSV (Excel en español) |
+ * | `GET ?id=N&format=pptx` / `&format=pdf` | Presentación en PowerPoint / PDF (16:9, WeasyPrint) |
  * | `GET ?id=N&format=logo` | El logo del estilo (para el visor), o 404 |
  *
  * Un formato que no corresponde al tipo (p. ej. `xlsx` de una carta) responde 404.
@@ -91,8 +93,8 @@ class PdfStudioChatDocument extends Controller
         $idempresa = isset($document['idempresa']) ? (int) $document['idempresa'] : null;
         $styleChanges = BeplyToolProvider::service()->styleFor($document);
         $office = in_array($document['kind'], DocumentService::OFFICE_KINDS, true);
-        if ($format === 'logo' || $office || in_array($format, ['json', 'xlsx', 'csv'], true)) {
-            $this->office($document, $format, $suffix, DocumentStyle::applyToBranding(DocumentBranding::resolve($idempresa), $styleChanges));
+        if ($format === 'logo' || $office || in_array($format, ['json', 'xlsx', 'csv', 'pptx'], true)) {
+            $this->office($document, $format, $suffix, DocumentStyle::applyToBranding(DocumentBranding::resolve($idempresa), $styleChanges), $idempresa, $styleChanges);
             return;
         }
         try {
@@ -119,8 +121,8 @@ class PdfStudioChatDocument extends Controller
         $this->send($bytes, 'application/pdf', DocumentService::filename((string) $document['title'] . $suffix, 'pdf'), $disposition);
     }
 
-    /** Hojas de cálculo: datos del visor nativo, XLSX, CSV y logo. */
-    private function office(array $document, string $format, string $suffix, array $branding): void
+    /** Hojas de cálculo y presentaciones: datos del visor nativo, XLSX, CSV, PPTX, PDF y logo. */
+    private function office(array $document, string $format, string $suffix, array $branding, ?int $idempresa, array $styleChanges): void
     {
         $kind = (string) $document['kind'];
         if ($format === 'logo') {
@@ -149,6 +151,19 @@ class PdfStudioChatDocument extends Controller
         }
         try {
             $title = (string) $document['title'] . $suffix;
+            if ($kind === 'presentation') {
+                if ($format === 'pptx') {
+                    $this->send(PresentationPptxWriter::render($document['spec'], $branding), PresentationPptxWriter::MIME, DocumentService::filename($title, 'pptx'), 'attachment');
+                    return;
+                }
+                $config = DocumentStyle::applyToConfig((new BeplyPdfRenderService())->resolveConfig(null, $idempresa) ?? new BeplyPdfConfig(), $styleChanges);
+                $pdf = (new BeplyHtmlRenderService())->renderChatPresentation($config, $document['spec'], $branding);
+                if ($pdf === '') {
+                    throw new \RuntimeException('presentation-pdf-empty');
+                }
+                $this->send($pdf, 'application/pdf', DocumentService::filename($title, 'pdf'), 'attachment');
+                return;
+            }
             if ($format === 'csv') {
                 $sheet = (int) $this->request->query('sheet', '0');
                 $sheetName = (string) ($document['spec']['sheets'][$sheet]['name'] ?? '');

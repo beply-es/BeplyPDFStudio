@@ -381,6 +381,27 @@ class BeplyHtmlRenderService
         }
     }
 
+    /**
+     * PDF de una presentación del chat (`beply.presentation/v1`): una página 16:9 por
+     * diapositiva con el tema de la marca (PresentationHtmlRenderer) y la fuente y el logo
+     * del estilo de PDF Studio.
+     */
+    public function renderChatPresentation(BeplyPdfConfig $cfg, array $spec, array $branding): string
+    {
+        try {
+            $font = $this->fontFaces($cfg->fontFamily);
+            if ($font['css'] !== '') {
+                $branding['font']['css'] = "'PdfBody', " . \FacturaScripts\Plugins\BeplyPDFStudio\Lib\ChatDocument\DocumentBranding::fontCss((string) ($branding['font']['name'] ?? 'Helvetica'));
+            }
+            $html = \FacturaScripts\Plugins\BeplyPDFStudio\Lib\ChatDocument\PresentationHtmlRenderer::render($spec, $branding, $this->logoDataUri($cfg), $font['css']);
+
+            return $this->htmlToPdf($html);
+        } catch (\Throwable $e) {
+            Tools::log()->warning('beplypdf-chat-presentation-render-error: ' . $e->getMessage());
+            return '';
+        }
+    }
+
     /** HTML del documento del chat (para WeasyPrint y los tests). */
     public function buildChatDocumentHtml(BeplyPdfConfig $cfg, array $spec, ?int $idempresa = null): string
     {

@@ -16,8 +16,8 @@ final class DocumentService
     /** Documentos de texto (modo Documentos e informe de auditoría). */
     public const KINDS = ['document', 'audit'];
     /** Hojas de cálculo (y presentaciones) del chat: otra especificación, mismo almacén y versiones. */
-    public const OFFICE_KINDS = ['spreadsheet'];
-    public const ALL_KINDS = ['document', 'audit', 'spreadsheet'];
+    public const OFFICE_KINDS = ['spreadsheet', 'presentation'];
+    public const ALL_KINDS = ['document', 'audit', 'spreadsheet', 'presentation'];
     public const STATUSES = ['draft', 'saved'];
     public const MAX_VERSIONS = 50;
 
@@ -293,15 +293,21 @@ final class DocumentService
             'version' => max(1, (int) ($document['version'] ?? 1)),
             'doc_type' => $document['doc_type'] ?? null,
             'last_update' => $document['last_update'] ?? null,
-        ] + ($document['kind'] === 'spreadsheet'
-            ? ['sheets' => count($document['spec']['sheets'] ?? []), 'rows' => array_sum(array_map(static fn(array $sheet): int => count($sheet['rows'] ?? []), $document['spec']['sheets'] ?? []))]
-            : ['blocks' => count($document['spec']['blocks'] ?? [])]);
+        ] + match ($document['kind']) {
+            'spreadsheet' => ['sheets' => count($document['spec']['sheets'] ?? []), 'rows' => array_sum(array_map(static fn(array $sheet): int => count($sheet['rows'] ?? []), $document['spec']['sheets'] ?? []))],
+            'presentation' => ['slides' => count($document['spec']['slides'] ?? [])],
+            default => ['blocks' => count($document['spec']['blocks'] ?? [])],
+        };
     }
 
     /** Especificación validada según el tipo: [normalizada con `_warnings` | null, errores]. */
     public static function validateSpec(string $kind, $spec): array
     {
-        return $kind === 'spreadsheet' ? SpreadsheetSpec::validate($spec) : DocumentSpec::validate($spec);
+        return match ($kind) {
+            'spreadsheet' => SpreadsheetSpec::validate($spec),
+            'presentation' => PresentationSpec::validate($spec),
+            default => DocumentSpec::validate($spec),
+        };
     }
 
     /** Formatos de descarga de cada tipo (el primero es el principal). */
@@ -309,6 +315,7 @@ final class DocumentService
     {
         return match ($kind) {
             'spreadsheet' => ['xlsx', 'csv'],
+            'presentation' => ['pptx', 'pdf'],
             default => ['pdf', 'docx'],
         };
     }
@@ -321,7 +328,7 @@ final class DocumentService
 
     private static function kindMismatch(string $kind): array
     {
-        $label = ['spreadsheet' => 'una hoja de cálculo', 'audit' => 'un informe de auditoría'][$kind] ?? 'un documento de texto';
+        $label = ['spreadsheet' => 'una hoja de cálculo', 'presentation' => 'una presentación', 'audit' => 'un informe de auditoría'][$kind] ?? 'un documento de texto';
 
         return ['path' => 'document_id', 'code' => 'document-kind-mismatch', 'message' => 'Ese número es ' . $label . ': usa su herramienta o crea uno nuevo sin document_id.'];
     }
@@ -337,7 +344,7 @@ final class DocumentService
     {
         $id = (int) $document['id'];
         if (in_array($document['kind'], self::OFFICE_KINDS, true)) {
-            // Hoja de cálculo: el visor nativo del chat la pinta desde sus datos (`format=json`).
+            // Hoja de cálculo o presentación: el visor nativo del chat la pinta desde sus datos (`format=json`).
             return [
                 'contract' => self::ARTIFACT_CONTRACT,
                 'kind' => (string) $document['kind'],
