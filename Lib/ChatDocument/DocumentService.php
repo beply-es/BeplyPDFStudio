@@ -13,7 +13,11 @@ namespace FacturaScripts\Plugins\BeplyPDFStudio\Lib\ChatDocument;
 final class DocumentService
 {
     public const ARTIFACT_CONTRACT = 'beply.artifact/v1';
+    /** Documentos de texto (modo Documentos e informe de auditoría). */
     public const KINDS = ['document', 'audit'];
+    /** Hojas de cálculo (y presentaciones) del chat: otra especificación, mismo almacén y versiones. */
+    public const OFFICE_KINDS = ['spreadsheet'];
+    public const ALL_KINDS = ['document', 'audit', 'spreadsheet'];
     public const STATUSES = ['draft', 'saved'];
     public const MAX_VERSIONS = 50;
 
@@ -48,7 +52,7 @@ final class DocumentService
 
     public function list(string $nick, ?string $kind = null, int $limit = 50): array
     {
-        $kind = in_array($kind, self::KINDS, true) ? $kind : null;
+        $kind = in_array($kind, self::ALL_KINDS, true) ? $kind : null;
 
         return $this->store->listByNick($nick, $kind, max(1, min(200, $limit)));
     }
@@ -63,15 +67,22 @@ final class DocumentService
      */
     public function save(string $nick, ?int $idempresa, $spec, string $kind = 'document', ?int $documentId = null, ?string $conversationId = null, bool $newVersion = true, ?string $docType = null): array
     {
-        if (false === in_array($kind, self::KINDS, true)) {
-            return [null, [['path' => 'kind', 'code' => 'invalid-value', 'message' => 'kind es document o audit.']], []];
+        if (false === in_array($kind, self::ALL_KINDS, true)) {
+            return [null, [['path' => 'kind', 'code' => 'invalid-value', 'message' => 'kind es ' . implode(', ', self::ALL_KINDS) . '.']], []];
         }
-        [$normalized, $errors] = DocumentSpec::validate($spec);
+        if ($documentId !== null) {
+            // Una hoja de cálculo nunca pasa a ser un documento de texto ni al revés.
+            $existing = $this->find($nick, $documentId);
+            if ($existing !== null && self::family((string) $existing['kind']) !== self::family($kind)) {
+                return [null, [self::kindMismatch((string) $existing['kind'])], []];
+            }
+        }
+        [$normalized, $errors] = self::validateSpec($kind, $spec);
         if ($normalized === null) {
             return [null, $errors, []];
         }
         $warnings = $normalized['_warnings'] ?? [];
-        $normalized = DocumentSpec::withoutWarnings($normalized);
+        unset($normalized['_warnings']);
         if ($conversationId !== null && preg_match('/^[A-Za-z0-9_-]{1,64}$/', $conversationId) !== 1) {
             $conversationId = null;
         }
@@ -138,6 +149,9 @@ final class DocumentService
         $document = $this->find($nick, $documentId);
         if ($document === null) {
             return [null, [['path' => 'document_id', 'code' => 'document-not-found', 'message' => 'Ese documento no existe o no es tuyo.']], []];
+        }
+        if (false === in_array($document['kind'], self::KINDS, true)) {
+            return [null, [self::kindMismatch((string) $document['kind'])], []];
         }
         if (false === is_array($blocks) || $blocks === [] || false === array_is_list($blocks)) {
             return [null, [['path' => 'blocks', 'code' => 'required', 'message' => 'Indica la lista de bloques a añadir.']], []];
@@ -279,8 +293,37 @@ final class DocumentService
             'version' => max(1, (int) ($document['version'] ?? 1)),
             'doc_type' => $document['doc_type'] ?? null,
             'last_update' => $document['last_update'] ?? null,
-            'blocks' => count($document['spec']['blocks'] ?? []),
-        ];
+        ] + ($document['kind'] === 'spreadsheet'
+            ? ['sheets' => count($document['spec']['sheets'] ?? []), 'rows' => array_sum(array_map(static fn(array $sheet): int => count($sheet['rows'] ?? []), $document['spec']['sheets'] ?? []))]
+            : ['blocks' => count($document['spec']['blocks'] ?? [])]);
+    }
+
+    /** Especificación validada según el tipo: [normalizada con `_warnings` | null, errores]. */
+    public static function validateSpec(string $kind, $spec): array
+    {
+        return $kind === 'spreadsheet' ? SpreadsheetSpec::validate($spec) : DocumentSpec::validate($spec);
+    }
+
+    /** Formatos de descarga de cada tipo (el primero es el principal). */
+    public static function exportFormats(string $kind): array
+    {
+        return match ($kind) {
+            'spreadsheet' => ['xlsx', 'csv'],
+            default => ['pdf', 'docx'],
+        };
+    }
+
+    /** Familia de un tipo: los documentos de texto (document/audit) o cada tipo ofimático. */
+    private static function family(string $kind): string
+    {
+        return in_array($kind, self::KINDS, true) ? 'text' : $kind;
+    }
+
+    private static function kindMismatch(string $kind): array
+    {
+        $label = ['spreadsheet' => 'una hoja de cálculo', 'audit' => 'un informe de auditoría'][$kind] ?? 'un documento de texto';
+
+        return ['path' => 'document_id', 'code' => 'document-kind-mismatch', 'message' => 'Ese número es ' . $label . ': usa su herramienta o crea uno nuevo sin document_id.'];
     }
 
     /**
@@ -293,6 +336,19 @@ final class DocumentService
     public static function artifact(array $document): array
     {
         $id = (int) $document['id'];
+        if (in_array($document['kind'], self::OFFICE_KINDS, true)) {
+            // Hoja de cálculo: el visor nativo del chat la pinta desde sus datos (`format=json`).
+            return [
+                'contract' => self::ARTIFACT_CONTRACT,
+                'kind' => (string) $document['kind'],
+                'id' => $document['kind'] . ':' . $id,
+                'title' => mb_substr((string) $document['title'], 0, DocumentSpec::MAX_TITLE),
+                'revision' => max(1, (int) $document['revision']),
+                'version' => max(1, (int) ($document['version'] ?? 1)),
+                'url' => 'PdfStudioChatDocument?id=' . $id . '&format=json',
+                'open' => true,
+            ];
+        }
         $kind = $document['kind'] === 'audit' ? 'audit' : 'document';
 
         return [

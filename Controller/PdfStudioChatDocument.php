@@ -23,6 +23,9 @@ use FacturaScripts\Plugins\BeplyPDFStudio\Lib\ChatDocument\DocumentBranding;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\ChatDocument\DocumentDocxWriter;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\ChatDocument\DocumentService;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\ChatDocument\DocumentStyle;
+use FacturaScripts\Plugins\BeplyPDFStudio\Lib\ChatDocument\OfficeViewData;
+use FacturaScripts\Plugins\BeplyPDFStudio\Lib\ChatDocument\SpreadsheetCsvWriter;
+use FacturaScripts\Plugins\BeplyPDFStudio\Lib\ChatDocument\SpreadsheetXlsxWriter;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Html\BeplyHtmlRenderService;
 use Throwable;
 
@@ -37,7 +40,11 @@ use Throwable;
  * | `GET ?id=N&format=pdf` | El PDF para descargar |
  * | `GET ?id=N&format=docx` | Word con los colores, la fuente y el logo del estilo |
  * | `…&version=V` | La versión V del documento (las tarjetas antiguas del chat y el selector «Versión») |
+ * | `GET ?id=N&format=json` | Hoja de cálculo: especificación + tema para el visor NATIVO del chat (`beply.office-view/v1`) |
+ * | `GET ?id=N&format=xlsx` / `&format=csv[&sheet=K]` | Hoja de cálculo en Excel / CSV (Excel en español) |
+ * | `GET ?id=N&format=logo` | El logo del estilo (para el visor), o 404 |
  *
+ * Un formato que no corresponde al tipo (p. ej. `xlsx` de una carta) responde 404.
  * Sólo el propietario: un documento ajeno responde 404 igual que uno
  * inexistente. Entra quien puede usar el chat (página `ChatAPI`) aunque su rol
  * no tenga esta página.
@@ -83,6 +90,11 @@ class PdfStudioChatDocument extends Controller
         $suffix = $version !== null ? ' v' . $version : '';
         $idempresa = isset($document['idempresa']) ? (int) $document['idempresa'] : null;
         $styleChanges = BeplyToolProvider::service()->styleFor($document);
+        $office = in_array($document['kind'], DocumentService::OFFICE_KINDS, true);
+        if ($format === 'logo' || $office || in_array($format, ['json', 'xlsx', 'csv'], true)) {
+            $this->office($document, $format, $suffix, DocumentStyle::applyToBranding(DocumentBranding::resolve($idempresa), $styleChanges));
+            return;
+        }
         try {
             if ($format === 'docx') {
                 $bytes = DocumentDocxWriter::render($document['spec'], DocumentStyle::applyToBranding(DocumentBranding::resolve($idempresa), $styleChanges));
@@ -105,6 +117,59 @@ class PdfStudioChatDocument extends Controller
 
         $disposition = $format === 'pdf' ? 'attachment' : 'inline';
         $this->send($bytes, 'application/pdf', DocumentService::filename((string) $document['title'] . $suffix, 'pdf'), $disposition);
+    }
+
+    /** Hojas de cálculo: datos del visor nativo, XLSX, CSV y logo. */
+    private function office(array $document, string $format, string $suffix, array $branding): void
+    {
+        $kind = (string) $document['kind'];
+        if ($format === 'logo') {
+            $path = $branding['logo']['path'] ?? null;
+            if (is_string($path) && DocumentBranding::isLogo(['path' => $path])) {
+                $this->response->headers->set('Cache-Control', 'private, max-age=300');
+                $this->send((string) file_get_contents($path), (string) DocumentBranding::imageMime($path), 'logo', 'inline');
+                return;
+            }
+            $this->notFound('Este estilo no tiene logo.');
+            return;
+        }
+        if ($format === '' || $format === 'json') {
+            $view = OfficeViewData::build($document, $branding);
+            if ($view === null) {
+                $this->notFound('Formato no disponible para este documento.');
+                return;
+            }
+            $this->response->headers->set('Content-Type', 'application/json; charset=utf-8');
+            $this->response->setContent((string) json_encode($view, JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE));
+            return;
+        }
+        if (false === in_array($format, DocumentService::exportFormats($kind), true)) {
+            $this->notFound('Formato no disponible para este documento.');
+            return;
+        }
+        try {
+            $title = (string) $document['title'] . $suffix;
+            if ($format === 'csv') {
+                $sheet = (int) $this->request->query('sheet', '0');
+                $sheetName = (string) ($document['spec']['sheets'][$sheet]['name'] ?? '');
+                $name = DocumentService::filename($title . ($sheet > 0 && $sheetName !== '' ? ' ' . $sheetName : ''), 'csv');
+                $this->send(SpreadsheetCsvWriter::render($document['spec'], $sheet), SpreadsheetCsvWriter::MIME, $name, 'attachment');
+                return;
+            }
+            $this->send(SpreadsheetXlsxWriter::render($document['spec'], $branding), SpreadsheetXlsxWriter::MIME, DocumentService::filename($title, 'xlsx'), 'attachment');
+        } catch (Throwable $e) {
+            Tools::log()->error('beplypdf-chat-office-export-failed: ' . get_class($e));
+            $this->response->setHttpCode(500);
+            $this->response->headers->set('Content-Type', 'text/plain; charset=utf-8');
+            $this->response->setContent('No se pudo generar el archivo.');
+        }
+    }
+
+    private function notFound(string $message): void
+    {
+        $this->response->setHttpCode(404);
+        $this->response->headers->set('Content-Type', 'text/plain; charset=utf-8');
+        $this->response->setContent($message);
     }
 
     /** URL relativa del mismo origen (el visor y las descargas nunca usan URLs del modelo). */

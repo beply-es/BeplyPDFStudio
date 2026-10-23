@@ -10,6 +10,9 @@ use FacturaScripts\Plugins\BeplyPDFStudio\Lib\ChatDocument\DocumentSpec;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\ChatDocument\DocumentStore;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\ChatDocument\DocumentStyle;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\ChatDocument\ModelDocumentStore;
+use FacturaScripts\Plugins\BeplyPDFStudio\Lib\ChatDocument\SpreadsheetCsvWriter;
+use FacturaScripts\Plugins\BeplyPDFStudio\Lib\ChatDocument\SpreadsheetSpec;
+use FacturaScripts\Plugins\BeplyPDFStudio\Lib\ChatDocument\SpreadsheetXlsxWriter;
 
 /**
  * Tools del modo Documentos del chat (`beply.tools/v1`, docs/chat-documents.md).
@@ -21,16 +24,28 @@ use FacturaScripts\Plugins\BeplyPDFStudio\Lib\ChatDocument\ModelDocumentStore;
  * pie). Dominio `documents_canvas`: el catálogo genérico del ADK no las expone;
  * sólo las usa su toolset nativo (capacidad `documents_canvas_v1`, que el chat
  * anuncia únicamente con PDF Studio habilitado). Ninguna toca datos del ERP.
+ *
+ * Hojas de cálculo (`beplypdfstudio.spreadsheet_save`, dominio `office_canvas`,
+ * capacidad `spreadsheet_canvas_v1`): el asistente las rellena con datos ya
+ * consultados al ERP; se guardan versionadas como los documentos y, además, se
+ * escribe el XLSX (o CSV) como archivo adjunto en esta misma petición de
+ * /api/3/beply-tools: BeplyChatAI lo liga al usuario y lo archiva en «Documentos
+ * del chat»; por WhatsApp sale como documento.
  */
 final class BeplyToolProvider
 {
     public const VERSION = '1.0.0';
     public const PERMISSION = 'ChatAPI';
     public const DOMAIN = 'documents_canvas';
+    /** Hojas de cálculo (y presentaciones) del chat: toolset nativo propio del ADK. */
+    public const OFFICE_DOMAIN = 'office_canvas';
     /** Quien entra aquí crea estilos de documentos para toda la empresa. */
     public const STYLE_ADMIN_PAGE = 'AdminBeplyPdf';
 
-    /** @var array{store?: callable, company?: callable, branding?: callable} Sustitutos para tests. */
+    /**
+     * @var array{store?: callable, company?: callable, branding?: callable, render_branding?: callable, files?: callable}
+     *      Sustitutos para tests. `files(bytes, filename, mime)` devuelve el `generated_file`.
+     */
     public static array $factories = [];
 
     public static function beplyToolContract(): string
@@ -65,7 +80,7 @@ final class BeplyToolProvider
                 'domain' => self::DOMAIN,
                 'inputSchema' => [
                     'type' => 'object',
-                    'properties' => ['kind' => ['type' => 'string', 'enum' => DocumentService::KINDS]],
+                    'properties' => ['kind' => ['type' => 'string', 'enum' => DocumentService::ALL_KINDS]],
                     'additionalProperties' => false,
                 ],
                 'annotations' => $readOnly,
@@ -158,6 +173,26 @@ final class BeplyToolProvider
                 'annotations' => ['readOnly' => false, 'destructive' => false, 'idempotent' => true],
                 'policy' => $policy('autonomous'),
             ],
+            [
+                'name' => 'beplypdfstudio.spreadsheet_save',
+                'version' => self::VERSION,
+                'description' => 'Crea (sin document_id) o reemplaza (con document_id, versión siguiente) una hoja de cálculo beply.spreadsheet/v1 con datos YA consultados al ERP: hojas, columnas tipadas (text, number, integer, currency, percent, date) con totales y filas. Se ve en el chat con el estilo de PDF Studio y se descarga en XLSX o CSV; el archivo queda guardado para el usuario. Devuelve errores por celda para corregir.',
+                'domain' => self::OFFICE_DOMAIN,
+                'inputSchema' => [
+                    'type' => 'object',
+                    'properties' => [
+                        'spec' => ['type' => 'object', 'description' => 'Especificación beply.spreadsheet/v1 completa'],
+                        'document_id' => $documentId,
+                        'doc_type' => ['type' => 'string', 'maxLength' => 60, 'description' => 'Tipo (p. ej. «listado»): aplica su estilo de PDF Studio si existe'],
+                        'file_format' => ['type' => 'string', 'enum' => ['xlsx', 'csv'], 'description' => 'Archivo que se guarda para el usuario (por defecto xlsx)'],
+                        'conversation_id' => ['type' => 'string', 'pattern' => '^[A-Za-z0-9_-]{1,64}$'],
+                    ],
+                    'required' => ['spec'],
+                    'additionalProperties' => false,
+                ],
+                'annotations' => ['readOnly' => false, 'destructive' => false, 'idempotent' => false],
+                'policy' => $policy('autonomous'),
+            ],
         ];
     }
 
@@ -194,6 +229,9 @@ final class BeplyToolProvider
 
             case 'beplypdfstudio.document_save':
                 return self::save($arguments, $nick);
+
+            case 'beplypdfstudio.spreadsheet_save':
+                return self::saveSpreadsheet($arguments, $nick);
 
             case 'beplypdfstudio.document_style_list':
                 return [
@@ -260,6 +298,92 @@ final class BeplyToolProvider
             'artifact' => DocumentService::artifact($document),
             'warnings' => $warnings,
             'mutations_committed' => true,
+        ];
+    }
+
+    /** Hoja de cálculo: guarda la especificación (versionada) y escribe su archivo para el usuario. */
+    private static function saveSpreadsheet(array $arguments, string $nick): array
+    {
+        $documentId = isset($arguments['document_id']) ? (int) $arguments['document_id'] : null;
+        $conversationId = isset($arguments['conversation_id']) ? (string) $arguments['conversation_id'] : null;
+        $docType = isset($arguments['doc_type']) && is_string($arguments['doc_type']) ? $arguments['doc_type'] : null;
+        $format = ($arguments['file_format'] ?? 'xlsx') === 'csv' ? 'csv' : 'xlsx';
+        $service = self::service();
+        [$document, $errors, $warnings] = $service->save($nick, self::company($nick), $arguments['spec'] ?? null, 'spreadsheet', $documentId, $conversationId, true, $docType);
+        if ($document === null) {
+            return ['ok' => false, 'errors' => $errors, 'mutations_committed' => false];
+        }
+
+        $file = null;
+        try {
+            $title = (string) $document['title'];
+            if ($format === 'csv') {
+                $file = self::storeFile(SpreadsheetCsvWriter::render($document['spec'], 0), DocumentService::filename($title, 'csv'), SpreadsheetCsvWriter::MIME);
+            } else {
+                $branding = DocumentStyle::applyToBranding(self::renderBranding(self::company($nick)), $service->styleFor($document));
+                $file = self::storeFile(SpreadsheetXlsxWriter::render($document['spec'], $branding), DocumentService::filename($title, 'xlsx'), SpreadsheetXlsxWriter::MIME);
+            }
+        } catch (\Throwable $e) {
+            $file = null;
+        }
+        if ($file === null) {
+            $warnings[] = 'La hoja se guardó, pero no se pudo crear el archivo ' . strtoupper($format) . '; se puede descargar desde el visor.';
+        }
+
+        return [
+            'ok' => true,
+            'document' => DocumentService::summary($document),
+            'artifact' => DocumentService::artifact($document),
+            'generated_file' => $file,
+            'warnings' => $warnings,
+            'mutations_committed' => true,
+        ];
+    }
+
+    /** Marca completa (logo, colores, fuente) para escribir el archivo. */
+    public static function renderBranding(?int $idempresa): array
+    {
+        return isset(self::$factories['render_branding'])
+            ? (self::$factories['render_branding'])($idempresa)
+            : DocumentBranding::resolve($idempresa);
+    }
+
+    /**
+     * Guarda los bytes como archivo adjunto del ERP y devuelve su `generated_file`
+     * ({idfile, filename, mimetype, path, size}) o null. Al crearse dentro de la
+     * petición de /api/3/beply-tools con la clave espejo, BeplyChatAI lo liga al
+     * usuario del chat y lo archiva en «Documentos del chat» de Biblioteca.
+     */
+    private static function storeFile(string $bytes, string $filename, string $mime): ?array
+    {
+        if (isset(self::$factories['files'])) {
+            return (self::$factories['files'])($bytes, $filename, $mime);
+        }
+        $folder = \FacturaScripts\Core\Tools::folder('MyFiles');
+        $temp = 'chat-office-' . bin2hex(random_bytes(6)) . '-' . $filename;
+        if (false === file_put_contents($folder . '/' . $temp, $bytes)) {
+            return null;
+        }
+        $class = class_exists('\\FacturaScripts\\Dinamic\\Model\\AttachedFile')
+            ? '\\FacturaScripts\\Dinamic\\Model\\AttachedFile'
+            : '\\FacturaScripts\\Core\\Model\\AttachedFile';
+        $attached = new $class();
+        $attached->path = $temp;
+        if (false === $attached->save()) {
+            @unlink($folder . '/' . $temp);
+            return null;
+        }
+        // Nombre legible y tipo exacto (finfo puede ver un XLSX como application/zip).
+        $attached->filename = $filename;
+        $attached->mimetype = explode(';', $mime)[0];
+        $attached->save();
+
+        return [
+            'idfile' => (int) $attached->idfile,
+            'filename' => $filename,
+            'mimetype' => explode(';', $mime)[0],
+            'path' => (string) $attached->path,
+            'size' => (int) $attached->size,
         ];
     }
 

@@ -118,7 +118,7 @@ final class DocumentStyle
     /** La marca del DOCX con los mismos cambios. */
     public static function applyToBranding(array $branding, array $overrides): array
     {
-        foreach (['color_primary' => 'primary', 'color_secondary' => 'secondary', 'color_text' => 'text'] as $key => $target) {
+        foreach (['color_primary' => 'primary', 'color_secondary' => 'secondary', 'color_tertiary' => 'tertiary', 'color_text' => 'text'] as $key => $target) {
             if (isset($overrides[$key])) {
                 $branding[$target] = DocumentBranding::normalizeColor($overrides[$key]);
             }

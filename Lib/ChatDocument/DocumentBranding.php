@@ -83,6 +83,7 @@ final class DocumentBranding
 
         $primary = $pick('primary', [self::class, 'isColor']);
         $secondary = $pick('secondary', [self::class, 'isColor']);
+        $tertiary = $pick('tertiary', [self::class, 'isColor']);
         $text = $pick('text', [self::class, 'isColor']);
         $font = $pick('font', static fn($v): bool => is_string($v) && trim($v) !== '');
         $fontSize = $pick('fontSize', static fn($v): bool => is_numeric($v) && $v >= 7 && $v <= 16);
@@ -98,6 +99,8 @@ final class DocumentBranding
             'source' => $names[0] ?? (is_array($company) && $company !== [] ? 'company' : 'default'),
             'primary' => self::normalizeColor($primary ?? self::DEFAULT_PRIMARY),
             'secondary' => self::normalizeColor($secondary ?? self::DEFAULT_SECONDARY),
+            // Fondo de filas alternas (hojas de cálculo del chat); null = tinte del primario.
+            'tertiary' => $tertiary === null ? null : self::normalizeColor($tertiary),
             'text' => self::normalizeColor($text ?? self::DEFAULT_TEXT),
             'font' => [
                 'name' => $fontName,
@@ -245,6 +248,7 @@ final class DocumentBranding
         return [
             'primary' => $config->colorPrimary,
             'secondary' => $config->colorSecondary,
+            'tertiary' => $config->colorTertiary,
             'text' => $config->colorText,
             'font' => \FacturaScripts\Plugins\BeplyPDFStudio\Lib\PdfEngine\BeplyPdfFonts::cssFamily((string) $config->fontFamily),
             'fontSize' => $config->fontSize,

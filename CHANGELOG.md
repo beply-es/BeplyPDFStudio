@@ -1,5 +1,27 @@
 # Changelog
 
+## v4.9 - 2026-10-23
+
+- Hojas de cálculo del chat (`beply.spreadsheet/v1`, BeplyChatAI capacidad
+  `spreadsheet_canvas_v1`): el asistente vuelca datos ya consultados al ERP en
+  hojas con columnas tipadas (texto, número, entero, moneda, porcentaje, fecha) y
+  totales. Se guardan versionadas en `beply_pdf_chat_documents` (`kind`
+  `spreadsheet`, columna ampliada a 20 caracteres) con la regla de propietario.
+- Escritor XLSX propio (`SpreadsheetXlsxWriter`, OOXML con ZipArchive como el
+  DOCX): cabecera con el color primario del estilo de PDF Studio, fuente, cebra
+  suave, formatos españoles de moneda/fecha/porcentaje, fila de totales con
+  `SUBTOTAL` (respeta el autofiltro) y valor cacheado, cabecera congelada y
+  repetida al imprimir, logo y pie con la empresa. CSV para Excel en español
+  (`SpreadsheetCsvWriter`: UTF-8 con BOM, `;`, coma decimal, sin inyección de
+  fórmulas).
+- Tool `beplypdfstudio.spreadsheet_save` (dominio `office_canvas`): además de la
+  especificación guarda el XLSX (o CSV) como archivo adjunto en la misma petición,
+  que BeplyChatAI liga al usuario y archiva en «Documentos del chat»; por WhatsApp
+  sale como documento. `document_get`/`document_list` también las leen.
+- `PdfStudioChatDocument?id=N&format=json|xlsx|csv|logo`: datos del visor nativo
+  del chat (`beply.office-view/v1`: especificación + tema, sin rutas), descargas y
+  logo del estilo.
+
 ## v4.8 - 2026-10-16
 
 - Documentos del chat (modo Documentos de BeplyChatAI e informes de auditoría):

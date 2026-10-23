@@ -186,3 +186,96 @@ editando tras consultar el ERP); el analista sólo el guardado del informe de
 auditoría. Si el analista no lo guarda, el servidor lo compone al final de la
 auditoría con su respuesta y la cobertura de consultas (ADK
 `tools/document_canvas.save_audit_report`).
+
+## 9. Hojas de cálculo del chat (`beply.spreadsheet/v1`, capacidad `spreadsheet_canvas_v1`)
+
+«Pásame esto en Excel», «hazme una hoja con los clientes con deuda»: el asistente
+vuelca en una hoja datos YA consultados al ERP con sus herramientas (nunca
+inventados). PDF Studio guarda la especificación (mismo almacén, versiones y regla
+de propietario que los documentos, `kind = spreadsheet`), escribe el archivo y
+sirve los datos al visor **nativo** del chat (sin iframes ni visores de terceros).
+
+### Especificación
+
+```json
+{
+  "schema": "beply.spreadsheet/v1",
+  "title": "Ventas del tercer trimestre 2026",          // ≤ 120
+  "subtitle": "Facturas de venta emitidas",              // opcional, ≤ 200
+  "sheets": [{                                           // 1..10
+    "name": "Facturas",                                  // ≤ 31; sin []:*?/\ (se limpian); único
+    "columns": [                                         // 1..30; un texto = columna de texto
+      "Cliente",
+      {"label": "Fecha", "type": "date"},
+      {"label": "Unidades", "type": "integer", "total": "sum"},
+      {"label": "Importe", "type": "currency", "currency": "EUR", "decimals": 2, "total": "sum"},
+      {"label": "Margen", "type": "percent", "decimals": 1, "total": "average"}
+    ],
+    "rows": [["Ferretería Martínez", "2026-07-03", 12, 1250.5, 23.5]],   // ≤ 5000 por hoja
+    "note": "Importes sin IVA."                          // opcional, ≤ 500
+  }]
+}
+```
+
+- `type`: `text`, `number`, `integer`, `currency`, `percent` (en puntos: `23.5` =
+  23,5 %), `date` (`AAAA-MM-DD`; también se aceptan `DD/MM/AAAA`). Los números
+  admiten `1250.5`, `"1.250,50 €"` o `"18,25 %"` y se normalizan.
+- `total`: `none`, `sum`, `average`, `count`, `min`, `max` (texto y fecha: sólo
+  `none` o `count`).
+- Límites: 10 hojas, 30 columnas, 5000 filas por hoja, 100 000 celdas.
+- Errores con la ruta exacta (`sheets[0].rows[3][2]`, código `not-a-number`,
+  `not-a-date`, `too-many-cells`…); las propiedades de estilo se ignoran con aviso.
+
+### Tool y archivo
+
+`beplypdfstudio.spreadsheet_save` (dominio `office_canvas`, `autonomous`, permiso
+`ChatAPI`): `{spec, document_id?, doc_type?, file_format? (xlsx|csv), conversation_id?}`
+→ `{ok, document, artifact, generated_file, warnings}`. Con `document_id` crea la
+versión siguiente. Una hoja nunca pasa a documento de texto ni al revés
+(`document-kind-mismatch`); `document_append` no vale para hojas. `document_get` y
+`document_list` (`kind: spreadsheet`) también las leen.
+
+Cada guardado escribe el XLSX (o el CSV pedido) como `AttachedFile` en la misma
+petición de `/api/3/beply-tools` con la clave espejo: BeplyChatAI lo liga al
+usuario y lo archiva en «Documentos del chat» de BeplyBiblioteca; el ADK lo
+devuelve como `generated_file`, así por WhatsApp sale como documento.
+
+### Archivos
+
+- **XLSX** (`SpreadsheetXlsxWriter`, OOXML propio con ZipArchive como el DOCX; no se
+  usa PHP_XLSXWriter del core porque no admite el logo ni SUBTOTAL con valor
+  cacheado): título y subtítulo, cabecera con el color primario y texto de
+  contraste, fuente del estilo, cebra suave (terciario o tinte del primario),
+  formatos `#,##0.00 "€"`, `dd/mm/yyyy` y `0.0%`, fila de totales `SUBTOTAL(109|101|…)`
+  con su valor cacheado (respeta el autofiltro), nota, anchos según el contenido,
+  cabecera congelada y repetida al imprimir, ajuste a una página de ancho, logo a
+  la derecha de la última columna de la primera hoja y pie «empresa · Página N de M».
+  El texto va siempre como cadena: nunca se convierte en fórmula.
+- **CSV** (`SpreadsheetCsvWriter`, una hoja; `&sheet=K`): UTF-8 con BOM, separador
+  `;` (Excel en español usa la coma decimal), coma decimal sin miles, fechas
+  `DD/MM/AAAA`, porcentajes `23,5%`, CRLF, sólo cabecera y datos (sin título ni
+  totales). Un texto que empieza por `= + - @` lleva `'` delante (inyección CSV).
+
+### `PdfStudioChatDocument` para hojas
+
+| Petición | Respuesta |
+|---|---|
+| `?id=N&format=json` | `beply.office-view/v1`: `{kind, id, title, version, revision, formats, spec, theme}`; `theme` = colores (primario, secundario, terciario, texto, texto de cabecera, cebra), fuente, `logo` (booleano) y empresa. Sin rutas ni nick |
+| `?id=N&format=xlsx` | Excel (`attachment`) |
+| `?id=N&format=csv[&sheet=K]` | CSV de la hoja K (`attachment`) |
+| `?id=N&format=logo` | El logo del estilo (o 404) para el visor |
+| `…&version=V` | La versión V |
+
+Un formato que no es del tipo (`xlsx` de una carta, `pdf` de una hoja) responde 404.
+
+### Artefacto (`kind:"spreadsheet"`)
+
+```json
+{"contract": "beply.artifact/v1", "kind": "spreadsheet", "id": "spreadsheet:12",
+ "title": "Ventas T3", "revision": 2, "version": 2,
+ "url": "PdfStudioChatDocument?id=12&format=json", "open": true}
+```
+
+`url` sólo puede ser `PdfStudioChatDocument?id=<n>&format=json` con el mismo id; el
+ADK, Node y el navegador la reconstruyen. El visor nativo del chat (BeplyChatAI
+`components/SpreadsheetViewer.js`) pinta la tabla con el tema y descarga XLSX/CSV.
