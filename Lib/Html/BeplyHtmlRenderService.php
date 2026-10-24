@@ -23,6 +23,7 @@ use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfDocumentExtension
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfDocumentSlot;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfBuyerFiscalIdentity;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfFiscalQrRegistry;
+use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfInconsistentDocumentException;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfLineAmounts;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfLineColumn;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfLineTableLayout;
@@ -117,6 +118,10 @@ class BeplyHtmlRenderService
                 $pdf = $this->encrypt($pdf, trim((string) $cfg->pdfPassword));
             }
             return $pdf;
+        } catch (BeplyPdfInconsistentDocumentException $e) {
+            // A fiscal failure must reach every caller, including the exporter
+            // after its initial validation; it must never enable a fallback PDF.
+            throw $e;
         } catch (\Throwable $e) {
             Tools::log()->warning('beplypdf-html-render-error: ' . $e->getMessage());
             return '';

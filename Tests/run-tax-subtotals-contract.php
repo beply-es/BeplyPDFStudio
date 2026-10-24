@@ -24,6 +24,7 @@ use FacturaScripts\Dinamic\Model\Impuesto;
 use FacturaScripts\Dinamic\Model\PedidoCliente;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\BeplyPdfConfig;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\BeplyPdfDocumentCacheService;
+use FacturaScripts\Plugins\BeplyPDFStudio\Lib\BeplyPdfRenderService;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfInconsistentDocumentException;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfTaxSubtotals;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Export\PDFExport;
@@ -36,13 +37,16 @@ use FacturaScripts\Plugins\BeplyPDFStudio\Lib\PdfEngine\BeplyPdfSampleDoc;
 final class BeplyPdfSyntheticTaxMod implements CalculatorModInterface
 {
     public bool $fail = false;
+    public ?int $failAtCall = null;
+    public int $calls = 0;
     public function apply(BusinessDocument &$doc, array &$lines): bool { return true; }
     public function calculate(BusinessDocument &$doc, array &$lines): bool { return true; }
     public function clear(BusinessDocument &$doc, array &$lines): bool { return true; }
     public function calculateLine(BusinessDocument $doc, BusinessDocumentLine &$line): bool { return true; }
     public function getSubtotals(array &$subtotals, BusinessDocument $doc, array $lines): bool
     {
-        if ($this->fail) {
+        ++$this->calls;
+        if ($this->fail || $this->calls === $this->failAtCall) {
             throw new RuntimeException('Synthetic calculator failure');
         }
         if ($doc->numero2 === 'BEPDF-TAX-MOD') {
@@ -91,6 +95,7 @@ final class BeplyPdfNativeTaxContract
             $this->check(BeplyPdfTaxSubtotals::forDocument((object) ['total' => 1]) === null,
                 'generic payload never invokes native Calculator');
             $this->verifyCalculationFailureBeforeCache();
+            $this->verifyCalculationFailureDuringRender();
         } finally {
             Calculator::$mods = $mods;
             foreach (array_reverse($this->documents) as $document) {
@@ -238,6 +243,101 @@ final class BeplyPdfNativeTaxContract
         }
         $this->check($caught, 'calculator failure cannot become cache success or Core fallback');
         $this->check(hash_file('sha256', $key['path']) === $hash, 'failure preserves existing cache bytes');
+    }
+
+    private function verifyCalculationFailureDuringRender(): void
+    {
+        $document = new PedidoCliente();
+        $this->check($document->setSubject($this->customer), 'late failure native subject');
+        $document->numero2 = 'BEPDF-TAX-LATE-FAILURE';
+        $this->check($document->save(), 'late failure native header');
+        $this->documents[] = $document;
+        $tax = Impuestos::get('IVA21');
+        $line = $document->getNewLine();
+        $line->descripcion = 'Synthetic late calculation failure';
+        $line->cantidad = 1;
+        $line->pvpunitario = 10.74;
+        $line->codimpuesto = 'IVA21';
+        $line->iva = $tax->iva;
+        $this->check($line->save(), 'late failure native line');
+        $lines = $document->getLines();
+        $this->check(Calculator::calculate($document, $lines, true), 'late failure native calculation/save');
+        $this->check($document->loadFromCode($document->id()), 'late failure native reload');
+        $before = $this->snapshot($document);
+
+        $export = new PDFExport();
+        $format = (new ReflectionMethod($export, 'getDocumentFormat'))->invoke($export, $document);
+        $cfg = (new BeplyPdfRenderService())->resolveConfig(
+            !empty($format->id) ? (int) $format->id : null,
+            (int) $document->idempresa,
+            $document->modelClassName()
+        );
+        $this->check($cfg !== null && BeplyHtmlRenderService::handles($cfg->diseno), 'late failure real HTML format');
+        $key = (new BeplyPdfDocumentCacheService())->key($cfg, $document, $format);
+        $this->check($key !== null && !is_file($key['path']), 'late failure starts with uncached native document');
+
+        $caught = false;
+        $accepted = false;
+        $this->mod->calls = 0;
+        $this->mod->failAtCall = 2;
+        try {
+            $export->addBusinessDocPage($document);
+            $accepted = str_starts_with((string) $export->getDoc(), '%PDF');
+        } catch (BeplyPdfInconsistentDocumentException $error) {
+            $caught = true;
+        } finally {
+            $lateCalls = $this->mod->calls;
+            $this->mod->failAtCall = null;
+        }
+        $checks = [
+            'firstValidationPassesAndSecondFailureStopsCalculation' => $lateCalls === 2,
+            'lateFiscalExceptionReachesExporterCaller' => $caught,
+            'lateFailureDoesNotAcceptFallbackPdf' => !$accepted,
+            'lateFailureDoesNotStoreCache' => !is_file($key['path']),
+        ];
+
+        $directCaught = false;
+        $directBytes = null;
+        $this->mod->calls = 0;
+        $this->mod->failAtCall = 1;
+        try {
+            $directBytes = (new BeplyHtmlRenderService())->render($cfg, $document, $format);
+        } catch (BeplyPdfInconsistentDocumentException $error) {
+            $directCaught = true;
+        } finally {
+            $this->mod->failAtCall = null;
+        }
+        $checks['directHtmlConsumerReceivesFiscalException'] = $directCaught;
+        $checks['directFiscalFailureReturnsNoPdfOrEmptySuccess'] = $directBytes === null;
+
+        // A real Twig loader failure remains an ordinary engine failure. Replace
+        // only its template source, never Calculator, models or PDF producers.
+        $twig = new ReflectionProperty(BeplyHtmlRenderService::class, 'twig');
+        $previousTwig = $twig->getValue();
+        $twig->setValue(null, new \Twig\Environment(new \Twig\Loader\ArrayLoader([])));
+        try {
+            $checks['ordinaryHtmlEngineFailureReturnsEmpty'] =
+                (new BeplyHtmlRenderService())->render($cfg, $document, $format) === '';
+            $ordinary = new PDFExport();
+            $ordinary->addBusinessDocPage($document);
+            $checks['ordinaryEngineFailureKeepsNativeFallbackPdf'] =
+                str_starts_with((string) $ordinary->getDoc(), '%PDF');
+        } finally {
+            $twig->setValue(null, $previousTwig);
+        }
+        $checks['failurePathsDoNotMutateNativeBusinessData'] = $this->snapshot($document) === $before;
+        $artifactDir = getenv('BEPDF_TAX_ARTIFACT_DIR');
+        if (is_string($artifactDir) && $artifactDir !== '') {
+            $path = $artifactDir . '/late-fiscal-failure.json';
+            $this->check(!file_exists($path), 'preserve prior late-failure evidence');
+            $evidence = json_encode(['checks' => $checks, 'lateCalculationCalls' => $lateCalls,
+                'unsafeFallbackAcceptedPdf' => $accepted, 'runtimeError' => false], JSON_THROW_ON_ERROR);
+            $this->check(file_put_contents($path, $evidence) === strlen($evidence), 'write late-failure evidence');
+            chmod($path, 0600);
+        }
+        foreach ($checks as $message => $passed) {
+            $this->check($passed, $message);
+        }
     }
 
     private function same($expected, $actual, string $message): void
