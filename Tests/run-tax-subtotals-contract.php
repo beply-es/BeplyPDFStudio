@@ -118,7 +118,8 @@ final class BeplyPdfNativeTaxContract
             'surcharge' => ['lines' => [[10.74, 1, 'IVA21', 5.2], [3.11, 1, 'IVA10', 1.4]]],
             'withholding-discount' => ['discounts' => [10, 0], 'lines' => [[10.74, 1, 'IVA21', 0, 15]]],
             'mixed-withholding-rounding' => ['lines' => [[0.1, 1, 'IVA21', 0, 7], [0.1, 1, 'IVA21', 0, 15]]],
-            'supplied-amount' => ['lines' => [[10.74, 1, 'IVA21'], [2.50, 1, 'IVA21', 0, 15, true]]],
+            'supplied-amount' => ['lines' => [[10.74, 1, 'IVA21'], [2.50, 1, 'IVA0', 0, 0, true]]],
+            'supplied-amount-legacy-tax-fields' => ['lines' => [[10.74, 1, 'IVA21'], [2.50, 1, 'IVA21', 0, 15, true]]],
             'fixed-tax' => ['lines' => [[10, 1, 'BPDF-FIX']]],
             'zero-line' => ['lines' => [[0, 1, 'IVA21']]],
         ];
@@ -164,8 +165,24 @@ final class BeplyPdfNativeTaxContract
                 $this->check(!str_contains($vatRows[$index]['pct'], '%'), 'fixed tax never labelled percentage');
             }
         }
-        $this->same($subtotals['totaliva'] + $subtotals['totalrecargo'] - $subtotals['totalirpf'],
-            array_sum(array_column($rows, 'raw_amount')), $name . ' tax rows sum to canonical tax');
+        $this->same($subtotals['totaliva'] + $subtotals['totalrecargo'] - $subtotals['totalirpf'] + $subtotals['totalsuplidos'],
+            array_sum(array_column($rows, 'raw_amount')), $name . ' displayed adjustments sum to canonical amounts');
+        if ($name === 'supplied-amount') {
+            $corporateConfig = clone $cfg;
+            $corporateConfig->diseno = 'corporate';
+            $dom = new \DOMDocument();
+            @$dom->loadHTML('<?xml encoding="UTF-8">' . $html->buildHtml($corporateConfig, $document));
+            $xpath = new \DOMXPath($dom);
+            $shown = [];
+            foreach ($xpath->query('//table[contains(concat(" ", normalize-space(@class), " "), " totals-inner ")]//tr') as $row) {
+                $cells = $xpath->query('./td', $row);
+                if ($cells->length === 2) {
+                    $shown[trim($cells->item(0)->textContent)] = trim($cells->item(1)->textContent);
+                }
+            }
+            $this->check(($shown[Tools::trans('supplied-amount')] ?? null) === Tools::money($subtotals['totalsuplidos'], 'EUR'),
+                'actual corporate HTML footer shows the canonical supplied amount');
+        }
         $footer = new FooterRenderer();
         $coordinate = (new ReflectionMethod($footer, 'taxBreakdown'))->invoke($footer, $document);
         $this->same($subtotals['totaliva'], array_sum(array_column($coordinate, 3)), $name . ' coordinate VAT');
@@ -175,7 +192,7 @@ final class BeplyPdfNativeTaxContract
         }
         $this->check($this->snapshot($document) === $before, $name . ' render projections do not mutate document/lines');
         $artifactDir = getenv('BEPDF_TAX_ARTIFACT_DIR');
-        if (is_string($artifactDir) && $artifactDir !== '' && in_array($name, ['mod-preserved', 'mixed-groups', 'mixed-withholding-rounding', 'fixed-tax', 'zero-line'], true)) {
+        if (is_string($artifactDir) && $artifactDir !== '' && in_array($name, ['mod-preserved', 'mixed-groups', 'mixed-withholding-rounding', 'fixed-tax', 'zero-line', 'supplied-amount'], true)) {
             $this->check(is_dir($artifactDir), 'explicit synthetic artifact directory exists');
             $cfg->diseno = 'corporate';
             $htmlBytes = $html->buildHtml($cfg, $document);

@@ -1788,6 +1788,20 @@ class BeplyHtmlRenderService
             $rows[] = $this->taxRow(Tools::lang()->trans('irpf'), count($rates) === 1 ? reset($rates) : 0.0,
                 Tools::round($base), -(float) $subtotals['totalirpf'], $currency, $text);
         }
+        if ((float) $subtotals['totalsuplidos'] != 0.0) {
+            // A supplied amount is part of the payable total, never a taxable
+            // base or rate. All document templates already display these rows.
+            $rows[] = [
+                'label' => Tools::lang()->trans('supplied-amount'),
+                'base' => '',
+                'pct' => '',
+                'cuota' => Tools::money($subtotals['totalsuplidos'], $currency),
+                'raw_base' => 0.0,
+                'raw_pct' => 0.0,
+                'raw_amount' => (float) $subtotals['totalsuplidos'],
+                'kind' => 'supplied_amount',
+            ];
+        }
         return $rows;
     }
 
