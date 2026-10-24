@@ -28,6 +28,7 @@ use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfLineColumn;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfLineTableLayout;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfParentDocumentLines;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfRectificationData;
+use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfTaxSubtotals;
 use Twig\Environment;
 use Twig\Loader\FilesystemLoader;
 use Twig\TwigFilter;
@@ -1699,6 +1700,10 @@ class BeplyHtmlRenderService
         if ($cfg->showWithoutVat) {
             return [];
         }
+        $subtotals = BeplyPdfTaxSubtotals::forDocument($model);
+        if ($subtotals !== null) {
+            return $this->canonicalTaxData($model, $subtotals, $coddivisa);
+        }
         $lines = (is_object($model) && method_exists($model, 'getLines')) ? $model->getLines() : [];
         $vatGroups = [];
         $surchargeGroups = [];
@@ -1752,9 +1757,43 @@ class BeplyHtmlRenderService
         return $out;
     }
 
-    private function taxRow(string $label, float $pct, float $base, float $amount, string $coddivisa): array
+    private function canonicalTaxData($model, array $subtotals, string $currency): array
     {
-        $pctText = Tools::number($pct) . '%';
+        $rows = [];
+        foreach ($subtotals['iva'] as $group) {
+            $rows[] = $this->taxRow(Tools::lang()->trans('vat'), (float) $group['iva'],
+                (float) $group['neto'], (float) $group['totaliva'], $currency,
+                BeplyPdfTaxSubtotals::rateText($group, 'iva', $currency));
+        }
+        foreach ($subtotals['iva'] as $group) {
+            if ((float) $group['recargo'] != 0.0) {
+                $rows[] = $this->taxRow(Tools::lang()->trans('re'), (float) $group['recargo'],
+                    (float) $group['neto'], (float) $group['totalrecargo'], $currency,
+                    BeplyPdfTaxSubtotals::rateText($group, 'recargo', $currency));
+            }
+        }
+        if ((float) $subtotals['totalirpf'] != 0.0) {
+            $base = 0.0;
+            $rates = [];
+            foreach ($model->getLines() as $line) {
+                if (!$line->suplido && (float) $line->irpf != 0.0) {
+                    $base += (float) $line->pvptotal * $model->getEUDiscount();
+                    $rates[(string) $line->irpf] = (float) $line->irpf;
+                }
+            }
+            // Core exposes one rounded withholding total. Do not independently round
+            // partial rates into amounts whose sum could differ by a cent.
+            krsort($rates, SORT_NUMERIC);
+            $text = implode(' / ', array_map(static fn(float $rate): string => Tools::number($rate) . '%', $rates));
+            $rows[] = $this->taxRow(Tools::lang()->trans('irpf'), count($rates) === 1 ? reset($rates) : 0.0,
+                Tools::round($base), -(float) $subtotals['totalirpf'], $currency, $text);
+        }
+        return $rows;
+    }
+
+    private function taxRow(string $label, float $pct, float $base, float $amount, string $coddivisa, ?string $pctText = null): array
+    {
+        $pctText = $pctText ?? Tools::number($pct) . '%';
         return [
             'label' => trim($label . ' ' . $pctText),
             'base' => Tools::money($base, $coddivisa),
