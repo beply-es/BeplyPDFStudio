@@ -81,7 +81,7 @@ final class BeplyPdfTaxSubtotals
             return Tools::trans('beplypdf-mixed-tax-rates');
         }
         // Core2025.71 applies TYPE_FIXED_VALUE as base × value, not value euros.
-        return $kind === 'fixed' ? '× ' . Tools::number($rate) : Tools::number($rate) . '%';
+        return $kind === 'fixed' ? self::fixedRateText($rate) : Tools::number($rate) . '%';
     }
 
     public static function lineRateText($line, string $field): string
@@ -91,7 +91,21 @@ final class BeplyPdfTaxSubtotals
         }
         $value = isset($line->{$field}) && is_numeric($line->{$field}) ? (float) $line->{$field} : 0.0;
         return $field !== 'irpf' && self::isFixedLine($line)
-            ? '× ' . Tools::number($value) : Tools::number($value) . '%';
+            ? self::fixedRateText($value) : Tools::number($value) . '%';
+    }
+
+    private static function fixedRateText(float $value): string
+    {
+        // A multiplier is not a currency amount. Core retains tax precision;
+        // rounding 1.505 to 1.51 would contradict its quota on the same page.
+        $literal = json_encode($value, JSON_PRESERVE_ZERO_FRACTION);
+        if (!is_string($literal)) {
+            throw new BeplyPdfInconsistentDocumentException(Tools::trans('beplypdf-tax-subtotals-unavailable'));
+        }
+        $parts = explode('e', strtolower($literal));
+        $fraction = explode('.', $parts[0], 2)[1] ?? '';
+        $precision = strlen(rtrim($fraction, '0')) - (int) ($parts[1] ?? 0);
+        return '× ' . Tools::number($value, max(Tools::decimals(), $precision));
     }
 
     /** Core supplies the unique rounded amount; only unambiguous base/rate metadata is projected. */

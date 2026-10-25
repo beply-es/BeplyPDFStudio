@@ -73,6 +73,8 @@ final class BeplyPdfNativeTaxContract
     private bool $fixedTaxCreated = false;
     private ?Impuesto $sameRatePercentageTax = null;
     private bool $sameRatePercentageTaxCreated = false;
+    private ?Impuesto $preciseFixedTax = null;
+    private bool $preciseFixedTaxCreated = false;
     private BeplyPdfSyntheticTaxMod $mod;
     private array $presentationFailures = [];
     private array $visualArtifacts = [];
@@ -103,6 +105,14 @@ final class BeplyPdfNativeTaxContract
             $this->sameRatePercentageTax->iva = 1.5;
             $this->check($this->sameRatePercentageTax->save(), 'create native same-rate percentage tax');
             $this->sameRatePercentageTaxCreated = true;
+            $this->preciseFixedTax = new Impuesto();
+            $this->check(!$this->preciseFixedTax->loadFromCode('BPDF-PRE'), 'precise synthetic tax identity must be absent');
+            $this->preciseFixedTax->codimpuesto = 'BPDF-PRE';
+            $this->preciseFixedTax->descripcion = 'Synthetic fixed tax with three decimals';
+            $this->preciseFixedTax->tipo = Impuesto::TYPE_FIXED_VALUE;
+            $this->preciseFixedTax->iva = 1.505;
+            $this->check($this->preciseFixedTax->save(), 'create native precise fixed tax');
+            $this->preciseFixedTaxCreated = true;
             Impuestos::clear();
             foreach ($this->cases() as $name => $spec) {
                 $this->verify($name, $spec);
@@ -129,6 +139,9 @@ final class BeplyPdfNativeTaxContract
             if ($this->sameRatePercentageTaxCreated && $this->sameRatePercentageTax !== null && $this->sameRatePercentageTax->exists()) {
                 $this->check($this->sameRatePercentageTax->delete(), 'delete own same-rate synthetic tax');
             }
+            if ($this->preciseFixedTaxCreated && $this->preciseFixedTax !== null && $this->preciseFixedTax->exists()) {
+                $this->check($this->preciseFixedTax->delete(), 'delete own precise synthetic tax');
+            }
             Impuestos::clear();
         }
         echo 'TAX_SUBTOTALS_CONTRACT cases=' . count($this->cases()) . ' assertions=' . $this->assertions . " failed=0\n";
@@ -150,6 +163,7 @@ final class BeplyPdfNativeTaxContract
             'fixed-tax' => ['lines' => [[10, 1, 'BPDF-FIX']]],
             'fixed-tax-surcharge' => ['lines' => [[10, 1, 'BPDF-FIX', 0.25]]],
             'fixed-tax-return' => ['lines' => [[10, -1, 'BPDF-FIX']]],
+            'fixed-tax-precision' => ['lines' => [[10, 1, 'BPDF-PRE']]],
             'mixed-tax-types' => ['lines' => [[10, 1, 'BPDF-FIX'], [10, 1, 'BPDF-PCT']]],
             'zero-line' => ['lines' => [[0, 1, 'IVA21']]],
         ];
@@ -194,6 +208,10 @@ final class BeplyPdfNativeTaxContract
             }
         }
         $this->same($document->totaliva, $subtotals['totaliva'], $name . ' stored/canonical VAT');
+        if ($name === 'fixed-tax-precision') {
+            $this->same(1.505, $document->getLines()[0]->iva, 'native fixed rate retains three decimals');
+            $this->same(15.05, $subtotals['totaliva'], 'native precise fixed tax canonical quota');
+        }
         $before = $this->snapshot($document);
         $cfg = new BeplyPdfConfig();
         $html = new BeplyHtmlRenderService();
@@ -268,7 +286,7 @@ final class BeplyPdfNativeTaxContract
     private function verifyTemplateMatrix(string $name, PedidoCliente $document, BeplyHtmlRenderService $html,
         BeplyPdfConfig $config, ?string $directory, array $subtotals): void
     {
-        if (in_array($name, ['fixed-tax', 'mixed-withholding-rounding', 'mixed-tax-types'], true)) {
+        if (in_array($name, ['fixed-tax', 'fixed-tax-precision', 'mixed-withholding-rounding', 'mixed-tax-types'], true)) {
             $designs = $name === 'mixed-tax-types' ? ['corporate'] : BeplyHtmlRenderService::HTML_DESIGNS;
             foreach ($designs as $design) {
                 $cfg = clone $config;
@@ -302,7 +320,7 @@ final class BeplyPdfNativeTaxContract
             return;
         }
         $coordinateDesigns = [];
-        if (in_array($name, ['mixed-groups', 'mixed-withholding-rounding', 'fixed-tax', 'zero-line', 'supplied-amount', 'mixed-tax-types'], true)) {
+        if (in_array($name, ['mixed-groups', 'mixed-withholding-rounding', 'fixed-tax', 'fixed-tax-precision', 'zero-line', 'supplied-amount', 'mixed-tax-types'], true)) {
             $coordinateDesigns = ['corporate', 'legacy_summary'];
         }
         if ($name === 'supplied-amount') {
@@ -354,6 +372,9 @@ final class BeplyPdfNativeTaxContract
         if ($name === 'fixed-tax') {
             $captions[] = '× ' . Tools::number(1.5);
         }
+        if ($name === 'fixed-tax-precision') {
+            $captions[] = '× ' . Tools::number(1.505, 3);
+        }
         if ($name === 'mixed-tax-types') {
             $text = Tools::trans('beplypdf-mixed-tax-rates');
             $this->presentationCheck(in_array($text, ['(mixto)', '(mixed)'], true), 'mixed tax label actually translated');
@@ -383,7 +404,8 @@ final class BeplyPdfNativeTaxContract
             foreach (['iva', 'recargo', 'irpf'] as $field) {
                 $rate = (float) $line->{$field};
                 $fixed = $field !== 'irpf' && $line->getTax()->tipo === Impuesto::TYPE_FIXED_VALUE;
-                $expected = $line->suplido ? '' : ($fixed ? '× ' . Tools::number($rate) : Tools::number($rate) . '%');
+                $shownRate = $name === 'fixed-tax-precision' && $field === 'iva' ? Tools::number($rate, 3) : Tools::number($rate);
+                $expected = $line->suplido ? '' : ($fixed ? '× ' . $shownRate : Tools::number($rate) . '%');
                 $shown = (new ReflectionMethod($html, 'cell'))->invoke($html, $field, 'percentage', $line, $index + 1, 'EUR');
                 $this->presentationCheck($shown === $expected, $name . ' HTML ' . $field . ' truthful line rate');
                 $shown = (new ReflectionMethod($lineRenderer, 'summaryCell'))->invoke($lineRenderer,
@@ -439,8 +461,11 @@ final class BeplyPdfNativeTaxContract
                     'mixed coordinate tax kinds do not claim one shared rate or multiplier');
             } elseif (Impuestos::get($group['codimpuesto'])->tipo === Impuesto::TYPE_FIXED_VALUE) {
                 $this->presentationCheck($rows[$index]['pct'] === '', $name . ' fixed multiplier is not a percentage column');
-                $this->presentationCheck(str_contains($rows[$index]['label'], '× ' . Tools::number($group['iva'])),
+                $fixedValue = $name === 'fixed-tax-precision' ? Tools::number($group['iva'], 3) : Tools::number($group['iva']);
+                $this->presentationCheck(str_contains($rows[$index]['label'], '× ' . $fixedValue),
                     $name . ' fixed VAT label explains the Core multiplier');
+                $this->presentationCheck(str_contains($coordinate[$index][0], '× ' . $fixedValue),
+                    $name . ' fixed coordinate label explains the Core multiplier');
                 $this->presentationCheck($coordinate[$index][2] === '', $name . ' fixed coordinate percentage column is empty');
             }
         }
