@@ -185,17 +185,38 @@ class LinesTableRenderer
             $align[$k] = ($cfg->lineColumnsAlign[$i] ?? $this->defaultAlign($k)) === 'right' ? 'right' : 'left';
             $type[$k] = $cfg->lineColumnsType[$i] ?? $this->defaultType($k);
             $weight[$k] = max(0, (int) ($cfg->lineColumnsWidth[$i] ?? 0));
-            $sumW += $weight[$k];
         }
+        $weight = array_intersect_key($weight, array_flip($columns));
+        $sumW = array_sum($weight);
         if ($sumW <= 0) {
             $weight = $this->summaryAutoWeights($columns, $type, $lines, $model);
             $sumW = array_sum($weight);
         }
+        $headers = [];
+        $widthHints = [];
+        foreach ($columns as $k) {
+            $headers[$k] = $this->summaryLabel($k);
+            $widthHints[$k] = $sumW > 0 ? 100.0 * $weight[$k] / $sumW : 0.0;
+        }
+        $tableData = [];
+        $lineNumber = 0;
+        foreach ($lines as $line) {
+            ++$lineNumber;
+            $row = [];
+            foreach ($columns as $k) {
+                $row[$k] = $this->summaryCell($k, $type[$k], $line, $lineNumber, $model);
+            }
+            $tableData[] = $row;
+        }
+        // Share the existing content-aware allocator: configured widths are hints,
+        // never permission for a monetary value or fixed multiplier to overlap.
+        $resolved = $this->buildColsOptions($pdf, $columns, $headers, $tableData,
+            $align, $type, $widthHints, $tableW, $fs, $pad);
         $colX = [];
         $colW = [];
         $x = $contentX;
         foreach ($columns as $k) {
-            $w = $sumW > 0 ? $tableW * ($weight[$k] / $sumW) : $tableW / count($columns);
+            $w = $resolved[$k]['width'];
             $colX[$k] = $x;
             $colW[$k] = $w;
             $x += $w;
@@ -224,7 +245,7 @@ class LinesTableRenderer
             }
             $by = $y - ($rowH - $fs) / 2.0 - $fs * 0.78;
             foreach ($columns as $k) {
-                BeplyPdfDraw::text($pdf, $colX[$k] + $pad, $by, $fs, $this->summaryCell($k, $type[$k], $line, $num, $model), $body, $align[$k], $colW[$k] - $pad * 2);
+                BeplyPdfDraw::text($pdf, $colX[$k] + $pad, $by, $fs, $tableData[$num - 1][$k], $body, $align[$k], $colW[$k] - $pad * 2);
             }
             $rowBottom = $y - $rowH;
             BeplyPdfDraw::line($pdf, $contentX, $rowBottom, $right, $rowBottom, $linec, 0.6);

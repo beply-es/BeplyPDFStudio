@@ -477,6 +477,30 @@ final class BeplyPdfNativeTaxContract
             $this->presentationCheck(count($withholding) === 1 && $withholding[0][1] === null,
                 'mixed coordinate IRPF has no fictitious shared base');
         }
+        if ($name === 'fixed-tax-precision') {
+            $originalPrecision = ini_get('serialize_precision');
+            try {
+                foreach (['-1', '17', '3'] as $configured) {
+                    $this->check(ini_set('serialize_precision', $configured) !== false, 'native serialization setting is configurable');
+                    $line = $document->getLines()[0];
+                    $expected = '× ' . Tools::number(1.505, 3);
+                    $shown = (new ReflectionMethod($html, 'cell'))->invoke($html, 'iva', 'percentage', $line, 1, 'EUR');
+                    $this->presentationCheck($shown === $expected, 'fixed multiplier ignores serialize_precision=' . $configured);
+                    $this->presentationCheck(ini_get('serialize_precision') === $configured, 'fixed multiplier restores caller serialization setting');
+                }
+                ini_set('serialize_precision', '17');
+                $rejected = false;
+                try {
+                    (new ReflectionMethod(BeplyPdfTaxSubtotals::class, 'fixedRateText'))->invoke(null, INF);
+                } catch (BeplyPdfInconsistentDocumentException $error) {
+                    $rejected = true;
+                }
+                $this->presentationCheck($rejected, 'non-finite multiplier fails with the fiscal exception');
+                $this->presentationCheck(ini_get('serialize_precision') === '17', 'rejected multiplier restores caller serialization setting');
+            } finally {
+                ini_set('serialize_precision', $originalPrecision);
+            }
+        }
     }
 
     private function snapshot(PedidoCliente $document): string

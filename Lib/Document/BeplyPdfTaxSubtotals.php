@@ -98,7 +98,20 @@ final class BeplyPdfTaxSubtotals
     {
         // A multiplier is not a currency amount. Core retains tax precision;
         // rounding 1.505 to 1.51 would contradict its quota on the same page.
-        $literal = json_encode($value, JSON_PRESERVE_ZERO_FRACTION);
+        $serialization = ini_get('serialize_precision');
+        if ($serialization === false || ($serialization !== '-1'
+            && (!function_exists('ini_set') || ini_set('serialize_precision', '-1') === false))) {
+            throw new BeplyPdfInconsistentDocumentException(Tools::trans('beplypdf-tax-subtotals-unavailable'));
+        }
+        try {
+            // Encode this scalar synchronously and restore the caller's setting,
+            // including when a non-finite value is rejected below.
+            $literal = json_encode($value, JSON_PRESERVE_ZERO_FRACTION);
+        } finally {
+            if ($serialization !== '-1' && ini_set('serialize_precision', $serialization) === false) {
+                throw new BeplyPdfInconsistentDocumentException(Tools::trans('beplypdf-tax-subtotals-unavailable'));
+            }
+        }
         if (!is_string($literal)) {
             throw new BeplyPdfInconsistentDocumentException(Tools::trans('beplypdf-tax-subtotals-unavailable'));
         }
