@@ -6,6 +6,7 @@ namespace FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document;
 
 use FacturaScripts\Core\Lib\Calculator;
 use FacturaScripts\Core\Model\Base\BusinessDocument;
+use FacturaScripts\Core\Model\Base\BusinessDocumentLine;
 use FacturaScripts\Core\DataSrc\Impuestos;
 use FacturaScripts\Core\Model\Impuesto;
 use FacturaScripts\Core\Tools;
@@ -32,12 +33,87 @@ final class BeplyPdfTaxSubtotals
         }
     }
 
-    public static function rateText(array $group, string $field, string $currency): string
+    public static function rateKind(array $group, $model = null): string
+    {
+        try {
+            $kinds = [];
+            if ($model instanceof BusinessDocument) {
+                foreach ($model->getLines() as $line) {
+                    if (!$line->suplido && (float) $line->pvptotal != 0.0
+                        && (float) $line->iva === (float) $group['iva']
+                        && (float) $line->recargo === (float) $group['recargo']) {
+                        $kinds[self::isFixedLine($line) ? 'fixed' : 'percentage'] = true;
+                    }
+                }
+            }
+            if (count($kinds) > 1) {
+                // Core groups by IVA/RE values, including when their tax kinds differ.
+                // Keep its amount; do not claim one rate for this combined group.
+                return 'mixed';
+            }
+            if ($kinds !== []) {
+                return array_key_first($kinds);
+            }
+            return Impuestos::get($group['codimpuesto'])->tipo === Impuesto::TYPE_FIXED_VALUE
+                ? 'fixed' : 'percentage';
+        } catch (\Throwable $error) {
+            throw new BeplyPdfInconsistentDocumentException(Tools::trans('beplypdf-tax-subtotals-unavailable'), 0, $error);
+        }
+    }
+
+    public static function isFixedLine($line): bool
+    {
+        if (!$line instanceof BusinessDocumentLine) {
+            return false;
+        }
+        try {
+            return $line->getTax()->tipo === Impuesto::TYPE_FIXED_VALUE;
+        } catch (\Throwable $error) {
+            throw new BeplyPdfInconsistentDocumentException(Tools::trans('beplypdf-tax-subtotals-unavailable'), 0, $error);
+        }
+    }
+
+    public static function rateText(array $group, string $field, string $currency, $model = null): string
     {
         $rate = (float) $group[$field];
-        $tax = Impuestos::get($group['codimpuesto']);
-        return $tax->tipo === Impuesto::TYPE_FIXED_VALUE
-            ? Tools::money($rate, $currency)
-            : Tools::number($rate) . '%';
+        $kind = self::rateKind($group, $model);
+        if ($kind === 'mixed') {
+            return Tools::trans('beplypdf-mixed-tax-rates');
+        }
+        // Core2025.71 applies TYPE_FIXED_VALUE as base × value, not value euros.
+        return $kind === 'fixed' ? '× ' . Tools::number($rate) : Tools::number($rate) . '%';
+    }
+
+    public static function lineRateText($line, string $field): string
+    {
+        if (!empty($line->suplido)) {
+            return '';
+        }
+        $value = isset($line->{$field}) && is_numeric($line->{$field}) ? (float) $line->{$field} : 0.0;
+        return $field !== 'irpf' && self::isFixedLine($line)
+            ? '× ' . Tools::number($value) : Tools::number($value) . '%';
+    }
+
+    /** Core supplies the unique rounded amount; only unambiguous base/rate metadata is projected. */
+    public static function withholdingInfo($model): array
+    {
+        try {
+            $base = 0.0;
+            $rates = [];
+            foreach ($model->getLines() as $line) {
+                if (!$line->suplido && (float) $line->irpf != 0.0) {
+                    $base += (float) $line->pvptotal * $model->getEUDiscount();
+                    $rates[(string) (float) $line->irpf] = (float) $line->irpf;
+                }
+            }
+            krsort($rates, SORT_NUMERIC);
+            return [
+                'base' => count($rates) === 1 ? Tools::round($base) : null,
+                'rate' => count($rates) === 1 ? reset($rates) : null,
+                'text' => implode(' / ', array_map(static fn(float $rate): string => Tools::number($rate) . '%', $rates)),
+            ];
+        } catch (\Throwable $error) {
+            throw new BeplyPdfInconsistentDocumentException(Tools::trans('beplypdf-tax-subtotals-unavailable'), 0, $error);
+        }
     }
 }

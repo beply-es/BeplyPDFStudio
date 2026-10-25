@@ -120,5 +120,6 @@
     "beplypdf-draft-title-AlbaranCliente": "Delivery note",
     "beplypdf-draft-title-AlbaranProveedor": "Delivery note",
     "beplypdf-certification-settlement": "Show certifications and guarantee retention",
-    "beplypdf-tax-subtotals-unavailable": "The document tax breakdown could not be verified."
+    "beplypdf-tax-subtotals-unavailable": "The document tax breakdown could not be verified.",
+    "beplypdf-mixed-tax-rates": "(mixed)"
 }

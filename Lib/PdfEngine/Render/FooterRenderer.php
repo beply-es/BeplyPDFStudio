@@ -20,6 +20,7 @@
 namespace FacturaScripts\Plugins\BeplyPDFStudio\Lib\PdfEngine\Render;
 
 use FacturaScripts\Core\Tools;
+use FacturaScripts\Core\Model\Base\BusinessDocument;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\BeplyPdfConfig;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\BeplyPdfPaymentDateResolver;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfRectificationData;
@@ -215,7 +216,7 @@ class FooterRenderer
                 break;
             case 'legacy_boxes':
             case 'legacy_banner':
-                $this->totalsLegacyGrid($pdf, $cfg, $contentX, $right, $coddivisa, $neto, $totaliva, $totalrecargo, $totalirpf, $total);
+                $this->totalsLegacyGrid($pdf, $cfg, $contentX, $right, $coddivisa, $neto, $totaliva, $totalrecargo, $totalirpf, $totalsuplidos, $total);
                 break;
             case 'corporate':
                 $this->totalsCorporate($pdf, $cfg, $model, $contentX, $right, $coddivisa, $total);
@@ -285,7 +286,7 @@ class FooterRenderer
      * Total), con cabecera negra y la celda del TOTAL destacada en negativo. Solo se muestran
      * las celdas que aportan importe, igual que en los documentos fiscales observables.
      */
-    private function totalsLegacyGrid($pdf, BeplyPdfConfig $cfg, float $contentX, float $right, string $coddivisa, float $neto, float $totaliva, float $totalrecargo, float $totalirpf, float $total): void
+    private function totalsLegacyGrid($pdf, BeplyPdfConfig $cfg, float $contentX, float $right, string $coddivisa, float $neto, float $totaliva, float $totalrecargo, float $totalirpf, float $totalsuplidos, float $total): void
     {
         $contentW = $right - $contentX;
         $size = (float) $cfg->fontSize;
@@ -304,6 +305,9 @@ class FooterRenderer
         }
         if ($totalirpf != 0.0) {
             $cells[] = [Tools::trans('irpf'), Tools::money(0 - $totalirpf, $coddivisa)];
+        }
+        if ($totalsuplidos != 0.0) {
+            $cells[] = [Tools::trans('supplied-amount'), Tools::money($totalsuplidos, $coddivisa)];
         }
         $cells[] = [Tools::trans('total'), Tools::money($total, $coddivisa)];
 
@@ -387,18 +391,21 @@ class FooterRenderer
         $subtotals = BeplyPdfTaxSubtotals::forDocument($model);
         if ($subtotals !== null) {
             $rows = [];
+            if ($subtotals['iva'] !== []) {
+                $rows[] = [Tools::trans('subtotal'), Tools::money($subtotals['netosindto'], $coddivisa), false];
+                $rows[] = [Tools::trans('net'), Tools::money($subtotals['neto'], $coddivisa), false];
+            }
             foreach ($subtotals['iva'] as $group) {
-                $rows[] = [Tools::trans('subtotal'), Tools::money($group['netosindto'], $coddivisa), false];
-                $rows[] = [Tools::trans('net'), Tools::money($group['neto'], $coddivisa), false];
-                $rows[] = [Tools::trans('taxes') . ' ' . BeplyPdfTaxSubtotals::rateText($group, 'iva', $coddivisa),
+                $rows[] = [Tools::trans('taxes') . ' ' . BeplyPdfTaxSubtotals::rateText($group, 'iva', $coddivisa, $model),
                     Tools::money($group['totaliva'], $coddivisa), false];
                 if ((float) $group['recargo'] != 0.0) {
-                    $rows[] = [Tools::trans('re') . ' ' . BeplyPdfTaxSubtotals::rateText($group, 'recargo', $coddivisa),
+                    $rows[] = [Tools::trans('re') . ' ' . BeplyPdfTaxSubtotals::rateText($group, 'recargo', $coddivisa, $model),
                         Tools::money($group['totalrecargo'], $coddivisa), false];
                 }
             }
             if ((float) $subtotals['totalirpf'] != 0.0) {
-                $rows[] = [Tools::trans('irpf'), Tools::money(-$subtotals['totalirpf'], $coddivisa), false];
+                $info = BeplyPdfTaxSubtotals::withholdingInfo($model);
+                $rows[] = [trim(Tools::trans('irpf') . ' ' . $info['text']), Tools::money(-$subtotals['totalirpf'], $coddivisa), false];
             }
             if ((float) $subtotals['totalsuplidos'] != 0.0) {
                 $rows[] = [Tools::trans('supplied-amount'), Tools::money($subtotals['totalsuplidos'], $coddivisa), false];
@@ -572,7 +579,7 @@ class FooterRenderer
         $body = $cfg->colorText;
         $red = $cfg->colorPrimary;
         $rows = $this->taxBreakdown($model);
-        if (empty($rows)) {
+        if (empty($rows) && !($model instanceof BusinessDocument)) {
             $rows = [[Tools::trans('vat'), $neto, '', $totaliva]];
         }
 
@@ -586,12 +593,12 @@ class FooterRenderer
 
         $cx = $contentX;
         foreach ($cols as $c) {
-            BeplyPdfDraw::text($pdf, $cx, $blockTop - 10.0, $size, (string) $c, $ink, 'left', $colW - 6.0, true);
+            BeplyPdfDraw::text($pdf, $cx, $blockTop - 10.0, max(7.0, $size - 1.0), (string) $c, $ink, 'left', $colW - 6.0, true);
             $cx += $colW;
         }
         $ry = $blockTop - $headH - 8.0;
         foreach ($rows as $r) {
-            $vals = [(string) $r[0], Tools::money((float) $r[1], $coddivisa), (string) $r[2], Tools::money((float) $r[3], $coddivisa)];
+            $vals = [(string) $r[0], $r[1] === null ? '' : Tools::money((float) $r[1], $coddivisa), (string) $r[2], Tools::money((float) $r[3], $coddivisa)];
             $cx = $contentX;
             foreach ($vals as $v) {
                 BeplyPdfDraw::text($pdf, $cx, $ry, $size, $v, $body, 'left', $colW - 6.0);
@@ -624,7 +631,7 @@ class FooterRenderer
      * Desglose de impuestos por tipo de IVA a partir de las líneas del documento.
      * Devuelve filas [etiqueta, base, porcentaje, importe].
      *
-     * @return array<int,array{0:string,1:float,2:string,3:float}>
+     * @return array<int,array{0:string,1:float|null,2:string,3:float}>
      */
     private function taxBreakdown($model): array
     {
@@ -632,8 +639,23 @@ class FooterRenderer
         if ($subtotals !== null) {
             $rows = [];
             foreach ($subtotals['iva'] as $group) {
-                $rate = BeplyPdfTaxSubtotals::rateText($group, 'iva', (string) $model->coddivisa);
-                $rows[] = [Tools::trans('vat') . ' ' . $rate, (float) $group['neto'], $rate, (float) $group['totaliva']];
+                $rate = BeplyPdfTaxSubtotals::rateText($group, 'iva', (string) $model->coddivisa, $model);
+                $percentage = BeplyPdfTaxSubtotals::rateKind($group, $model) === 'percentage';
+                $rows[] = [Tools::trans('vat') . ($percentage ? '' : ' ' . $rate), (float) $group['neto'], $percentage ? $rate : '', (float) $group['totaliva']];
+            }
+            foreach ($subtotals['iva'] as $group) {
+                if ((float) $group['recargo'] != 0.0) {
+                    $rate = BeplyPdfTaxSubtotals::rateText($group, 'recargo', (string) $model->coddivisa, $model);
+                    $percentage = BeplyPdfTaxSubtotals::rateKind($group, $model) === 'percentage';
+                    $rows[] = [Tools::trans('re') . ($percentage ? '' : ' ' . $rate), (float) $group['neto'], $percentage ? $rate : '', (float) $group['totalrecargo']];
+                }
+            }
+            if ((float) $subtotals['totalirpf'] != 0.0) {
+                $info = BeplyPdfTaxSubtotals::withholdingInfo($model);
+                $rows[] = [Tools::trans('irpf'), $info['base'], $info['text'], -(float) $subtotals['totalirpf']];
+            }
+            if ((float) $subtotals['totalsuplidos'] != 0.0) {
+                $rows[] = [Tools::trans('supplied-amount'), null, '', (float) $subtotals['totalsuplidos']];
             }
             return $rows;
         }

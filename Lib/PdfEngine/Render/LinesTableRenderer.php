@@ -23,6 +23,7 @@ use FacturaScripts\Core\Tools;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\BeplyPdfConfig;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\BeplyPdfRichTextLite;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfLineAmounts;
+use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfTaxSubtotals;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\PdfEngine\BeplyPdfDraw;
 
 /**
@@ -595,6 +596,9 @@ class LinesTableRenderer
     /** Valor de celda SIN escapar (lo escapa BeplyPdfDraw::text al pintar). */
     private function summaryCell(string $key, string $type, $line, int $num, $model): string
     {
+        if ($type === 'percentage' && in_array($key, ['iva', 'recargo', 'irpf'], true)) {
+            return BeplyPdfTaxSubtotals::lineRateText($line, $key);
+        }
         switch ($key) {
             case 'numlinea':
                 return (string) $num;
@@ -606,10 +610,7 @@ class LinesTableRenderer
             case 'pvpunitarioiva':
                 return $this->formatPlain('money', BeplyPdfLineAmounts::unitPriceWithTaxes($line), $model);
             case 'totaliva':
-                $base = (float) $this->numProp($line, 'pvptotal');
-                $iva = (float) $this->numProp($line, 'iva');
-                $re = (float) $this->numProp($line, 'recargo');
-                return $this->formatPlain('money', $base * (1 + $iva / 100) + $base * ($re / 100), $model);
+                return $this->formatPlain('money', BeplyPdfLineAmounts::totalWithTaxes($line), $model);
             default:
                 return $this->formatPlain($type, $this->numProp($line, $key), $model);
         }
@@ -904,6 +905,9 @@ class LinesTableRenderer
      */
     private function cellValue(string $key, string $type, $line, int $numlinea, $model): string
     {
+        if ($type === 'percentage' && in_array($key, ['iva', 'recargo', 'irpf'], true)) {
+            return BeplyPdfDraw::esc(BeplyPdfTaxSubtotals::lineRateText($line, $key));
+        }
         switch ($key) {
             case 'numlinea':
                 return (string)$numlinea;
@@ -920,12 +924,7 @@ class LinesTableRenderer
                 return $this->format('money', BeplyPdfLineAmounts::unitPriceWithTaxes($line), $model);
 
             case 'totaliva':
-                // Total con impuestos de la línea: pvptotal * (1 + iva/100) + recargo.
-                $base = (float)$this->numProp($line, 'pvptotal');
-                $iva = (float)$this->numProp($line, 'iva');
-                $re = (float)$this->numProp($line, 'recargo');
-                $total = $base * (1 + $iva / 100) + $base * ($re / 100);
-                return $this->format('money', $total, $model);
+                return $this->format('money', BeplyPdfLineAmounts::totalWithTaxes($line), $model);
 
             case 'cantidad':
             case 'pvpunitario':

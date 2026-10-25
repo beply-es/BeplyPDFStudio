@@ -23,13 +23,13 @@ namespace FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document;
  * Importes derivados de una línea de documento que FacturaScripts no persiste.
  *
  * Sólo cambian la PRESENTACIÓN de la línea: la base imponible (`pvptotal`), las cuotas y el total
- * del documento siguen saliendo de la cabecera. Clase pura (sin FacturaScripts) para poder fijar el
- * redondeo en tests unitarios.
+ * del documento siguen saliendo de la cabecera. Los DTO conservan el cálculo porcentual puro;
+ * las líneas nativas consultan el tipo de impuesto de Core, sin modificarlo.
  */
 final class BeplyPdfLineAmounts
 {
     /**
-     * Precio unitario con impuestos de la línea: `pvpunitario` × (1 + IVA % + recargo %).
+     * Precio unitario con impuestos; el tipo fijo usa el factor de Core, sin dividir entre100.
      * Es el precio "de venta al público" que un comprador B2C espera ver en su línea
      * (7,43 € al 21 % → 8,9903 → «8,99 €»). El descuento de línea no se aplica: igual que
      * `pvpunitario`, es el precio ANTES del descuento; el neto con descuento es `pvptotal`.
@@ -37,10 +37,22 @@ final class BeplyPdfLineAmounts
     public static function unitPriceWithTaxes($line): float
     {
         $unit = self::number($line, 'pvpunitario');
-        $vat = self::number($line, 'iva');
-        $surcharge = self::number($line, 'recargo');
+        return $unit * self::taxFactor($line);
+    }
 
-        return $unit * (1.0 + $vat / 100.0 + $surcharge / 100.0);
+    public static function totalWithTaxes($line): float
+    {
+        return self::number($line, 'pvptotal') * self::taxFactor($line);
+    }
+
+    private static function taxFactor($line): float
+    {
+        // Core excludes supplied amounts even when legacy tax fields remain populated.
+        if (!empty($line->suplido)) {
+            return 1.0;
+        }
+        $divisor = BeplyPdfTaxSubtotals::isFixedLine($line) ? 1.0 : 100.0;
+        return 1.0 + self::number($line, 'iva') / $divisor + self::number($line, 'recargo') / $divisor;
     }
 
     private static function number($line, string $key): float

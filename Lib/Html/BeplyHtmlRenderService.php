@@ -1666,6 +1666,9 @@ class BeplyHtmlRenderService
 
     private function cell(string $key, string $type, $line, int $n, string $coddivisa): string
     {
+        if ($type === 'percentage' && in_array($key, ['iva', 'recargo', 'irpf'], true)) {
+            return BeplyPdfTaxSubtotals::lineRateText($line, $key);
+        }
         if ($key === 'numlinea') {
             return (string) $n;
         }
@@ -1681,11 +1684,7 @@ class BeplyHtmlRenderService
             return Tools::money(BeplyPdfLineAmounts::unitPriceWithTaxes($line), $coddivisa);
         }
         if ($key === 'totaliva') {
-            $net = isset($line->pvptotal) && is_numeric($line->pvptotal) ? (float) $line->pvptotal : 0.0;
-            $vat = isset($line->iva) && is_numeric($line->iva) ? (float) $line->iva : 0.0;
-            $surcharge = isset($line->recargo) && is_numeric($line->recargo) ? (float) $line->recargo : 0.0;
-
-            return Tools::money($net * (1.0 + $vat / 100.0 + $surcharge / 100.0), $coddivisa);
+            return Tools::money(BeplyPdfLineAmounts::totalWithTaxes($line), $coddivisa);
         }
         $v = isset($line->{$key}) && is_numeric($line->{$key}) ? (float) $line->{$key} : 0.0;
         switch ($type) {
@@ -1766,32 +1765,39 @@ class BeplyHtmlRenderService
     {
         $rows = [];
         foreach ($subtotals['iva'] as $group) {
-            $rows[] = $this->taxRow(Tools::lang()->trans('vat'), (float) $group['iva'],
+            $row = $this->taxRow(Tools::lang()->trans('vat'), (float) $group['iva'],
                 (float) $group['neto'], (float) $group['totaliva'], $currency,
-                BeplyPdfTaxSubtotals::rateText($group, 'iva', $currency));
+                BeplyPdfTaxSubtotals::rateText($group, 'iva', $currency, $model));
+            if (BeplyPdfTaxSubtotals::rateKind($group, $model) !== 'percentage') {
+                $row['pct'] = '';
+                $row['raw_pct'] = null;
+            }
+            $rows[] = $row;
         }
         foreach ($subtotals['iva'] as $group) {
             if ((float) $group['recargo'] != 0.0) {
-                $rows[] = $this->taxRow(Tools::lang()->trans('re'), (float) $group['recargo'],
+                $row = $this->taxRow(Tools::lang()->trans('re'), (float) $group['recargo'],
                     (float) $group['neto'], (float) $group['totalrecargo'], $currency,
-                    BeplyPdfTaxSubtotals::rateText($group, 'recargo', $currency));
+                    BeplyPdfTaxSubtotals::rateText($group, 'recargo', $currency, $model));
+                if (BeplyPdfTaxSubtotals::rateKind($group, $model) !== 'percentage') {
+                    $row['pct'] = '';
+                    $row['raw_pct'] = null;
+                }
+                $rows[] = $row;
             }
         }
         if ((float) $subtotals['totalirpf'] != 0.0) {
-            $base = 0.0;
-            $rates = [];
-            foreach ($model->getLines() as $line) {
-                if (!$line->suplido && (float) $line->irpf != 0.0) {
-                    $base += (float) $line->pvptotal * $model->getEUDiscount();
-                    $rates[(string) $line->irpf] = (float) $line->irpf;
-                }
-            }
             // Core exposes one rounded withholding total. Do not independently round
             // partial rates into amounts whose sum could differ by a cent.
-            krsort($rates, SORT_NUMERIC);
-            $text = implode(' / ', array_map(static fn(float $rate): string => Tools::number($rate) . '%', $rates));
-            $rows[] = $this->taxRow(Tools::lang()->trans('irpf'), count($rates) === 1 ? reset($rates) : 0.0,
-                Tools::round($base), -(float) $subtotals['totalirpf'], $currency, $text);
+            $info = BeplyPdfTaxSubtotals::withholdingInfo($model);
+            $row = $this->taxRow(Tools::lang()->trans('irpf'), $info['rate'] ?? 0.0,
+                $info['base'] ?? 0.0, -(float) $subtotals['totalirpf'], $currency, $info['text']);
+            if ($info['base'] === null) {
+                $row['base'] = '';
+                $row['raw_base'] = null;
+                $row['raw_pct'] = null;
+            }
+            $rows[] = $row;
         }
         if ((float) $subtotals['totalsuplidos'] != 0.0) {
             // A supplied amount is part of the payable total, never a taxable
