@@ -6,7 +6,7 @@ namespace FacturaScripts\Core {
     class Response { public const HTTP_FORBIDDEN = 403; }
 }
 namespace FacturaScripts\Core\Lib\AjaxForms {
-    class SalesController {
+    trait DocumentControllerProbe {
         public $permissions;
         public $status = 200;
         public $template = '';
@@ -15,7 +15,8 @@ namespace FacturaScripts\Core\Lib\AjaxForms {
         public function setHttpCode($code) { $this->status = $code; return $this; }
         public function setTemplate($template) { $this->template = $template; }
     }
-    class PurchasesController extends SalesController {}
+    class SalesController { use DocumentControllerProbe; }
+    class PurchasesController { use DocumentControllerProbe; }
 }
 namespace {
     require __DIR__ . '/../Extension/Controller/EditController.php';

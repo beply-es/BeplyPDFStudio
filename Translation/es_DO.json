@@ -1,4 +1,6 @@
 {
+    "beplypdf-export-denied": "No tienes permiso para exportar este documento.",
+    "beplypdf-return-document": "Volver a la ficha",
     "beplypdf-studio": "Diseñador de plantillas",
     "beplypdf-gallery": "Plantillas",
     "beplypdf-templates": "Plantillas",

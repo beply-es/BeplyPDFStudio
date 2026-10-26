@@ -1,4 +1,6 @@
 {
+    "beplypdf-export-denied": "Bu belgeyi dışa aktarma izniniz yok.",
+    "beplypdf-return-document": "Belgeye dön",
     "apply-customer-language": "Müşteri dilini uygula",
     "beplypdf-print-in-document": "Belgede yazdır",
     "beplypdf-grand-total": "Genel toplam",
