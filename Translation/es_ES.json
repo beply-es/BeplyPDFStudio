@@ -119,5 +119,7 @@
     "beplypdf-draft-title-PedidoProveedor": "Pedido",
     "beplypdf-draft-title-AlbaranCliente": "Albarán",
     "beplypdf-draft-title-AlbaranProveedor": "Albarán",
-    "beplypdf-certification-settlement": "Mostrar certificaciones y garantías"
+    "beplypdf-certification-settlement": "Mostrar certificaciones y garantías",
+    "beplypdf-tax-subtotals-unavailable": "No se ha podido verificar el desglose de impuestos del documento.",
+    "beplypdf-mixed-tax-rates": "(mixto)"
 }
