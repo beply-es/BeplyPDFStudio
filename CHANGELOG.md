@@ -1,5 +1,10 @@
 # Changelog
 
+## v5.2 - 2026-10-26
+
+- Oculta la impresión de documentos de compra y venta cuando el usuario no
+  puede exportarlos. La URL directa muestra una denegación con vuelta a la ficha.
+
 ## v5.1 - 2026-10-26
 
 - Hojas de cálculo del chat (`beply.spreadsheet/v1`, BeplyChatAI capacidad

@@ -45,6 +45,9 @@ jobs:
       - name: Run unit tests
         run: php Tests/run-unit.php
 
+      - name: Check document export permission extension
+        run: php Tests/run-export-permission-unit.php
+
       - name: Preserve failed HTTP transfer diagnostics without credentials
         run: php Tests/run-http-transport-diagnostics.php
 

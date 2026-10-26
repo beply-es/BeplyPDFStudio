@@ -1,4 +1,6 @@
 {
+    "beplypdf-export-denied": "You do not have permission to export this document.",
+    "beplypdf-return-document": "Back to the document",
     "beplypdf-studio": "Template designer",
     "beplypdf-gallery": "Templates",
     "beplypdf-templates": "Templates",

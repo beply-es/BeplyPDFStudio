@@ -1,0 +1,16 @@
+{% extends 'Error/AccessDenied.html.twig' %}
+
+{% block body %}
+    <div class="container mt-4">
+        <div class="card shadow">
+            <div class="card-body">
+                <h1 class="h2"><i class="fa-solid fa-lock" aria-hidden="true"></i> {{ trans('access-denied') }}</h1>
+                <hr>
+                <p>{{ trans('beplypdf-export-denied') }}</p>
+                <a class="btn btn-outline-secondary" href="{{ fsc.url() }}?code={{ fsc.request.inputOrQuery('code', '')|url_encode }}">
+                    <i class="fa-solid fa-arrow-left" aria-hidden="true"></i> {{ trans('beplypdf-return-document') }}
+                </a>
+            </div>
+        </div>
+    </div>
+{% endblock %}
