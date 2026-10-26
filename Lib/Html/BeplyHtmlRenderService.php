@@ -23,11 +23,13 @@ use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfDocumentExtension
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfDocumentSlot;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfBuyerFiscalIdentity;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfFiscalQrRegistry;
+use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfInconsistentDocumentException;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfLineAmounts;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfLineColumn;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfLineTableLayout;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfParentDocumentLines;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfRectificationData;
+use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfTaxSubtotals;
 use Twig\Environment;
 use Twig\Loader\FilesystemLoader;
 use Twig\TwigFilter;
@@ -116,6 +118,10 @@ class BeplyHtmlRenderService
                 $pdf = $this->encrypt($pdf, trim((string) $cfg->pdfPassword));
             }
             return $pdf;
+        } catch (BeplyPdfInconsistentDocumentException $e) {
+            // A fiscal failure must reach every caller, including the exporter
+            // after its initial validation; it must never enable a fallback PDF.
+            throw $e;
         } catch (\Throwable $e) {
             Tools::log()->warning('beplypdf-html-render-error: ' . $e->getMessage());
             return '';
@@ -656,7 +662,10 @@ class BeplyHtmlRenderService
         }
         $font = $this->fontFaces($cfg->fontFamily);
 
-        $color1 = $this->hex($cfg->colorPrimary, '#555555');
+        $nativeColor = $isDoc && $cfg->diseno === 'legacy_standard' && $format !== null
+            ? ($format->color1 ?? null)
+            : null;
+        $color1 = $this->hex($nativeColor, $this->hex($cfg->colorPrimary, '#555555'));
         $textColor = $this->hex($cfg->colorText, '#222222');
 
         // Escala de densidad visual por tamaño de papel: compacta algunos espacios y assets,
@@ -713,6 +722,7 @@ class BeplyHtmlRenderService
             'page_mb' => max(0, (int) $cfg->marginBottom),
             'page_ml' => max(0, (int) $cfg->marginLeft),
             'hide_payment_methods' => (bool) $cfg->hidePaymentMethods,
+            'hide_totals' => $isDoc && $format !== null && (bool) ($format->hidetotals ?? false),
             'show_without_vat' => (bool) $cfg->showWithoutVat,
             'draft_warning' => $this->draftWarning($cfg, $model, $isDoc, $format),
             // is_document = false para listados/fichas del core: la plantilla oculta cliente/impuestos/totales.
@@ -1660,6 +1670,9 @@ class BeplyHtmlRenderService
 
     private function cell(string $key, string $type, $line, int $n, string $coddivisa): string
     {
+        if ($type === 'percentage' && in_array($key, ['iva', 'recargo', 'irpf'], true)) {
+            return BeplyPdfTaxSubtotals::lineRateText($line, $key);
+        }
         if ($key === 'numlinea') {
             return (string) $n;
         }
@@ -1675,11 +1688,7 @@ class BeplyHtmlRenderService
             return Tools::money(BeplyPdfLineAmounts::unitPriceWithTaxes($line), $coddivisa);
         }
         if ($key === 'totaliva') {
-            $net = isset($line->pvptotal) && is_numeric($line->pvptotal) ? (float) $line->pvptotal : 0.0;
-            $vat = isset($line->iva) && is_numeric($line->iva) ? (float) $line->iva : 0.0;
-            $surcharge = isset($line->recargo) && is_numeric($line->recargo) ? (float) $line->recargo : 0.0;
-
-            return Tools::money($net * (1.0 + $vat / 100.0 + $surcharge / 100.0), $coddivisa);
+            return Tools::money(BeplyPdfLineAmounts::totalWithTaxes($line), $coddivisa);
         }
         $v = isset($line->{$key}) && is_numeric($line->{$key}) ? (float) $line->{$key} : 0.0;
         switch ($type) {
@@ -1698,6 +1707,10 @@ class BeplyHtmlRenderService
     {
         if ($cfg->showWithoutVat) {
             return [];
+        }
+        $subtotals = BeplyPdfTaxSubtotals::forDocument($model);
+        if ($subtotals !== null) {
+            return $this->canonicalTaxData($model, $subtotals, $coddivisa);
         }
         $lines = (is_object($model) && method_exists($model, 'getLines')) ? $model->getLines() : [];
         $vatGroups = [];
@@ -1752,9 +1765,64 @@ class BeplyHtmlRenderService
         return $out;
     }
 
-    private function taxRow(string $label, float $pct, float $base, float $amount, string $coddivisa): array
+    private function canonicalTaxData($model, array $subtotals, string $currency): array
     {
-        $pctText = Tools::number($pct) . '%';
+        $rows = [];
+        foreach ($subtotals['iva'] as $group) {
+            $row = $this->taxRow(Tools::lang()->trans('vat'), (float) $group['iva'],
+                (float) $group['neto'], (float) $group['totaliva'], $currency,
+                BeplyPdfTaxSubtotals::rateText($group, 'iva', $currency, $model));
+            if (BeplyPdfTaxSubtotals::rateKind($group, $model) !== 'percentage') {
+                $row['pct'] = '';
+                $row['raw_pct'] = null;
+            }
+            $rows[] = $row;
+        }
+        foreach ($subtotals['iva'] as $group) {
+            if ((float) $group['recargo'] != 0.0) {
+                $row = $this->taxRow(Tools::lang()->trans('re'), (float) $group['recargo'],
+                    (float) $group['neto'], (float) $group['totalrecargo'], $currency,
+                    BeplyPdfTaxSubtotals::rateText($group, 'recargo', $currency, $model));
+                if (BeplyPdfTaxSubtotals::rateKind($group, $model) !== 'percentage') {
+                    $row['pct'] = '';
+                    $row['raw_pct'] = null;
+                }
+                $rows[] = $row;
+            }
+        }
+        if ((float) $subtotals['totalirpf'] != 0.0) {
+            // Core exposes one rounded withholding total. Do not independently round
+            // partial rates into amounts whose sum could differ by a cent.
+            $info = BeplyPdfTaxSubtotals::withholdingInfo($model);
+            $row = $this->taxRow(Tools::lang()->trans('irpf'), $info['rate'] ?? 0.0,
+                $info['base'] ?? 0.0, -(float) $subtotals['totalirpf'], $currency, $info['text']);
+            if ($info['base'] === null) {
+                $row['base'] = '';
+                $row['raw_base'] = null;
+                $row['raw_pct'] = null;
+            }
+            $rows[] = $row;
+        }
+        if ((float) $subtotals['totalsuplidos'] != 0.0) {
+            // A supplied amount is part of the payable total, never a taxable
+            // base or rate. All document templates already display these rows.
+            $rows[] = [
+                'label' => Tools::lang()->trans('supplied-amount'),
+                'base' => '',
+                'pct' => '',
+                'cuota' => Tools::money($subtotals['totalsuplidos'], $currency),
+                'raw_base' => 0.0,
+                'raw_pct' => 0.0,
+                'raw_amount' => (float) $subtotals['totalsuplidos'],
+                'kind' => 'supplied_amount',
+            ];
+        }
+        return $rows;
+    }
+
+    private function taxRow(string $label, float $pct, float $base, float $amount, string $coddivisa, ?string $pctText = null): array
+    {
+        $pctText = $pctText ?? Tools::number($pct) . '%';
         return [
             'label' => trim($label . ' ' . $pctText),
             'base' => Tools::money($base, $coddivisa),

@@ -49,4 +49,11 @@ final class BeplyPdfLineAmountsTest extends TestCase
         $this->assertSame(0.0, BeplyPdfLineAmounts::unitPriceWithTaxes((object) ['pvpunitario' => 'abc', 'iva' => 21]));
         $this->assertEqualsWithDelta(7.43, BeplyPdfLineAmounts::unitPriceWithTaxes((object) ['pvpunitario' => '7.43', 'iva' => null]), 0.00001);
     }
+
+    public function testSuppliedAmountsDoNotAcquireLegacyTaxes(): void
+    {
+        $line = (object) ['pvpunitario' => 2.5, 'pvptotal' => 5, 'iva' => 21, 'recargo' => 5.2, 'irpf' => 15, 'suplido' => true];
+        $this->assertSame(2.5, BeplyPdfLineAmounts::unitPriceWithTaxes($line));
+        $this->assertSame(5.0, BeplyPdfLineAmounts::totalWithTaxes($line));
+    }
 }

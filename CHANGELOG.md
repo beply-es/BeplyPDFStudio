@@ -1,5 +1,24 @@
 # Changelog
 
+## v5.0 - 2026-10-26
+
+- Los PDF muestran los impuestos y el total calculados por FacturaScripts,
+  incluidos impuestos fijos, recargos, suplidos y retenciones de varios tipos.
+  Los errores fiscales impiden generar o reutilizar un PDF incoherente.
+- La impresión manual de documentos de venta y compra respeta el permiso de
+  exportación. Las fichas genéricas resuelven el exportador PDF nativo.
+- El diseño Resumen separa los importes de los tipos de impuesto. Se conservan
+  los totales ocultos y los colores de los formatos Clásico de la versión 4.9.
+
+## v4.9 - 2026-10-21
+
+- Clásico respeta la opción nativa de ocultar totales del formato de impresión.
+  Los presupuestos configurados sin importes conservan sus líneas y texto final
+  sin mostrar el bloque de impuestos ni el total. Los formatos ordinarios siguen
+  mostrando sus totales y la exportación no modifica los documentos.
+- Los formatos Clásico migrados conservan también su color explícito de
+  PlantillasPDF; cuando no hay uno, heredan la paleta configurada en PDF Studio.
+
 ## v4.8 - 2026-10-19
 
 - Los documentos cortos (presupuestos, facturas, albaranes y pedidos) se imprimen
