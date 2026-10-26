@@ -48,6 +48,9 @@ jobs:
       - name: Preserve failed HTTP transfer diagnostics without credentials
         run: php Tests/run-http-transport-diagnostics.php
 
+      - name: Reject native HTTP entrypoints outside the synthetic root
+        run: php Tests/run-http-runtime-root.php
+
       - name: Run provenance downloader tests
         run: python3 -m unittest scripts.ci.test_download_provenance_release_asset
 

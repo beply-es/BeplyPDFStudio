@@ -3,6 +3,7 @@
 declare(strict_types=1);
 if (getenv('BEPDF_SYNTHETIC_HTTP_EXPORT_TEST') !== '1') throw new RuntimeException('Explicit synthetic HTTP test required');
 if (!defined('FS_FOLDER')) define('FS_FOLDER', dirname(__DIR__, 3));
+assertHttpRuntimeRoot(FS_FOLDER);
 require FS_FOLDER . '/vendor/autoload.php';
 require FS_FOLDER . '/config.php';
 if (!getenv('BEPDF_HTTP_EXPECTED_DB') || FS_DB_NAME !== getenv('BEPDF_HTTP_EXPECTED_DB')) throw new RuntimeException('Exact synthetic database required');
@@ -22,6 +23,16 @@ use FacturaScripts\Dinamic\Model\Role;
 use FacturaScripts\Dinamic\Model\RoleAccess;
 use FacturaScripts\Dinamic\Model\RoleUser;
 use FacturaScripts\Dinamic\Model\User;
+function assertHttpRuntimeRoot(string $root): void
+{
+ $canonical=realpath($root);
+ if($canonical===false||!is_dir($canonical))throw new RuntimeException('Exact synthetic HTTP root required');
+ // Core index.php resolves config.php and FS_FOLDER from its own __DIR__.
+ foreach(['index.php','config.php']as$file){
+  $path=$root.'/'.$file;
+  if(!is_file($path)||is_link($path)||realpath($path)!==$canonical.'/'.$file)throw new RuntimeException('Synthetic HTTP entrypoint and config must belong to exact root');
+ }
+}
 function need(bool $ok, string $message): void { if (!$ok) throw new RuntimeException($message); }
 $owned=[];$documents=[];$server=null;$failures=[];
 $dir=sys_get_temp_dir().'/BeplyPdfHttpExport-'.getmypid();need(!file_exists($dir)&&mkdir($dir,0700),'own HTTP artifact directory');
