@@ -30,10 +30,21 @@ $proof['sourceHashes']=[];foreach(['Init.php','Extension/Controller/EditControll
 function check(bool $ok,string $name):void{global $proof,$failures;$proof['checks'][$name]=$ok;if(!$ok)$failures[]=$name;}
 function saveOwned($model,string $label):void{global $owned;need($model->save(),$label);$owned[]=$model;}
 function requestHttp(string $path,string $actor,?array $data=null):array{
- global $base,$nonce,$dir,$proof;
+ global $base,$nonce,$dir,$proof,$server;
  $ch=curl_init($base.$path);curl_setopt_array($ch,[CURLOPT_RETURNTRANSFER=>true,CURLOPT_HEADER=>true,CURLOPT_FOLLOWLOCATION=>false,CURLOPT_CONNECTTIMEOUT=>2,CURLOPT_TIMEOUT=>120,CURLOPT_COOKIEJAR=>$dir.'/'.$actor.'.cookies',CURLOPT_COOKIEFILE=>$dir.'/'.$actor.'.cookies']);
  if($data!==null)curl_setopt_array($ch,[CURLOPT_POST=>true,CURLOPT_POSTFIELDS=>http_build_query($data)]);
- $raw=curl_exec($ch);need(is_string($raw),'HTTP transport');$info=curl_getinfo($ch);$headers=substr($raw,0,$info['header_size']);$body=substr($raw,$info['header_size']);curl_close($ch);
+ $raw=curl_exec($ch);$info=curl_getinfo($ch);
+ if(!is_string($raw)){
+  $code=curl_errno($ch);$status=is_resource($server)?proc_get_status($server):null;
+  // Only fixed descriptions/numbers: curl_error(), URL and headers can contain credentials.
+  $proof['transportFailure']=['requestIndex'=>count($proof['requests']),'method'=>$data===null?'GET':'POST',
+   'curlCode'=>$code,'curlDescription'=>curl_strerror($code),'http'=>$info['http_code'],
+   'expectedBytes'=>$info['download_content_length'],'receivedBytes'=>$info['size_download'],
+   'headerBytes'=>$info['header_size'],'serverRunning'=>$status['running']??null,
+   'serverExitCode'=>$status['exitcode']??null,'exactInstance'=>false];
+  curl_close($ch);throw new RuntimeException('HTTP transport (curl '.$code.')');
+ }
+ $headers=substr($raw,0,$info['header_size']);$body=substr($raw,$info['header_size']);curl_close($ch);
  need(str_contains(strtolower($headers),strtolower('X-Beply-Contract-Run: '.$nonce)),'HTTP instance binding');
  $file='response-'.count($proof['requests']).'.body';need(file_put_contents($dir.'/'.$file,$body)===strlen($body),'own HTTP evidence');chmod($dir.'/'.$file,0600);
  $row=['path'=>$path,'actor'=>$actor,'method'=>$data===null?'GET':'POST','http'=>$info['http_code'],'contentType'=>$info['content_type'],'pdf'=>str_starts_with($body,'%PDF'),'bodyFile'=>$file,'bodySha256'=>hash('sha256',$body),'exactInstance'=>true];$proof['requests'][]=$row;return [$row,$body];

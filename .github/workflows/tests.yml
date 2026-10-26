@@ -36,6 +36,7 @@ jobs:
         uses: shivammathur/setup-php@accd6127cb78bee3e8082180cb391013d204ef9f # 2.37.0
         with:
           php-version: '8.4'
+          extensions: curl
           coverage: none
 
       - name: Run PHP 8.4 compatibility scan
@@ -43,6 +44,9 @@ jobs:
 
       - name: Run unit tests
         run: php Tests/run-unit.php
+
+      - name: Preserve failed HTTP transfer diagnostics without credentials
+        run: php Tests/run-http-transport-diagnostics.php
 
       - name: Run provenance downloader tests
         run: python3 -m unittest scripts.ci.test_download_provenance_release_asset
