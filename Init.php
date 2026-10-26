@@ -39,7 +39,6 @@ use FacturaScripts\Plugins\BeplyPDFStudio\Extension\Controller\EditSettings;
 use FacturaScripts\Plugins\BeplyPDFStudio\Extension\Model\AttachedFileRelation as AttachedFileRelationExtension;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\AjaxForms\BeplyRichDocumentFooterObservationsMod;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\AjaxForms\BeplyRichSalesLineDescriptionMod;
-use FacturaScripts\Plugins\BeplyPDFStudio\Lib\PdfEngine\BeplyPdfExport;
 
 /**
  * Clase de inicialización del plugin BeplyPDFStudio.
@@ -101,7 +100,7 @@ class Init extends InitClass
         PurchasesFooterHTML::addMod($footerObservationsMod);
 
         foreach (self::DOC_MODELS as $modelName) {
-            ExportManager::addOptionModel(BeplyPdfExport::class, 'PDF', $modelName, 10);
+            ExportManager::addOptionModel('PDFExport', 'PDF', $modelName, 10);
         }
 
         ExportManager::addTool(

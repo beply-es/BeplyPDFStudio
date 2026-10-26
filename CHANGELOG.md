@@ -5,6 +5,8 @@
 - Los PDF muestran los impuestos y el total calculados por FacturaScripts,
   incluidos impuestos fijos, recargos, suplidos y retenciones de varios tipos.
   Los errores fiscales impiden generar o reutilizar un PDF incoherente.
+- La impresión manual de documentos de venta y compra respeta el permiso de
+  exportación. Las fichas genéricas resuelven el exportador PDF nativo.
 - El diseño Resumen separa los importes de los tipos de impuesto. Se conservan
   los totales ocultos y los colores de los formatos Clásico de la versión 4.9.
 

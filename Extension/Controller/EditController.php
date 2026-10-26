@@ -12,9 +12,29 @@
 namespace FacturaScripts\Plugins\BeplyPDFStudio\Extension\Controller;
 
 use Closure;
+use FacturaScripts\Core\Lib\AjaxForms\PurchasesController;
+use FacturaScripts\Core\Lib\AjaxForms\SalesController;
+use FacturaScripts\Core\Tools;
 
 class EditController
 {
+    public function execPreviousAction(): Closure
+    {
+        return function ($action): bool {
+            if ($action !== 'export'
+                || (!$this instanceof SalesController && !$this instanceof PurchasesController)) {
+                return true;
+            }
+            if (isset($this->permissions) && $this->permissions->allowExport === true) {
+                return true;
+            }
+
+            $this->response->setHttpCode(403);
+            Tools::log()->warning('no-print-permission');
+            return false;
+        };
+    }
+
     private const DOCUMENT_MODELS = [
         'PresupuestoCliente',
         'PedidoCliente',
