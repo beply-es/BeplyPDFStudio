@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    Versiones anteriores de los documentos del chat («Versión 1, 2, 3…» del visor).
+    Cada reescritura completa (document_save con document_id) guarda aquí la
+    versión que sustituye; la vigente vive en beply_pdf_chat_documents.
+-->
+<table>
+    <column><name>id</name><type>serial</type><null>NO</null></column>
+    <column><name>document_id</name><type>integer</type><null>NO</null></column>
+    <column><name>version</name><type>integer</type><null>NO</null></column>
+    <column><name>title</name><type>character varying(120)</type><null>NO</null></column>
+    <column><name>spec</name><type>text</type><null>NO</null></column>
+    <column><name>creation_date</name><type>timestamp</type><null>NO</null></column>
+    <constraint><name>beply_pdf_chat_document_versions_pkey</name><type>PRIMARY KEY (id)</type></constraint>
+    <constraint><name>uniq_beply_pdf_chat_document_versions</name><type>UNIQUE (document_id, version)</type></constraint>
+    <constraint><name>ca_beply_pdf_chat_document_versions_doc</name><type>FOREIGN KEY (document_id) REFERENCES beply_pdf_chat_documents (id) ON DELETE CASCADE ON UPDATE CASCADE</type></constraint>
+</table>

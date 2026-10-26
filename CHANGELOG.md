@@ -1,5 +1,56 @@
 # Changelog
 
+## v5.1 - 2026-10-26
+
+- Hojas de cálculo del chat (`beply.spreadsheet/v1`, BeplyChatAI capacidad
+  `spreadsheet_canvas_v1`): el asistente vuelca datos ya consultados al ERP en
+  hojas con columnas tipadas (texto, número, entero, moneda, porcentaje, fecha) y
+  totales. Se guardan versionadas en `beply_pdf_chat_documents` (`kind`
+  `spreadsheet`, columna ampliada a 20 caracteres) con la regla de propietario.
+- Escritor XLSX propio (`SpreadsheetXlsxWriter`, OOXML con ZipArchive como el
+  DOCX): cabecera con el color primario del estilo de PDF Studio, fuente, cebra
+  suave, formatos españoles de moneda/fecha/porcentaje, fila de totales con
+  `SUBTOTAL` (respeta el autofiltro) y valor cacheado, cabecera congelada y
+  repetida al imprimir, logo y pie con la empresa. CSV para Excel en español
+  (`SpreadsheetCsvWriter`: UTF-8 con BOM, `;`, coma decimal, sin inyección de
+  fórmulas).
+- Tool `beplypdfstudio.spreadsheet_save` (dominio `office_canvas`): además de la
+  especificación guarda el XLSX (o CSV) como archivo adjunto en la misma petición,
+  que BeplyChatAI liga al usuario y archiva en «Documentos del chat»; por WhatsApp
+  sale como documento. `document_get`/`document_list` también las leen.
+- Presentaciones del chat (`beply.presentation/v1`, capacidad `presentation_canvas_v1`):
+  portada, sección, viñetas, tabla, gráfico (barras, columnas, líneas, tarta) y cifras
+  clave. PPTX propio (`PresentationPptxWriter`: tema con los colores y la fuente del
+  estilo, logo, tablas y gráficos nativos) y PDF 16:9 por WeasyPrint
+  (`PresentationHtmlRenderer`, gráficos SVG). Tool `beplypdfstudio.presentation_save`.
+- `PdfStudioChatDocument?id=N&format=json|xlsx|csv|pptx|pdf|logo`: datos del visor nativo
+  del chat (`beply.office-view/v1`: especificación + tema, sin rutas), descargas y
+  logo del estilo.
+
+## v4.8 - 2026-10-16
+
+- Documentos del chat (modo Documentos de BeplyChatAI e informes de auditoría):
+  PDF Studio guarda, valida y renderiza los documentos que redacta el asistente
+  (`beply.document/v1`: cartas, contratos, propuestas, memorias, actas…) con el
+  estilo configurado de la empresa o el global — papel, márgenes, logo, colores,
+  fuente, pie y numeración — mediante su motor HTML → WeasyPrint
+  (`Templates/html/chat-document.html.twig`). Firmas consecutivas en una fila y
+  cabecera de tabla repetida en cada página.
+- Tools `beplypdfstudio.document_catalog|list|get|save|append` en la pasarela
+  neutra del chat (`beply.tools/v1`, permiso `ChatAPI`, regla de propietario);
+  `document_append` construye documentos largos (hasta 10 páginas) por secciones.
+- `PdfStudioChatDocument`: el PDF en línea (vista previa del panel del chat) y
+  descargas PDF y DOCX. Tabla nueva `beply_pdf_chat_documents`.
+- Versiones de los documentos del chat: cada reescritura completa es la versión
+  siguiente y la anterior se conserva (tabla `beply_pdf_chat_document_versions`);
+  `PdfStudioChatDocument?…&version=N` sirve cualquiera de ellas.
+- Tope de extensión de 10 páginas (60 000 caracteres de texto) por documento.
+- Estilos por tipo de documento del chat (`beply_pdf_chat_styles`, tools
+  `document_style_list|document_style_save`): colores, fuente, tamaños y logo
+  sobre el estilo de la empresa, sin tocar facturas ni otros formatos.
+- Contrato completo: `docs/chat-documents.md`. BeplyChatAI sólo ofrece el modo
+  Documentos con este plugin habilitado.
+
 ## v5.0 - 2026-10-26
 
 - Los PDF muestran los impuestos y el total calculados por FacturaScripts,

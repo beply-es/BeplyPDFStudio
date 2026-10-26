@@ -1,0 +1,4 @@
+{% if company.name %}<div class="company-name">{{ company.name }}</div>{% endif %}
+{% if company.cifnif %}<div>{{ company.cifnif }}</div>{% endif %}
+{% for line in company.lines %}<div>{{ line }}</div>{% endfor %}
+{% if company.contact %}<div>{{ company.contact }}</div>{% endif %}

@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    Documentos del chat (modo Documentos, informes de auditoría y hojas de cálculo), renderizados por PDF Studio.
+    `spec` guarda la especificación beply.document/v1 ya validada por
+    Lib/ChatDocument/DocumentSpec. Sólo el propietario (nick) la ve.
+-->
+<table>
+    <column><name>id</name><type>serial</type><null>NO</null></column>
+    <column><name>nick</name><type>character varying(50)</type><null>NO</null></column>
+    <column><name>idempresa</name><type>integer</type></column>
+    <column><name>kind</name><type>character varying(20)</type><null>NO</null><default>'document'</default></column>
+    <column><name>title</name><type>character varying(120)</type><null>NO</null></column>
+    <column><name>status</name><type>character varying(10)</type><null>NO</null><default>'draft'</default></column>
+    <column><name>spec</name><type>text</type><null>NO</null></column>
+    <column><name>doc_type</name><type>character varying(40)</type></column>
+    <column><name>version</name><type>integer</type><null>NO</null><default>1</default></column>
+    <column><name>revision</name><type>integer</type><null>NO</null><default>1</default></column>
+    <column><name>conversation_id</name><type>character varying(64)</type></column>
+    <column><name>creation_date</name><type>timestamp</type><null>NO</null></column>
+    <column><name>last_update</name><type>timestamp</type></column>
+    <constraint><name>beply_pdf_chat_documents_pkey</name><type>PRIMARY KEY (id)</type></constraint>
+    <constraint><name>ca_beply_pdf_chat_documents_nick</name><type>FOREIGN KEY (nick) REFERENCES users (nick) ON DELETE CASCADE ON UPDATE CASCADE</type></constraint>
+</table>

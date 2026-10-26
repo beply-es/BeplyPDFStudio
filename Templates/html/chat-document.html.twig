@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="{{ html_lang|default('es') }}">
+<head>
+  <meta charset="utf-8"/>
+  <title>{{ title }}</title>
+  <style>
+  {{ font_faces|raw }}
+  @page {
+    size: {{ page_size }};
+    margin: {{ page_margin }};
+    {% if page_footer_content %}
+    @{{ page_footer_box }} {
+      content: {{ page_footer_content|raw }};
+      font-size: {{ page_footer_size }}px;
+      color: {{ muted_color }};
+    }
+    {% endif %}
+    {% if footer_text %}
+    @bottom-left {
+      content: string(docfooter);
+      font-size: {{ page_footer_size }}px;
+      color: {{ muted_color }};
+    }
+    {% endif %}
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    color: {{ text_color }};
+    font-family: "{{ font_family }}", Arial, sans-serif;
+    font-size: {{ font_size }}pt;
+    line-height: 1.5;
+  }
+  .doc-footer-text { string-set: docfooter content(); display: none; }
+
+  /* Membrete (primera página): logo y empresa según el estilo de PDF Studio */
+  .letterhead { width: 100%; border-collapse: collapse; margin-bottom: 6mm; }
+  .letterhead td { vertical-align: middle; padding: 0; }
+  .letterhead .logo { max-height: 56px; max-width: {{ logo_size }}px; }
+  .letterhead .company { text-align: right; font-size: {{ font_size - 1.5 }}pt; color: {{ muted_color }}; line-height: 1.35; }
+  .letterhead .company-name { color: {{ text_color }}; font-weight: 700; font-size: {{ font_size + 0.5 }}pt; }
+  .letterhead-rule { border: 0; border-top: 2px solid {{ color1 }}; margin: 0 0 8mm; }
+
+  /* Apertura: lugar y fecha, destinatario, referencia, asunto y título */
+  .bd-place-date { text-align: right; margin: 0 0 6mm; }
+  .bd-recipient { margin: 0 0 6mm; line-height: 1.35; }
+  .bd-meta-line { margin: 0 0 2mm; }
+  .bd-meta-label { color: {{ color1 }}; font-weight: 700; }
+  .bd-subject { margin-bottom: 6mm; }
+  .bd-title { color: {{ color1 }}; font-size: {{ title_font_size }}pt; font-weight: 800; margin: 2mm 0 1mm; line-height: 1.2; }
+  .bd-subtitle { color: {{ muted_color }}; margin: 0 0 6mm; }
+
+  /* Bloques */
+  .bd-heading { color: {{ color1 }}; page-break-after: avoid; break-after: avoid; line-height: 1.25; }
+  h2.bd-heading { font-size: {{ font_size + 4 }}pt; margin: 7mm 0 2.5mm; padding-bottom: 1.5mm; border-bottom: 1.5px solid {{ color1 }}; }
+  h3.bd-heading { font-size: {{ font_size + 2 }}pt; margin: 5mm 0 2mm; }
+  h4.bd-heading { font-size: {{ font_size + 1 }}pt; margin: 4mm 0 1.5mm; color: {{ text_color }}; }
+  .bd-paragraph { margin: 0 0 3mm; orphans: 3; widows: 3; }
+  .bd-align-center { text-align: center; }
+  .bd-align-right { text-align: right; }
+  .bd-align-justify { text-align: justify; }
+  .bd-list { margin: 0 0 3mm; padding-left: 6mm; }
+  .bd-list li { margin-bottom: 1.2mm; }
+  .bd-table { width: 100%; border-collapse: collapse; margin: 2mm 0 4mm; font-size: {{ font_size - 1 }}pt; }
+  .bd-table thead { display: table-header-group; }
+  .bd-table caption { caption-side: top; text-align: left; font-weight: 700; color: {{ text_color }}; margin-bottom: 1.5mm; }
+  .bd-table th { background: {{ color1 }}; color: {{ color2 }}; font-weight: 700; text-align: left; padding: 2mm 2.5mm; }
+  .bd-table td { padding: 1.8mm 2.5mm; border-bottom: 0.6px solid {{ border_color }}; vertical-align: top; }
+  .bd-table tbody tr:nth-child(even) td { background: {{ color3 }}; }
+  .bd-table tr { page-break-inside: avoid; break-inside: avoid; }
+  .bd-num { text-align: right; white-space: nowrap; }
+  .bd-quote { margin: 3mm 0; padding: 2mm 4mm; border-left: 3px solid {{ accent }}; color: {{ muted_color }}; font-style: italic; }
+  .bd-note { margin: 3mm 0; padding: 3mm 4mm; border-left: 3px solid {{ accent }}; background: {{ color3 }}; page-break-inside: avoid; }
+  .bd-note--warning { border-left-color: #b45309; }
+  .bd-note--success { border-left-color: #0e7c34; }
+  .bd-note__title { display: block; margin-bottom: 1mm; }
+  .bd-signature { margin-top: 10mm; page-break-inside: avoid; break-inside: avoid; }
+  .bd-signature__line { border-top: 0.8px solid {{ text_color }}; width: 60mm; margin: 16mm 0 1.5mm; }
+  .bd-signatures { width: 100%; border-collapse: collapse; margin-top: 4mm; page-break-inside: avoid; }
+  .bd-signatures td { vertical-align: top; padding-right: 8mm; }
+  .bd-signatures .bd-signature { margin-top: 6mm; }
+  .bd-spacer--sm { height: 3mm; }
+  .bd-spacer--md { height: 7mm; }
+  .bd-spacer--lg { height: 14mm; }
+  .bd-page-break { page-break-after: always; break-after: page; }
+  </style>
+</head>
+<body>
+  {% if footer_text %}<div class="doc-footer-text">{{ footer_text }}</div>{% endif %}
+  {% if logo or show_company %}
+  <table class="letterhead">
+    <tr>
+      {% if logo_position == 'right' %}
+        <td class="company" style="text-align:left;">{% if show_company %}{% include '_chat-document-company.html.twig' %}{% endif %}</td>
+        <td style="text-align:right;">{% if logo %}<img class="logo" src="{{ logo }}" alt=""/>{% endif %}</td>
+      {% elseif logo_position == 'center' %}
+        <td style="text-align:center;">{% if logo %}<img class="logo" src="{{ logo }}" alt=""/>{% endif %}{% if show_company %}<div class="company" style="text-align:center;">{% include '_chat-document-company.html.twig' %}</div>{% endif %}</td>
+      {% else %}
+        <td style="text-align:left;">{% if logo %}<img class="logo" src="{{ logo }}" alt=""/>{% endif %}</td>
+        <td class="company">{% if show_company %}{% include '_chat-document-company.html.twig' %}{% endif %}</td>
+      {% endif %}
+    </tr>
+  </table>
+  <hr class="letterhead-rule"/>
+  {% endif %}
+  {{ opening_html|raw }}
+  {{ body_html|raw }}
+</body>
+</html>
