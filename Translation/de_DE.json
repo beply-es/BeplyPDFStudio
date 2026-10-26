@@ -1,4 +1,6 @@
 {
+    "beplypdf-mixed-tax-rates": "(gemischt)",
+    "beplypdf-tax-subtotals-unavailable": "Die Steueraufstellung des Dokuments konnte nicht überprüft werden.",
     "beplypdf-export-denied": "Sie haben keine Berechtigung, dieses Dokument zu exportieren.",
     "beplypdf-return-document": "Zurück zum Dokument",
     "beplypdf-studio": "Template designer",

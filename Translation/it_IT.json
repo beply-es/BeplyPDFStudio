@@ -1,4 +1,6 @@
 {
+    "beplypdf-mixed-tax-rates": "(misto)",
+    "beplypdf-tax-subtotals-unavailable": "Non è stato possibile verificare il dettaglio delle imposte del documento.",
     "beplypdf-export-denied": "Non hai il permesso di esportare questo documento.",
     "beplypdf-return-document": "Torna alla scheda",
     "beplypdf-studio": "Template designer",
