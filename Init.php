@@ -23,6 +23,7 @@ use FacturaScripts\Core\Base\DataBase;
 use FacturaScripts\Core\Base\DataBase\DataBaseWhere;
 use FacturaScripts\Core\Cache;
 use FacturaScripts\Core\DbUpdater;
+use FacturaScripts\Core\Kernel;
 use FacturaScripts\Core\Lib\AjaxForms\PurchasesFooterHTML;
 use FacturaScripts\Core\Lib\AjaxForms\SalesFooterHTML;
 use FacturaScripts\Core\Lib\AjaxForms\SalesLineHTML;
@@ -38,7 +39,6 @@ use FacturaScripts\Plugins\BeplyPDFStudio\Extension\Controller\EditSettings;
 use FacturaScripts\Plugins\BeplyPDFStudio\Extension\Model\AttachedFileRelation as AttachedFileRelationExtension;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\AjaxForms\BeplyRichDocumentFooterObservationsMod;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\AjaxForms\BeplyRichSalesLineDescriptionMod;
-use FacturaScripts\Plugins\BeplyPDFStudio\Lib\PdfEngine\BeplyPdfExport;
 
 /**
  * Clase de inicialización del plugin BeplyPDFStudio.
@@ -68,6 +68,18 @@ class Init extends InitClass
         'FacturaProveedor' => ['nombre' => 'Factura proveedor', 'titulo' => 'FACTURA'],
     ];
 
+    /**
+     * Marca de siembra pendiente. update() la deja cuando el core todavía no ha creado sus
+     * tablas de negocio (alta de warm slots): sin formatos_documentos no se puede crear la
+     * tabla de estilos y FS solo ejecuta update() una vez por activación.
+     */
+    private const SEED_PENDING_MARKER = '.beplypdf-seed-pending';
+
+    /** Segundos entre reintentos de la siembra aplazada si un intento falla. */
+    private const SEED_RETRY_SECONDS = 60;
+
+    private const SEED_LOCK = 'beplypdf-default-style-seed';
+
     private const PDFSTUDIO_TABLES = [
         'beply_pdf_styles',
         'beply_pdf_columns',
@@ -88,7 +100,7 @@ class Init extends InitClass
         PurchasesFooterHTML::addMod($footerObservationsMod);
 
         foreach (self::DOC_MODELS as $modelName) {
-            ExportManager::addOptionModel(BeplyPdfExport::class, 'PDF', $modelName, 10);
+            ExportManager::addOptionModel('PDFExport', 'PDF', $modelName, 10);
         }
 
         ExportManager::addTool(
@@ -97,6 +109,8 @@ class Init extends InitClass
             'printing-formats',
             'fa-solid fa-print'
         );
+
+        $this->completeDeferredSeed();
     }
 
     public function update(): void
@@ -105,6 +119,8 @@ class Init extends InitClass
         $this->ensureStyleSchema();
         $this->ensureAttachedFileRelationSchema();
         if (!$this->isBaseSchemaReady()) {
+            // El core aún no tiene sus tablas: se completa en la primera carga en que existan.
+            $this->markSeedPending();
             return;
         }
 
@@ -113,11 +129,70 @@ class Init extends InitClass
         $this->seedDefaultPrintFormats();
         $this->migrateLineColumns();
         $this->refreshExternalPreviewCaches();
+        $this->clearSeedPending();
     }
 
     public function uninstall(): void
     {
         // No se eliminan datos de usuario al desinstalar.
+    }
+
+    /**
+     * Completa la siembra que update() no pudo hacer porque faltaban las tablas del core.
+     * Sin marca solo cuesta un is_file(); con marca espera a que exista formatos_documentos.
+     */
+    private function completeDeferredSeed(): void
+    {
+        $marker = self::seedPendingMarker();
+        if (!is_file($marker)) {
+            return;
+        }
+
+        $lastAttempt = (int) @filemtime($marker);
+        if ($lastAttempt > 0 && time() - $lastAttempt < self::SEED_RETRY_SECONDS && is_file($marker . '.attempted')) {
+            return;
+        }
+
+        if (!$this->isBaseSchemaReady() || !Kernel::lock(self::SEED_LOCK)) {
+            return;
+        }
+
+        try {
+            @touch($marker);
+            @touch($marker . '.attempted');
+            $this->update();
+        } catch (\Throwable $e) {
+            Tools::log()->warning('beplypdf-deferred-seed-error: ' . $e->getMessage());
+        } finally {
+            Kernel::unlock(self::SEED_LOCK);
+        }
+    }
+
+    private static function seedPendingMarker(): string
+    {
+        return FS_FOLDER . '/MyFiles/' . self::SEED_PENDING_MARKER;
+    }
+
+    private function markSeedPending(): void
+    {
+        $marker = self::seedPendingMarker();
+        if (is_file($marker)) {
+            return;
+        }
+        if (false === @file_put_contents($marker, date('c') . PHP_EOL)) {
+            Tools::log()->warning('beplypdf-seed-pending-marker-error');
+            return;
+        }
+        Tools::log()->notice('beplypdf-seed-deferred: core tables not ready');
+    }
+
+    private function clearSeedPending(): void
+    {
+        $marker = self::seedPendingMarker();
+        @unlink($marker . '.attempted');
+        if (is_file($marker)) {
+            @unlink($marker);
+        }
     }
 
     private function refreshExternalPreviewCaches(): void
@@ -241,7 +316,10 @@ class Init extends InitClass
         }
     }
 
-    /** Crea un estilo global por defecto (diseño Summary) si todavía no existe ninguno. */
+    /**
+     * Crea un estilo global por defecto (diseño Summary) si todavía no existe ninguno.
+     * Nunca toca un servicio que ya tenga estilos: cualquier fila es una elección del cliente.
+     */
     private function seedGlobalStyle(): void
     {
         $existing = new BeplyPdfStyle();

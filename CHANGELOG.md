@@ -1,6 +1,6 @@
 # Changelog
 
-## v4.9 - 2026-10-23
+## v5.1 - 2026-10-26
 
 - Hojas de cálculo del chat (`beply.spreadsheet/v1`, BeplyChatAI capacidad
   `spreadsheet_canvas_v1`): el asistente vuelca datos ya consultados al ERP en
@@ -50,6 +50,39 @@
   sobre el estilo de la empresa, sin tocar facturas ni otros formatos.
 - Contrato completo: `docs/chat-documents.md`. BeplyChatAI sólo ofrece el modo
   Documentos con este plugin habilitado.
+
+## v5.0 - 2026-10-26
+
+- Los PDF muestran los impuestos y el total calculados por FacturaScripts,
+  incluidos impuestos fijos, recargos, suplidos y retenciones de varios tipos.
+  Los errores fiscales impiden generar o reutilizar un PDF incoherente.
+- La impresión manual de documentos de venta y compra respeta el permiso de
+  exportación. Las fichas genéricas resuelven el exportador PDF nativo.
+- El diseño Resumen separa los importes de los tipos de impuesto. Se conservan
+  los totales ocultos y los colores de los formatos Clásico de la versión 4.9.
+
+## v4.9 - 2026-10-21
+
+- Clásico respeta la opción nativa de ocultar totales del formato de impresión.
+  Los presupuestos configurados sin importes conservan sus líneas y texto final
+  sin mostrar el bloque de impuestos ni el total. Los formatos ordinarios siguen
+  mostrando sus totales y la exportación no modifica los documentos.
+- Los formatos Clásico migrados conservan también su color explícito de
+  PlantillasPDF; cuando no hay uno, heredan la paleta configurada en PDF Studio.
+
+## v4.8 - 2026-10-19
+
+- Los documentos cortos (presupuestos, facturas, albaranes y pedidos) se imprimen
+  en una sola página en todos los diseños. Solo Clásico medía el PDF real; el resto
+  rellenaba un hueco estimado que, con fuentes propias, el bloque de vehículo de
+  Taller o la barra final de Moderno, empujaba los totales o el cierre a una
+  segunda página casi vacía. Ahora todos usan el anclaje medido y nunca añaden
+  páginas respecto al documento sin anclar. Los documentos largos paginan igual.
+- Moderno: la barra inferior acompaña a los totales.
+- Los servicios nuevos creados desde el warm pool quedan con la plantilla global
+  por defecto (Resumen): si el plugin se activa antes de que el core cree sus
+  tablas, la siembra se completa en la primera carga. Los servicios existentes sin
+  ninguna plantilla la reciben al actualizar. Nunca se cambia una plantilla elegida.
 
 ## v4.7 - 2026-10-07
 

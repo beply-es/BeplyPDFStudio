@@ -35,6 +35,7 @@ use FacturaScripts\Plugins\BeplyPDFStudio\Lib\BeplyPdfRenderService;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfCertificationExtension;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfDocumentTotalsConsistency;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfInconsistentDocumentException;
+use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfTaxSubtotals;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Html\BeplyHtmlRenderService;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\PdfEngine\BeplyPdfDraw;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\PdfEngine\BeplyPdfSampleDoc;
@@ -164,6 +165,8 @@ class PDFExport extends CorePDFExport
 
                 $config = (new BeplyPdfRenderService())->resolveConfig($idformato, $idempresa, $modelClass);
                 if ($config !== null) {
+                    // Validate the canonical calculation even on a document-cache hit.
+                    BeplyPdfTaxSubtotals::forDocument($model);
                     $restoreLang = $this->applyCustomerLanguage($config, $model);
                     $this->beplyConfig = $config;
                     if ($certification && $config->showCertificationSettlement
