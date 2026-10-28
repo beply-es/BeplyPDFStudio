@@ -3,6 +3,7 @@
 ## v5.4 - 2026-10-28
 
 - El instalador opcional de fuentes fija y comprueba Noto Sans; no modifica las fuentes ya instaladas en los servicios.
+- El render HTML declara el rango de pesos de Noto Sans para que los títulos y totales usen una negrita de peso 700 real.
 
 ## v5.3 - 2026-10-27
 

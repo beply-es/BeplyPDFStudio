@@ -2333,11 +2333,21 @@ class BeplyHtmlRenderService
         if (!is_string($regular) || !is_file($regular)) {
             return ['css' => '', 'family' => $this->cssFontFamily($family)];
         }
-        $faces = [$this->fontFace($regular, 'normal', 'normal')];
+        // Noto's pinned TTFs contain weights 100..900. Advertise the range once
+        // per style so Pango instantiates a real 700 face for headings/totals;
+        // declaring the same variable file as separate Regular/Bold is ambiguous.
+        $variableNoto = ($entry['family'] ?? '') === 'Noto Sans'
+            && !empty($entry['variable']) && ($files['bold'] ?? null) === $regular;
+        $faces = [$this->fontFace($regular, $variableNoto ? '100 900' : 'normal', 'normal')];
         foreach ([['bold', 'bold', 'normal'], ['italic', 'normal', 'italic'], ['bolditalic', 'bold', 'italic']] as $v) {
             $f = $files[$v[0]] ?? null;
             if (is_string($f) && is_file($f)) {
-                $faces[] = $this->fontFace($f, $v[1], $v[2]);
+                if ($variableNoto && ($v[0] === 'bold'
+                    || ($v[0] === 'bolditalic' && $f === ($files['italic'] ?? null)))) {
+                    continue;
+                }
+                $weight = $variableNoto && $v[0] === 'italic' ? '100 900' : $v[1];
+                $faces[] = $this->fontFace($f, $weight, $v[2]);
             }
         }
         return ['css' => implode("\n  ", $faces), 'family' => 'PdfBody'];
