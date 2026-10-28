@@ -1,5 +1,9 @@
 # Changelog
 
+## v5.4 - 2026-10-28
+
+- La instalación conserva una versión comprobada de Noto Sans para mantener las métricas de los informes.
+
 ## v5.3 - 2026-10-27
 
 - Los informes con diseño Marco aprovechan mejor cada página sin reducir el tamaño de letra.
