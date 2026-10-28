@@ -1,4 +1,8 @@
 {
+    "beplypdf-mixed-tax-rates": "(mixto)",
+    "beplypdf-tax-subtotals-unavailable": "Non se puido verificar a desagregación de impostos do documento.",
+    "beplypdf-export-denied": "Non tes permiso para exportar este documento.",
+    "beplypdf-return-document": "Volver á ficha",
     "beplypdf-studio": "Template designer",
     "beplypdf-gallery": "Templates",
     "beplypdf-templates": "Templates",

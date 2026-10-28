@@ -1,4 +1,8 @@
 {
+    "beplypdf-mixed-tax-rates": "(mixt)",
+    "beplypdf-tax-subtotals-unavailable": "No s’ha pogut verificar el desglossament d’impostos del document.",
+    "beplypdf-export-denied": "No tens permís per exportar aquest document.",
+    "beplypdf-return-document": "Tornar a la fitxa",
     "beplypdf-studio": "Template designer",
     "beplypdf-gallery": "Templates",
     "beplypdf-templates": "Templates",

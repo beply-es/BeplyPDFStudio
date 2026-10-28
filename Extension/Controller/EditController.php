@@ -12,10 +12,9 @@
 namespace FacturaScripts\Plugins\BeplyPDFStudio\Extension\Controller;
 
 use Closure;
-use FacturaScripts\Core\KernelException;
 use FacturaScripts\Core\Lib\AjaxForms\PurchasesController;
 use FacturaScripts\Core\Lib\AjaxForms\SalesController;
-use FacturaScripts\Core\Tools;
+use FacturaScripts\Core\Response;
 
 class EditController
 {
@@ -30,7 +29,20 @@ class EditController
                 return true;
             }
 
-            throw new KernelException('AccessDenied', Tools::trans('no-print-permission'));
+            $this->response()->setHttpCode(Response::HTTP_FORBIDDEN);
+            $this->setTemplate('BeplyPdfExportDenied');
+            return false;
+        };
+    }
+
+    public function loadData(): Closure
+    {
+        return function ($viewName, $view): void {
+            if (($this instanceof SalesController || $this instanceof PurchasesController)
+                && $viewName === $this->getMainViewName()
+                && (!isset($this->permissions) || $this->permissions->allowExport !== true)) {
+                $view->settings['btnPrint'] = false;
+            }
         };
     }
 

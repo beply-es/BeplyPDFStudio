@@ -15,6 +15,25 @@ use PHPUnit\Framework\TestCase;
 
 final class BeplyPdfXmlTranslationTest extends TestCase
 {
+    public function testEverySpanishKeyHasReadableTextInEveryPluginLanguage(): void
+    {
+        $files = glob(dirname(__DIR__) . '/Translation/*.json') ?: [];
+        $this->assertSame(25, count($files), 'Se esperan los 25 idiomas del plugin');
+        $reference = json_decode(file_get_contents(dirname(__DIR__) . '/Translation/es_ES.json'), true);
+        $this->assertTrue(is_array($reference) && count($reference) > 0, 'es_ES debe ser JSON válido y no vacío');
+        foreach ($files as $file) {
+            $data = json_decode(file_get_contents($file), true);
+            $this->assertTrue(is_array($data), basename($file) . ': JSON inválido');
+            foreach (array_keys($reference) as $key) {
+                $value = $data[$key] ?? '';
+                $this->assertTrue(is_string($value) && trim($value) !== '', basename($file) . ': falta texto para ' . $key);
+                if (in_array($key, ['beplypdf-export-denied', 'beplypdf-return-document', 'beplypdf-mixed-tax-rates', 'beplypdf-tax-subtotals-unavailable'], true)) {
+                    $this->assertTrue($value !== $key, basename($file) . ': texto sin traducir para ' . $key);
+                }
+            }
+        }
+    }
+
     public function testSelectValuesUseTranslatableSlugs(): void
     {
         $translations = $this->translations();
