@@ -2,7 +2,7 @@
 
 ## v5.4 - 2026-10-28
 
-- La instalación conserva una versión comprobada de Noto Sans para mantener las métricas de los informes.
+- El instalador opcional de fuentes fija y comprueba Noto Sans; no modifica las fuentes ya instaladas en los servicios.
 
 ## v5.3 - 2026-10-27
 
