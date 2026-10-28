@@ -209,6 +209,21 @@ jobs:
           export PATH="$PWD/Plugins/BeplyPDFStudio/.venv/bin:$PATH"
           php Plugins/BeplyPDFStudio/Tests/run-short-document-pagination.php
 
+      - name: Framed report keeps 100 rows on at most three pages
+        working-directory: facturascripts
+        env:
+          BEPDF_ONLY: legacy_framed
+        run: |
+          set -euo pipefail
+          plugin="$PWD/Plugins/BeplyPDFStudio"
+          fonts="$(mktemp -d "${RUNNER_TEMP}/bepdf-report-fonts.XXXXXX")"
+          trap 'rm -rf -- "$fonts"' EXIT
+          cp "$plugin"/Assets/Fonts/DejaVuSans*.ttf "$fonts/"
+          curl -fsSL 'https://raw.githubusercontent.com/google/fonts/2984c575fdce412ee02b2baaba67672b9a9434d8/ofl/notosans/NotoSans%5Bwdth%2Cwght%5D.ttf' -o "$fonts/NotoSans-Regular.ttf"
+          echo 'bfb7bb691513f12e734dc346c03a03f784912432d7e3fa8e56efcf906fe86b3d  NotoSans-Regular.ttf' | (cd "$fonts" && sha256sum -c -)
+          export BEPDF_CI_FONT_DIR="$fonts"
+          php -d auto_prepend_file="$plugin/.github/ci/bind-report-fonts.php" "$plugin/Tests/run-report-visual.php"
+
       - name: New and upgraded services get a default template
         working-directory: facturascripts
         env:

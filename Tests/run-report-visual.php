@@ -237,12 +237,39 @@ foreach (AbstractBeplyPdfLayout::registry() as $key => $layout) {
         $check($key . ':logo-' . $position . '-posicion-real', $logo !== null && $positionOk);
     }
 
-    $denseProbe = BeplyPdfProbe::fromBytes(reportVisualRender($config, $densePayload));
+    $densePdf = reportVisualRender($config, $densePayload);
+    if ($outputDir !== '') {
+        file_put_contents($outputDir . '/' . $key . '-100-filas.pdf', $densePdf);
+    }
+    $denseProbe = BeplyPdfProbe::fromBytes($densePdf);
     $check(
         $key . ':100-filas-max-3-paginas',
         $denseProbe->pageCount() > 0 && $denseProbe->pageCount() <= 3,
         'paginas=' . $denseProbe->pageCount()
     );
+    preg_match_all('/Fila contable compacta\s+(\d+)\b/u', $denseProbe->flatText(), $denseRows);
+    $check(
+        $key . ':100-filas-completas-y-en-orden',
+        array_map('intval', $denseRows[1]) === range(1, 100),
+        'filas=' . count($denseRows[1])
+    );
+    $check($key . ':100-filas-sin-paginas-vacias', empty($denseProbe->blankPages()));
+    if ($key === 'legacy_framed') {
+        $previousRow = null;
+        $rowsDoNotOverlap = true;
+        for ($i = 1; $i <= 100; $i++) {
+            $row = $denseProbe->findPhrase('Fila contable compacta ' . $i);
+            if ($row === null || ($previousRow !== null && (
+                $row['page'] < $previousRow['page']
+                || ($row['page'] === $previousRow['page'] && $row['y0'] < $previousRow['y1'])
+            ))) {
+                $rowsDoNotOverlap = false;
+                break;
+            }
+            $previousRow = $row;
+        }
+        $check($key . ':100-filas-sin-solape', $rowsDoNotOverlap);
+    }
 
     foreach ($mutations as $name => $mutation) {
         $changed = clone $config;

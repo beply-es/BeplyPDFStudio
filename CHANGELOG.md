@@ -1,5 +1,9 @@
 # Changelog
 
+## v5.3 - 2026-10-27
+
+- Los informes con diseño Marco aprovechan mejor cada página sin reducir el tamaño de letra.
+
 ## v5.2 - 2026-10-26
 
 - Oculta la impresión de documentos de compra y venta cuando el usuario no
