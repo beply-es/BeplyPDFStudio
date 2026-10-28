@@ -13,7 +13,8 @@
 # Diseño tolerante a fallos: si una familia/fichero falla la descarga, se registra
 # un WARNING y se continúa; el build NO se rompe por una fuente puntual.
 #
-# Fuente: repositorio público github.com/google/fonts (rama main).
+# Fuente: repositorio público github.com/google/fonts. Noto Sans queda fijada
+# a un commit para mantener sus métricas y la licencia junto a la versión usada en CI.
 # Las familias variable-font se descargan como un único fichero "-Regular.ttf"
 # que contiene todo el rango de pesos; el manifest apunta regular y bold al mismo
 # fichero (fontconfig instancia el peso; rospdf embebe el fichero).
@@ -23,6 +24,7 @@ set -u
 FONT_DIR="/usr/local/share/fonts/beplypdf"
 LIC_DIR="${FONT_DIR}/licenses"
 RAW="https://raw.githubusercontent.com/google/fonts/main"
+RAW_NOTO="https://raw.githubusercontent.com/google/fonts/2984c575fdce412ee02b2baaba67672b9a9434d8"
 
 mkdir -p "${FONT_DIR}" "${LIC_DIR}"
 
@@ -38,6 +40,15 @@ download() {
     if curl -fsSL --retry 3 --retry-delay 2 -o "${tmp}" "${url}"; then
         # validación mínima: fichero no vacío y > 1KB (un TTF real nunca es tan pequeño)
         if [ -s "${tmp}" ] && [ "$(stat -c%s "${tmp}" 2>/dev/null || echo 0)" -gt 1024 ]; then
+            local expected=""
+            case "${dest##*/}" in
+                NotoSans-Regular.ttf) expected="bfb7bb691513f12e734dc346c03a03f784912432d7e3fa8e56efcf906fe86b3d" ;;
+                NotoSans-Italic.ttf) expected="58e6e0ebd1931b29a365aa2d3e2ee9a9e831a3af7cf3ad1462d4e72154f0b291" ;;
+            esac
+            if [ -n "${expected}" ] && ! printf '%s  %s\n' "${expected}" "${tmp}" | sha256sum -c - >/dev/null 2>&1; then
+                rm -f "${tmp}"
+                return 1
+            fi
             mv -f "${tmp}" "${dest}"
             return 0
         fi
@@ -51,7 +62,7 @@ declare -A LIC_DONE
 
 fetch_license() {
     # $1 = directorio de la familia en el repo (p.ej. ofl/roboto)
-    local famdir="$1"
+    local famdir="$1" source="${RAW}"
     [ -z "${famdir}" ] && return 0
     [ -n "${LIC_DONE[$famdir]:-}" ] && return 0
     LIC_DONE[$famdir]=1
@@ -60,8 +71,9 @@ fetch_license() {
     local out="${LIC_DIR}/${famname}"
     mkdir -p "${out}"
     local got=0
+    [[ "${famdir}" == 'ofl/notosans' ]] && source="${RAW_NOTO}"
     for lf in OFL.txt LICENSE.txt LICENSE; do
-        if curl -fsSL --retry 2 -o "${out}/${lf}" "${RAW}/${famdir}/${lf}" 2>/dev/null; then
+        if curl -fsSL --retry 2 -o "${out}/${lf}" "${source}/${famdir}/${lf}" 2>/dev/null; then
             if [ -s "${out}/${lf}" ]; then got=1; break; fi
             rm -f "${out}/${lf}"
         fi
@@ -140,8 +152,8 @@ https://raw.githubusercontent.com/google/fonts/main/ofl/ptsans/PT_Sans-Web-Regul
 https://raw.githubusercontent.com/google/fonts/main/ofl/ptsans/PT_Sans-Web-Bold.ttf|PTSans-Bold.ttf|ofl/ptsans
 https://raw.githubusercontent.com/google/fonts/main/ofl/ptsans/PT_Sans-Web-Italic.ttf|PTSans-Italic.ttf|ofl/ptsans
 https://raw.githubusercontent.com/google/fonts/main/ofl/ptsans/PT_Sans-Web-BoldItalic.ttf|PTSans-BoldItalic.ttf|ofl/ptsans
-https://raw.githubusercontent.com/google/fonts/main/ofl/notosans/NotoSans%5Bwdth%2Cwght%5D.ttf|NotoSans-Regular.ttf|ofl/notosans
-https://raw.githubusercontent.com/google/fonts/main/ofl/notosans/NotoSans-Italic%5Bwdth%2Cwght%5D.ttf|NotoSans-Italic.ttf|ofl/notosans
+https://raw.githubusercontent.com/google/fonts/2984c575fdce412ee02b2baaba67672b9a9434d8/ofl/notosans/NotoSans%5Bwdth%2Cwght%5D.ttf|NotoSans-Regular.ttf|ofl/notosans
+https://raw.githubusercontent.com/google/fonts/2984c575fdce412ee02b2baaba67672b9a9434d8/ofl/notosans/NotoSans-Italic%5Bwdth%2Cwght%5D.ttf|NotoSans-Italic.ttf|ofl/notosans
 https://raw.githubusercontent.com/google/fonts/main/ofl/dmsans/DMSans%5Bopsz%2Cwght%5D.ttf|DMSans-Regular.ttf|ofl/dmsans
 https://raw.githubusercontent.com/google/fonts/main/ofl/dmsans/DMSans-Italic%5Bopsz%2Cwght%5D.ttf|DMSans-Italic.ttf|ofl/dmsans
 https://raw.githubusercontent.com/google/fonts/main/ofl/archivo/Archivo%5Bwdth%2Cwght%5D.ttf|Archivo-Regular.ttf|ofl/archivo

@@ -1,5 +1,9 @@
 # Changelog
 
+## v5.4 - 2026-10-28
+
+- El instalador opcional de fuentes fija y comprueba Noto Sans; no modifica las fuentes ya instaladas en los servicios.
+
 ## v5.3 - 2026-10-27
 
 - Los informes con diseño Marco aprovechan mejor cada página sin reducir el tamaño de letra.
