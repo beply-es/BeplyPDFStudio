@@ -2333,12 +2333,12 @@ class BeplyHtmlRenderService
         if (!is_string($regular) || !is_file($regular)) {
             return ['css' => '', 'family' => $this->cssFontFamily($family)];
         }
-        // Noto's pinned TTFs contain weights 100..900. Advertise the range once
-        // per style so Pango instantiates a real 700 face for headings/totals;
-        // declaring the same variable file as separate Regular/Bold is ambiguous.
+        // Leave Noto's weight descriptor absent so Pango selects intrinsic
+        // variable weights. WeasyPrint 68/70 reject a CSS weight range;
+        // separate Regular/Bold registrations would constrain the same file.
         $variableNoto = ($entry['family'] ?? '') === 'Noto Sans'
             && !empty($entry['variable']) && ($files['bold'] ?? null) === $regular;
-        $faces = [$this->fontFace($regular, $variableNoto ? '100 900' : 'normal', 'normal')];
+        $faces = [$this->fontFace($regular, $variableNoto ? null : 'normal', 'normal')];
         foreach ([['bold', 'bold', 'normal'], ['italic', 'normal', 'italic'], ['bolditalic', 'bold', 'italic']] as $v) {
             $f = $files[$v[0]] ?? null;
             if (is_string($f) && is_file($f)) {
@@ -2346,7 +2346,7 @@ class BeplyHtmlRenderService
                     || ($v[0] === 'bolditalic' && $f === ($files['italic'] ?? null)))) {
                     continue;
                 }
-                $weight = $variableNoto && $v[0] === 'italic' ? '100 900' : $v[1];
+                $weight = $variableNoto && $v[0] === 'italic' ? null : $v[1];
                 $faces[] = $this->fontFace($f, $weight, $v[2]);
             }
         }
@@ -2385,9 +2385,10 @@ class BeplyHtmlRenderService
         return is_file($local) ? $local : null;
     }
 
-    private function fontFace(string $path, string $weight, string $style): string
+    private function fontFace(string $path, ?string $weight, string $style): string
     {
-        return "@font-face { font-family: 'PdfBody'; src: url('file://" . $path . "'); font-weight: " . $weight . "; font-style: " . $style . "; }";
+        $weightCss = $weight === null ? '' : ' font-weight: ' . $weight . ';';
+        return "@font-face { font-family: 'PdfBody'; src: url('file://" . $path . "');" . $weightCss . " font-style: " . $style . "; }";
     }
 
     /**

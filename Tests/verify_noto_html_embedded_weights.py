@@ -47,8 +47,8 @@ def main():
         raise AssertionError('PINNED_NOTO_REQUIRED')
     html = subprocess.check_output([
         'php', str(Path(__file__).with_name('noto-html-weights.php')), str(root)], text=True)
-    if 'font-weight: 100 900;' not in html:
-        raise AssertionError('EXPLICIT_VARIABLE_WEIGHT_RANGE_REQUIRED')
+    if re.search(r'@font-face\s*\{[^}]*\bfont-weight\s*:', html):
+        raise AssertionError('VARIABLE_NOTO_WEIGHT_DESCRIPTOR_MUST_BE_OMITTED')
     pdf = HTML(string=html).write_pdf(uncompressed_pdf=True)
     weights = embedded_weights(pdf)
     # A PDF can contain the word Bold while all glyphs remain Regular.
