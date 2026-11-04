@@ -1,9 +1,9 @@
 # Changelog
 
-## v5.4 - 2026-10-28
+## v5.4 - Pendiente de publicación
 
 - El instalador opcional de fuentes fija y comprueba Noto Sans; no modifica las fuentes ya instaladas en los servicios.
-- Los títulos y totales conservan su negrita real al usar Noto Sans en el render HTML.
+- Noto Sans usa cuatro fuentes estáticas 400/700 y cursivas. Facturas e informes Marco conservan su negrita real; los informes incrustan solo los glifos usados para evitar PDFs de 1,2 MB. Cambian las métricas frente a Helvetica/DejaVu; la combinación requiere comparación visual revisada antes de adoptar la imagen.
 
 ## v5.3 - 2026-10-27
 

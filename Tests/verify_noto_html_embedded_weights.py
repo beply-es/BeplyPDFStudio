@@ -15,6 +15,24 @@ import zlib
 from fontTools.ttLib import TTFont
 from weasyprint import HTML
 
+STATIC_NOTO_SHA256 = {
+    'NotoSans-Regular.ttf': 'b85c38ecea8a7cfb39c24e395a4007474fa5a4fc864f6ee33309eb4948d232d5',
+    'NotoSans-Bold.ttf': 'c976e4b1b99edc88775377fcc21692ca4bfa46b6d6ca6522bfda505b28ff9d6a',
+    'NotoSans-Italic.ttf': '36cff144df01309dab648bea71baff9bb074026914afe63aeacc8bc90b67a28b',
+    'NotoSans-BoldItalic.ttf': '6edf4227ef0fa846aca70e86a307804ca4401741830f5b3af0f2554abe2b8466',
+}
+
+
+def require_static_noto(root):
+    for name, expected in STATIC_NOTO_SHA256.items():
+        raw = (root / name).read_bytes()
+        if hashlib.sha256(raw).hexdigest() != expected:
+            raise AssertionError('PINNED_STATIC_NOTO_REQUIRED: ' + name)
+        with TTFont(BytesIO(raw)) as font:
+            if ('fvar' in font or font['OS/2'].usWeightClass != (700 if 'Bold' in name else 400)
+                    or bool(font['head'].macStyle & 2) != ('Italic' in name)):
+                raise AssertionError('STATIC_NOTO_WEIGHT_AND_STYLE_REQUIRED: ' + name)
+
 
 def embedded_weights(pdf):
     objects = {int(m[1]): m[2] for m in re.finditer(
@@ -42,13 +60,11 @@ def embedded_weights(pdf):
 
 def main():
     root = Path(os.environ['BEPDF_CI_FONT_DIR']).resolve()
-    if hashlib.sha256((root / 'NotoSans-Regular.ttf').read_bytes()).hexdigest() != (
-        'bfb7bb691513f12e734dc346c03a03f784912432d7e3fa8e56efcf906fe86b3d'):
-        raise AssertionError('PINNED_NOTO_REQUIRED')
+    require_static_noto(root)
     html = subprocess.check_output([
         'php', str(Path(__file__).with_name('noto-html-weights.php')), str(root)], text=True)
-    if re.search(r'@font-face\s*\{[^}]*\bfont-weight\s*:', html):
-        raise AssertionError('VARIABLE_NOTO_WEIGHT_DESCRIPTOR_MUST_BE_OMITTED')
+    if html.count('@font-face') != 4 or html.count('font-weight: bold;') != 2:
+        raise AssertionError('FOUR_STATIC_NOTO_FACES_REQUIRED')
     pdf = HTML(string=html).write_pdf(uncompressed_pdf=True)
     weights = embedded_weights(pdf)
     # A PDF can contain the word Bold while all glyphs remain Regular.

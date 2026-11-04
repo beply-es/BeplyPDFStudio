@@ -31,13 +31,15 @@ class BeplyPdfDraw
     /** Rutas TTF activas (regular/negrita) para esta sesión de render. */
     private static ?string $fontReg = null;
     private static ?string $fontBold = null;
+    private static bool $subsetFonts = false;
     private static float $regularTextBoost = 0.0;
 
     /** Registra las TTF regular y negrita de la fuente del estilo (las fija PDFExport). */
-    public static function setFonts(?string $reg, ?string $bold): void
+    public static function setFonts(?string $reg, ?string $bold, bool $subset = false): void
     {
         self::$fontReg = $reg;
         self::$fontBold = $bold ?: $reg;
+        self::$subsetFonts = $subset;
     }
 
     public static function setRegularTextBoost(float $offset): void
@@ -51,7 +53,7 @@ class BeplyPdfDraw
         $path = $bold ? self::$fontBold : self::$fontReg;
         if ($path !== null && is_file($path) && method_exists($pdf, 'selectFont')) {
             $pdf->fontPath = dirname($path);
-            $pdf->selectFont($path);
+            $pdf->selectFont($path, '', 1, self::$subsetFonts);
         }
     }
 

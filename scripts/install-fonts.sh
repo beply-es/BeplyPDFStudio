@@ -14,7 +14,8 @@
 # un WARNING y se continúa; el build NO se rompe por una fuente puntual.
 #
 # Fuente: repositorio público github.com/google/fonts. Noto Sans queda fijada
-# a un commit para mantener sus métricas y la licencia junto a la versión usada en CI.
+# estática (400/700 y cursivas) a un commit de notofonts/noto-fonts, con SHA para las
+# cuatro caras y su licencia; coincide con la fixture de CI y el runtime canónico.
 # Las familias variable-font se descargan como un único fichero "-Regular.ttf"
 # que contiene todo el rango de pesos; el manifest apunta regular y bold al mismo
 # fichero (fontconfig instancia el peso; rospdf embebe el fichero).
@@ -24,7 +25,7 @@ set -u
 FONT_DIR="/usr/local/share/fonts/beplypdf"
 LIC_DIR="${FONT_DIR}/licenses"
 RAW="https://raw.githubusercontent.com/google/fonts/main"
-RAW_NOTO="https://raw.githubusercontent.com/google/fonts/2984c575fdce412ee02b2baaba67672b9a9434d8"
+RAW_NOTO="https://raw.githubusercontent.com/notofonts/noto-fonts/ffebf8c1ee449e544955a7e813c54f9b73848eac"
 
 mkdir -p "${FONT_DIR}" "${LIC_DIR}"
 
@@ -42,8 +43,11 @@ download() {
         if [ -s "${tmp}" ] && [ "$(stat -c%s "${tmp}" 2>/dev/null || echo 0)" -gt 1024 ]; then
             local expected=""
             case "${dest##*/}" in
-                NotoSans-Regular.ttf) expected="bfb7bb691513f12e734dc346c03a03f784912432d7e3fa8e56efcf906fe86b3d" ;;
-                NotoSans-Italic.ttf) expected="58e6e0ebd1931b29a365aa2d3e2ee9a9e831a3af7cf3ad1462d4e72154f0b291" ;;
+                NotoSans-Regular.ttf) expected="b85c38ecea8a7cfb39c24e395a4007474fa5a4fc864f6ee33309eb4948d232d5" ;;
+                NotoSans-Bold.ttf) expected="c976e4b1b99edc88775377fcc21692ca4bfa46b6d6ca6522bfda505b28ff9d6a" ;;
+                NotoSans-Italic.ttf) expected="36cff144df01309dab648bea71baff9bb074026914afe63aeacc8bc90b67a28b" ;;
+                NotoSans-BoldItalic.ttf) expected="6edf4227ef0fa846aca70e86a307804ca4401741830f5b3af0f2554abe2b8466" ;;
+                OFL.txt) expected="0dab92d0544f7b233403f14b84a663bdbfa746982eda629e7f4f9ffe1b036feb" ;;
             esac
             if [ -n "${expected}" ] && ! printf '%s  %s\n' "${expected}" "${tmp}" | sha256sum -c - >/dev/null 2>&1; then
                 rm -f "${tmp}"
@@ -71,7 +75,12 @@ fetch_license() {
     local out="${LIC_DIR}/${famname}"
     mkdir -p "${out}"
     local got=0
-    [[ "${famdir}" == 'ofl/notosans' ]] && source="${RAW_NOTO}"
+    if [[ "${famdir}" == 'ofl/notosans' ]]; then
+        if ! download "${RAW_NOTO}/LICENSE" "${out}/OFL.txt"; then
+            echo "  [lic] WARNING: licencia Noto ausente o SHA incorrecto"
+        fi
+        return 0
+    fi
     for lf in OFL.txt LICENSE.txt LICENSE; do
         if curl -fsSL --retry 2 -o "${out}/${lf}" "${source}/${famdir}/${lf}" 2>/dev/null; then
             if [ -s "${out}/${lf}" ]; then got=1; break; fi
@@ -152,8 +161,10 @@ https://raw.githubusercontent.com/google/fonts/main/ofl/ptsans/PT_Sans-Web-Regul
 https://raw.githubusercontent.com/google/fonts/main/ofl/ptsans/PT_Sans-Web-Bold.ttf|PTSans-Bold.ttf|ofl/ptsans
 https://raw.githubusercontent.com/google/fonts/main/ofl/ptsans/PT_Sans-Web-Italic.ttf|PTSans-Italic.ttf|ofl/ptsans
 https://raw.githubusercontent.com/google/fonts/main/ofl/ptsans/PT_Sans-Web-BoldItalic.ttf|PTSans-BoldItalic.ttf|ofl/ptsans
-https://raw.githubusercontent.com/google/fonts/2984c575fdce412ee02b2baaba67672b9a9434d8/ofl/notosans/NotoSans%5Bwdth%2Cwght%5D.ttf|NotoSans-Regular.ttf|ofl/notosans
-https://raw.githubusercontent.com/google/fonts/2984c575fdce412ee02b2baaba67672b9a9434d8/ofl/notosans/NotoSans-Italic%5Bwdth%2Cwght%5D.ttf|NotoSans-Italic.ttf|ofl/notosans
+https://raw.githubusercontent.com/notofonts/noto-fonts/ffebf8c1ee449e544955a7e813c54f9b73848eac/hinted/ttf/NotoSans/NotoSans-Regular.ttf|NotoSans-Regular.ttf|ofl/notosans
+https://raw.githubusercontent.com/notofonts/noto-fonts/ffebf8c1ee449e544955a7e813c54f9b73848eac/hinted/ttf/NotoSans/NotoSans-Bold.ttf|NotoSans-Bold.ttf|ofl/notosans
+https://raw.githubusercontent.com/notofonts/noto-fonts/ffebf8c1ee449e544955a7e813c54f9b73848eac/hinted/ttf/NotoSans/NotoSans-Italic.ttf|NotoSans-Italic.ttf|ofl/notosans
+https://raw.githubusercontent.com/notofonts/noto-fonts/ffebf8c1ee449e544955a7e813c54f9b73848eac/hinted/ttf/NotoSans/NotoSans-BoldItalic.ttf|NotoSans-BoldItalic.ttf|ofl/notosans
 https://raw.githubusercontent.com/google/fonts/main/ofl/dmsans/DMSans%5Bopsz%2Cwght%5D.ttf|DMSans-Regular.ttf|ofl/dmsans
 https://raw.githubusercontent.com/google/fonts/main/ofl/dmsans/DMSans-Italic%5Bopsz%2Cwght%5D.ttf|DMSans-Italic.ttf|ofl/dmsans
 https://raw.githubusercontent.com/google/fonts/main/ofl/archivo/Archivo%5Bwdth%2Cwght%5D.ttf|Archivo-Regular.ttf|ofl/archivo

@@ -240,12 +240,12 @@
   {
     "family": "Noto Sans",
     "category": "sans",
-    "variable": true,
+    "variable": false,
     "files": {
       "regular": "/usr/local/share/fonts/beplypdf/NotoSans-Regular.ttf",
-      "bold": "/usr/local/share/fonts/beplypdf/NotoSans-Regular.ttf",
+      "bold": "/usr/local/share/fonts/beplypdf/NotoSans-Bold.ttf",
       "italic": "/usr/local/share/fonts/beplypdf/NotoSans-Italic.ttf",
-      "bolditalic": "/usr/local/share/fonts/beplypdf/NotoSans-Italic.ttf"
+      "bolditalic": "/usr/local/share/fonts/beplypdf/NotoSans-BoldItalic.ttf"
     }
   },
   {

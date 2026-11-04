@@ -2333,21 +2333,11 @@ class BeplyHtmlRenderService
         if (!is_string($regular) || !is_file($regular)) {
             return ['css' => '', 'family' => $this->cssFontFamily($family)];
         }
-        // Leave Noto's weight descriptor absent so Pango selects intrinsic
-        // variable weights. WeasyPrint 68/70 reject a CSS weight range;
-        // separate Regular/Bold registrations would constrain the same file.
-        $variableNoto = ($entry['family'] ?? '') === 'Noto Sans'
-            && !empty($entry['variable']) && ($files['bold'] ?? null) === $regular;
-        $faces = [$this->fontFace($regular, $variableNoto ? null : 'normal', 'normal')];
+        $faces = [$this->fontFace($regular, 'normal', 'normal')];
         foreach ([['bold', 'bold', 'normal'], ['italic', 'normal', 'italic'], ['bolditalic', 'bold', 'italic']] as $v) {
             $f = $files[$v[0]] ?? null;
             if (is_string($f) && is_file($f)) {
-                if ($variableNoto && ($v[0] === 'bold'
-                    || ($v[0] === 'bolditalic' && $f === ($files['italic'] ?? null)))) {
-                    continue;
-                }
-                $weight = $variableNoto && $v[0] === 'italic' ? null : $v[1];
-                $faces[] = $this->fontFace($f, $weight, $v[2]);
+                $faces[] = $this->fontFace($f, $v[1], $v[2]);
             }
         }
         return ['css' => implode("\n  ", $faces), 'family' => 'PdfBody'];
@@ -2385,10 +2375,9 @@ class BeplyHtmlRenderService
         return is_file($local) ? $local : null;
     }
 
-    private function fontFace(string $path, ?string $weight, string $style): string
+    private function fontFace(string $path, string $weight, string $style): string
     {
-        $weightCss = $weight === null ? '' : ' font-weight: ' . $weight . ';';
-        return "@font-face { font-family: 'PdfBody'; src: url('file://" . $path . "');" . $weightCss . " font-style: " . $style . "; }";
+        return "@font-face { font-family: 'PdfBody'; src: url('file://" . $path . "'); font-weight: " . $weight . "; font-style: " . $style . "; }";
     }
 
     /**

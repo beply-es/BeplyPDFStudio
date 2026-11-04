@@ -2066,10 +2066,14 @@ class PDFExport extends CorePDFExport
             $fonts = '\\FacturaScripts\\Plugins\\BeplyPDFStudio\\Lib\\PdfEngine\\BeplyPdfFonts';
             $arg = $fonts::selectArg($config->fontFamily);
             $bold = $fonts::selectArgBold($config->fontFamily);
+            $entry = $fonts::entry($config->fontFamily);
+            $staticNoto = ($entry['family'] ?? '') === 'Noto Sans'
+                && empty($entry['variable']) && is_file($arg);
             // registramos regular + negrita para que BeplyPdfDraw pueda alternar pesos
             \FacturaScripts\Plugins\BeplyPDFStudio\Lib\PdfEngine\BeplyPdfDraw::setFonts(
                 is_file($arg) ? $arg : null,
-                is_file($bold) ? $bold : (is_file($arg) ? $arg : null)
+                is_file($bold) ? $bold : (is_file($arg) ? $arg : null),
+                $staticNoto
             );
             if ($this->pdf === null || !method_exists($this->pdf, 'selectFont')) {
                 return;
@@ -2080,7 +2084,20 @@ class PDFExport extends CorePDFExport
             if (is_file($arg)) {
                 $this->pdf->fontPath = dirname($arg);
             }
-            $this->pdf->selectFont($arg);
+            if ($staticNoto) {
+                // Cpdf subsets only Unicode fonts. Register the family as well:
+                // report grouping/filter markup selects <b>/<i> through this map.
+                $this->pdf->isUnicode = true;
+                $variants = [];
+                foreach (['b' => 'bold', 'i' => 'italic', 'bi' => 'bolditalic', 'ib' => 'bolditalic'] as $tag => $role) {
+                    $file = $entry['files'][$role] ?? null;
+                    if (is_string($file) && is_file($file) && dirname($file) === dirname($arg)) {
+                        $variants[$tag] = pathinfo($file, PATHINFO_FILENAME);
+                    }
+                }
+                $this->pdf->setFontFamily(pathinfo($arg, PATHINFO_FILENAME), $variants);
+            }
+            $this->pdf->selectFont($arg, '', 1, $staticNoto);
         } catch (\Throwable $e) {
             Tools::log()->warning('beplypdf-font-fallback: ' . $e->getMessage());
         }
