@@ -66,6 +66,8 @@ function pdfText(string $file):string{$p=proc_open(['gs','-q','-dNOPAUSE','-dBAT
 function loginHttp(string $actor,string $password):void{[, $html]=requestHttp('/Login',$actor);[$row]=requestHttp('/Login',$actor,['action'=>'login','fsNick'=>$actor,'fsPassword'=>$password,'multireqtoken'=>formToken($html)]);need($row['http']===302,'native login accepted');}
 try {
  need(!Tools::settings('default','telemetryinstall')&&!Tools::settings('default','telemetrykey'),'synthetic runtime must not be telemetry enrolled');
+ require __DIR__ . '/widget-textarea-contract.php';
+ foreach (beplyPdfNativeTextareaContract() as $name => $ok) check($ok, $name);
  $admin=new User();need($admin->load('e2e_admin')&&$admin->admin&&$admin->enabled,'canonical synthetic admin');
  $user=new User();need(!$user->load('bpdfhttp_noexport'),'synthetic actor must be absent');
  $role=new Role();need(!$role->load('BPDFHTTP'),'synthetic role must be absent');$role->codrole='BPDFHTTP';$role->descripcion='Synthetic PDF export permission contract';saveOwned($role,'own role');

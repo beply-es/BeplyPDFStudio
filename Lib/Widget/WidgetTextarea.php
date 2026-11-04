@@ -22,7 +22,7 @@ class WidgetTextarea extends CoreWidgetTextarea
         $this->setValue($model);
 
         $class = 'text-' . $display;
-        $value = $this->show();
+        $value = $this->value === null ? '-' : (string) $this->value;
         $displayValue = BeplyPdfRichTextLite::hasMarkup($value)
             ? BeplyPdfRichTextLite::toDisplayText($value)
             : $this->normalizeCellText($value);
@@ -33,7 +33,7 @@ class WidgetTextarea extends CoreWidgetTextarea
             : '';
 
         return '<td class="' . $this->escapeAttr($this->tableCellClass($class)) . '"' . $title . '>'
-            . $this->onclickHtml($this->escapeHtml($final))
+            . $this->onclickHtml($this->escapeCellHtml($final))
             . '</td>';
     }
 
@@ -42,7 +42,7 @@ class WidgetTextarea extends CoreWidgetTextarea
         return htmlspecialchars($value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
     }
 
-    private function escapeHtml(string $value): string
+    private function escapeCellHtml(string $value): string
     {
         return htmlspecialchars($value, ENT_NOQUOTES | ENT_SUBSTITUTE, 'UTF-8');
     }
