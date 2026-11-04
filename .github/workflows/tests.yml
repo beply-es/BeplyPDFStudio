@@ -222,9 +222,18 @@ jobs:
           fonts="$(mktemp -d "${RUNNER_TEMP}/bepdf-report-fonts.XXXXXX")"
           trap 'rm -rf -- "$fonts"' EXIT
           cp "$plugin"/Assets/Fonts/DejaVuSans*.ttf "$fonts/"
-          curl -fsSL 'https://raw.githubusercontent.com/google/fonts/2984c575fdce412ee02b2baaba67672b9a9434d8/ofl/notosans/NotoSans%5Bwdth%2Cwght%5D.ttf' -o "$fonts/NotoSans-Regular.ttf"
-          echo 'bfb7bb691513f12e734dc346c03a03f784912432d7e3fa8e56efcf906fe86b3d  NotoSans-Regular.ttf' | (cd "$fonts" && sha256sum -c -)
+          curl -fsSL 'https://raw.githubusercontent.com/notofonts/noto-fonts/ffebf8c1ee449e544955a7e813c54f9b73848eac/hinted/ttf/NotoSans/NotoSans-Regular.ttf' -o "$fonts/NotoSans-Regular.ttf"
+          echo 'b85c38ecea8a7cfb39c24e395a4007474fa5a4fc864f6ee33309eb4948d232d5  NotoSans-Regular.ttf' | (cd "$fonts" && sha256sum -c -)
+          curl -fsSL 'https://raw.githubusercontent.com/notofonts/noto-fonts/ffebf8c1ee449e544955a7e813c54f9b73848eac/hinted/ttf/NotoSans/NotoSans-Bold.ttf' -o "$fonts/NotoSans-Bold.ttf"
+          echo 'c976e4b1b99edc88775377fcc21692ca4bfa46b6d6ca6522bfda505b28ff9d6a  NotoSans-Bold.ttf' | (cd "$fonts" && sha256sum -c -)
+          curl -fsSL 'https://raw.githubusercontent.com/notofonts/noto-fonts/ffebf8c1ee449e544955a7e813c54f9b73848eac/hinted/ttf/NotoSans/NotoSans-Italic.ttf' -o "$fonts/NotoSans-Italic.ttf"
+          echo '36cff144df01309dab648bea71baff9bb074026914afe63aeacc8bc90b67a28b  NotoSans-Italic.ttf' | (cd "$fonts" && sha256sum -c -)
+          curl -fsSL 'https://raw.githubusercontent.com/notofonts/noto-fonts/ffebf8c1ee449e544955a7e813c54f9b73848eac/hinted/ttf/NotoSans/NotoSans-BoldItalic.ttf' -o "$fonts/NotoSans-BoldItalic.ttf"
+          echo '6edf4227ef0fa846aca70e86a307804ca4401741830f5b3af0f2554abe2b8466  NotoSans-BoldItalic.ttf' | (cd "$fonts" && sha256sum -c -)
           export BEPDF_CI_FONT_DIR="$fonts"
+          export BEPDF_CI_CORE_DIR="$PWD" BEPDF_CI_SCRATCH="$fonts"
+          "$plugin/.venv/bin/python" "$plugin/Tests/verify_noto_html_embedded_weights.py"
+          "$plugin/.venv/bin/python" "$plugin/Tests/verify_noto_cezpdf_fonts.py"
           php -d auto_prepend_file="$plugin/.github/ci/bind-report-fonts.php" "$plugin/Tests/run-report-visual.php"
 
       - name: New and upgraded services get a default template

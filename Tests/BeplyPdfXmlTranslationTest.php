@@ -18,7 +18,7 @@ final class BeplyPdfXmlTranslationTest extends TestCase
     public function testEverySpanishKeyHasReadableTextInEveryPluginLanguage(): void
     {
         $files = glob(dirname(__DIR__) . '/Translation/*.json') ?: [];
-        $this->assertSame(25, count($files), 'Se esperan los 25 idiomas del plugin');
+        $this->assertSame(26, count($files), 'Se esperan los 26 idiomas del plugin');
         $reference = json_decode(file_get_contents(dirname(__DIR__) . '/Translation/es_ES.json'), true);
         $this->assertTrue(is_array($reference) && count($reference) > 0, 'es_ES debe ser JSON válido y no vacío');
         foreach ($files as $file) {

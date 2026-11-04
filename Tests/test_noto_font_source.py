@@ -13,33 +13,37 @@ ROOT = Path(__file__).resolve().parents[1]
 INSTALLER = ROOT / 'scripts/install-fonts.sh'
 WORKFLOW = ROOT / '.github/workflows/tests.yml'
 MANIFEST = ROOT / 'Assets/Fonts/fonts.json'
-NOTO_REGULAR_SHA256 = 'bfb7bb691513f12e734dc346c03a03f784912432d7e3fa8e56efcf906fe86b3d'
-NOTO_ITALIC_SHA256 = '58e6e0ebd1931b29a365aa2d3e2ee9a9e831a3af7cf3ad1462d4e72154f0b291'
+NOTO_REVISION = 'ffebf8c1ee449e544955a7e813c54f9b73848eac'
+NOTO_SHA256 = {'NotoSans-Regular.ttf': 'b85c38ecea8a7cfb39c24e395a4007474fa5a4fc864f6ee33309eb4948d232d5', 'NotoSans-Bold.ttf': 'c976e4b1b99edc88775377fcc21692ca4bfa46b6d6ca6522bfda505b28ff9d6a', 'NotoSans-Italic.ttf': '36cff144df01309dab648bea71baff9bb074026914afe63aeacc8bc90b67a28b', 'NotoSans-BoldItalic.ttf': '6edf4227ef0fa846aca70e86a307804ca4401741830f5b3af0f2554abe2b8466', 'OFL.txt': '0dab92d0544f7b233403f14b84a663bdbfa746982eda629e7f4f9ffe1b036feb'}
 
 
 class NotoFontSourceContract(unittest.TestCase):
     def test_runtime_font_files_use_the_same_immutable_revision_as_ci(self):
         script = INSTALLER.read_text()
         ci = WORKFLOW.read_text()
-        paths = re.findall(r'^https://raw\.githubusercontent\.com/google/fonts/([^/]+)/ofl/notosans/([^|]+)\|(NotoSans-[^|]+)\|ofl/notosans$', script, re.M)
-        self.assertEqual({p[2] for p in paths}, {'NotoSans-Regular.ttf', 'NotoSans-Italic.ttf'})
+        paths = re.findall(r'^https://raw\.githubusercontent\.com/notofonts/noto-fonts/([^/]+)/hinted/ttf/NotoSans/([^|]+)\|(NotoSans-[^|]+)\|ofl/notosans$', script, re.M)
+        self.assertEqual({p[2] for p in paths}, {name for name in NOTO_SHA256 if name.endswith('.ttf')})
         revisions = {p[0] for p in paths}
         self.assertEqual(len(revisions), 1)
         revision = revisions.pop()
         self.assertRegex(revision, r'^[a-f0-9]{40}$')
-        self.assertIn('google/fonts/' + revision + '/ofl/notosans/NotoSans%5Bwdth%2Cwght%5D.ttf', ci)
-        self.assertIn('RAW_NOTO="https://raw.githubusercontent.com/google/fonts/' + revision + '"', script)
-        self.assertIn(NOTO_REGULAR_SHA256, script)
-        self.assertIn(NOTO_ITALIC_SHA256, script)
+        self.assertEqual(revision, NOTO_REVISION)
+        for name, sha in NOTO_SHA256.items():
+            self.assertIn(sha, script)
+            if name.endswith('.ttf'):
+                self.assertIn('notofonts/noto-fonts/' + revision + '/hinted/ttf/NotoSans/' + name, ci)
+        self.assertIn('RAW_NOTO="https://raw.githubusercontent.com/notofonts/noto-fonts/' + revision + '"', script)
 
-    def test_manifest_keeps_regular_and_italic_filenames(self):
+    def test_manifest_has_four_distinct_static_faces(self):
         entries = [e for e in json.loads(MANIFEST.read_text()) if e['family'] == 'Noto Sans']
         self.assertEqual(len(entries), 1)
         files = entries[0]['files']
         self.assertEqual(Path(files['regular']).name, 'NotoSans-Regular.ttf')
         self.assertEqual(Path(files['italic']).name, 'NotoSans-Italic.ttf')
-        self.assertEqual(files['bold'], files['regular'])
-        self.assertEqual(files['bolditalic'], files['italic'])
+        self.assertFalse(entries[0]['variable'])
+        self.assertEqual(Path(files['bold']).name, 'NotoSans-Bold.ttf')
+        self.assertEqual(Path(files['bolditalic']).name, 'NotoSans-BoldItalic.ttf')
+        self.assertEqual(len(set(files.values())), 4)
 
     def test_installer_fetches_fonts_and_license_from_pinned_source(self):
         # Exercise the installer with an isolated destination and deterministic network.
@@ -52,7 +56,8 @@ class NotoFontSourceContract(unittest.TestCase):
             script = INSTALLER.read_text().replace(
                 'FONT_DIR="/usr/local/share/fonts/beplypdf"', f'FONT_DIR="{font_dir}"')
             fixture_hash = hashlib.sha256(b'x' * 2048).hexdigest()
-            script = script.replace(NOTO_REGULAR_SHA256, fixture_hash).replace(NOTO_ITALIC_SHA256, fixture_hash)
+            for name, sha in NOTO_SHA256.items():
+                script = script.replace(sha, hashlib.sha256(b'license' * 2048).hexdigest() if name == 'OFL.txt' else fixture_hash)
             before, table = script.split("done <<'FONTDATA'\n", 1)
             rows, after = table.split('\nFONTDATA', 1)
             rows = '\n'.join(row for row in rows.splitlines()
@@ -67,7 +72,7 @@ url = args[-1]
 out = Path(args[args.index('-o') + 1])
 with open(os.environ['REQUEST_LOG'], 'a') as log:
     log.write(url + '\\n')
-out.write_bytes(b'license' if url.endswith('OFL.txt') else (b'y' if os.environ.get('CORRUPT_NOTO') and '/ofl/notosans/' in url else b'x') * 2048)
+out.write_bytes(b'license' * 2048 if url.endswith(('OFL.txt', 'LICENSE')) else (b'y' if os.environ.get('CORRUPT_NOTO') and '/notofonts/noto-fonts/' in url else b'x') * 2048)
 ''')
             curl.chmod(0o755)
             cache = root / 'bin/fc-cache'
@@ -76,14 +81,14 @@ out.write_bytes(b'license' if url.endswith('OFL.txt') else (b'y' if os.environ.g
             env = dict(os.environ, PATH=str(root / 'bin') + os.pathsep + os.environ['PATH'], REQUEST_LOG=str(log))
             subprocess.run(['bash', str(root / 'scripts/install-fonts.sh')], env=env, check=True, capture_output=True, text=True)
             urls = log.read_text().splitlines()
-            noto_urls = [url for url in urls if '/ofl/notosans/' in url]
-            self.assertEqual(len(noto_urls), 3)
-            self.assertTrue(all('/2984c575fdce412ee02b2baaba67672b9a9434d8/' in url for url in noto_urls))
-            self.assertTrue(any(url.endswith('/ofl/notosans/OFL.txt') for url in noto_urls))
+            noto_urls = [url for url in urls if '/notofonts/noto-fonts/' in url]
+            self.assertEqual(len(noto_urls), 5)
+            self.assertTrue(all('/' + NOTO_REVISION + '/' in url for url in noto_urls))
+            self.assertTrue(any(url.endswith('/LICENSE') for url in noto_urls))
             self.assertTrue(any('/main/ofl/roboto/OFL.txt' in url for url in urls))
             self.assertEqual((font_dir / 'NotoSans-Regular.ttf').stat().st_size, 2048)
             self.assertEqual((font_dir / 'NotoSans-Italic.ttf').stat().st_size, 2048)
-            self.assertEqual((font_dir / 'licenses/notosans/OFL.txt').read_bytes(), b'license')
+            self.assertEqual((font_dir / 'licenses/notosans/OFL.txt').read_bytes(), b'license' * 2048)
             # A corrupt replacement must not overwrite a previously installed font.
             env['CORRUPT_NOTO'] = '1'
             result = subprocess.run(['bash', str(root / 'scripts/install-fonts.sh')], env=env, check=True, capture_output=True, text=True)

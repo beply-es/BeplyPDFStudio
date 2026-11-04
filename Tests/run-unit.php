@@ -117,6 +117,7 @@ namespace {
         \FacturaScripts\Test\Plugins\BeplyPDFStudio\BeplyPdfLineColumnConfigTest::class,
         \FacturaScripts\Test\Plugins\BeplyPDFStudio\BeplyPdfLineAmountsTest::class,
         \FacturaScripts\Test\Plugins\BeplyPDFStudio\BeplyPdfLineTableLayoutTest::class,
+        \FacturaScripts\Test\Plugins\BeplyPDFStudio\BeplyPdfNotoHtmlWeightsTest::class,
         \FacturaScripts\Test\Plugins\BeplyPDFStudio\BeplyPdfLogoPathResolverTest::class,
         \FacturaScripts\Test\Plugins\BeplyPDFStudio\BeplyPdfParentDocumentLinesTest::class,
         \FacturaScripts\Test\Plugins\BeplyPDFStudio\BeplyPdfPaymentDateResolverTest::class,
