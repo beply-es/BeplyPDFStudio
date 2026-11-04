@@ -51,9 +51,11 @@ $apply = new ReflectionMethod(PDFExport::class, 'applyFont');
 $apply->setAccessible(true);
 $apply->invoke($export, $config);
 BeplyPdfDraw::font($pdf, false); // Must preserve the subset selected by applyFont.
-$pdf->ezText('Regular: España, ñ y 1.234,56 €', 11);
+$pdf->ezText(($argv[4] ?? '') === 'bad-text'
+    ? 'Regular: Espana, n y 1.234,56 EUR' : 'Regular: España, ñ y 1.234,56 €', 11);
 $pdf->ezText('<b>Bold: FACTURA Y TOTAL</b>', 11);
-$pdf->ezText('<i>Italic: condición</i> <b><i>BoldItalic: importe</i></b>', 11);
+$pdf->ezText((($argv[4] ?? '') === 'bad-text' ? '<i>Italic: condicion</i>' : '<i>Italic: condición</i>')
+    . ' <b><i>BoldItalic: importe</i></b>', 11);
 BeplyPdfDraw::font($pdf, true);
 $pdf->ezText('DrawBold: cabecera', 11);
 echo $pdf->ezOutput();

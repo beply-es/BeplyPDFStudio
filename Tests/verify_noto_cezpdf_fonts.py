@@ -21,6 +21,14 @@ def require_small_static_pdf(pdf):
         raise AssertionError('FOUR_STATIC_NOTO_FACES_REQUIRED: ' + repr(weights))
     if pdf.count(b'AAAAAD+NotoSans-') < 4:
         raise AssertionError('CEZPDF_SUBSET_NAMES_REQUIRED')
+    extracted = subprocess.run(
+        ['pdftotext', '-enc', 'UTF-8', '-', '-'], input=pdf,
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True, timeout=30)
+    text = ' '.join(extracted.stdout.decode('utf-8').split())
+    for expected in ['España', 'ñ', '1.234,56 €', 'condición',
+                     'FACTURA Y TOTAL', 'DrawBold: cabecera']:
+        if expected not in text:
+            raise AssertionError('NOTO_TEXT_EXTRACTION_REQUIRED: ' + expected)
     return weights
 
 
@@ -32,7 +40,7 @@ def main():
                    os.environ['BEPDF_CI_CORE_DIR'], str(fonts), scratch]
         pdf = subprocess.check_output(command)
         weights = require_small_static_pdf(pdf)
-        for mutant in ['regular-only', 'no-subset']:
+        for mutant in ['regular-only', 'no-subset', 'bad-text']:
             rejected = False
             try:
                 require_small_static_pdf(subprocess.check_output(command + [mutant]))
@@ -40,7 +48,8 @@ def main():
                 rejected = True
             if not rejected:
                 raise AssertionError('NOTO_MUTANT_SURVIVED: ' + mutant)
-    print(json.dumps({'weights': weights, 'bytes': len(pdf), 'mutantsRejected': 2,
+    print(json.dumps({'weights': weights, 'bytes': len(pdf), 'mutantsRejected': 3,
+                      'accentedTextExtracted': True,
                       'pdfSha256': hashlib.sha256(pdf).hexdigest(), 'localOnly': True}))
 
 
