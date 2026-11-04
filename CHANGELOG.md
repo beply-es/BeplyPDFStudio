@@ -1,5 +1,10 @@
 # Changelog
 
+## v5.6 - Pendiente de publicación
+
+- Aplicar un diseño exige permiso de modificación y una petición válida desde el formulario.
+- La galería oculta las acciones no autorizadas; la denegación permite volver sin perder la sesión.
+
 ## v5.5 - Pendiente de publicación
 
 - Añade traducciones al neerlandés para Core 2026.72.
