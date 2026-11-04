@@ -34,7 +34,7 @@ function assertHttpRuntimeRoot(string $root): void
  }
 }
 function need(bool $ok, string $message): void { if (!$ok) throw new RuntimeException($message); }
-$owned=[];$documents=[];$server=null;$failures=[];
+$owned=[];$documents=[];$preHttpSnapshots=[];$server=null;$failures=[];
 $dir=sys_get_temp_dir().'/BeplyPdfHttpExport-'.getmypid();need(!file_exists($dir)&&mkdir($dir,0700),'own HTTP artifact directory');
 $proof=['runtime'=>'native Core HTTP + Dinamic exporters','database'=>FS_DB_NAME,'requests'=>[],'checks'=>[],'artifactDir'=>$dir];
 $proof['sourceHashes']=[];foreach(['Init.php','Extension/Controller/EditController.php','Lib/Export/PDFExport.php','facturascripts.ini','Tests/run-http-export-contract.php']as$file)$proof['sourceHashes'][$file]=hash_file('sha256',FS_FOLDER.'/Plugins/BeplyPDFStudio/'.$file);
@@ -75,7 +75,7 @@ try {
  $membership=new RoleUser();$membership->nick=$user->nick;$membership->codrole=$role->codrole;saveOwned($membership,'own role membership');
  foreach(['EditPedidoCliente','EditPedidoProveedor']as$page){$access=new RoleAccess();$access->codrole=$role->codrole;$access->pagename=$page;$access->allowexport=false;$access->allowupdate=false;$access->allowdelete=false;$access->allowimport=false;$access->onlyownerdata=false;saveOwned($access,'own page permission');$permission=new ControllerPermissions($user,$page);need($permission->allowAccess&&!$permission->allowExport&&!$permission->allowUpdate,'effective role permits reading but denies export');}
  foreach([['Cliente',Cliente::class,PedidoCliente::class],['Proveedor',Proveedor::class,PedidoProveedor::class]]as[$kind,$subjectClass,$documentClass]){
-  $subject=new $subjectClass();$subject->nombre='Synthetic HTTP '.$kind;$subject->cifnif='';saveOwned($subject,'own synthetic subject');$doc=new $documentClass();need($doc->setSubject($subject),'native document subject');saveOwned($doc,'own synthetic document');$line=$doc->getNewLine();$line->descripcion='Synthetic HTTP export line';$line->cantidad=1;$line->pvpunitario=10.74;$line->codimpuesto='IVA21';$line->iva=21;need($line->save(),'own native line');$lines=$doc->getLines();need(Calculator::calculate($doc,$lines,true),'native document calculation');need($doc->loadFromCode($doc->id()),'document reload');$documents[$kind]=$doc;
+  $subject=new $subjectClass();$subject->nombre='Synthetic HTTP '.$kind;$subject->cifnif='';saveOwned($subject,'own synthetic subject');$doc=new $documentClass();need($doc->setSubject($subject),'native document subject');saveOwned($doc,'own synthetic document');$line=$doc->getNewLine();$line->descripcion='Synthetic HTTP export line';$line->cantidad=1;$line->pvpunitario=10.74;$line->codimpuesto='IVA21';$line->iva=21;need($line->save(),'own native line');$lines=$doc->getLines();need(Calculator::calculate($doc,$lines,true),'native document calculation');need($doc->loadFromCode($doc->id()),'document reload');$documents[$kind]=$doc;$preHttpSnapshots[$kind]=serialize([$doc->toArray(),array_map(static fn($line)=>$line->toArray(),$doc->getLines())]);
  }
  $format=new FormatoDocumento();$format->nombre='BPDFHTTP_MANUAL';$format->titulo='BPDFHTTP_SELECTED_TITLE';$format->tipodoc='PedidoCliente';$format->idempresa=$documents['Cliente']->idempresa;$format->autoaplicar=false;saveOwned($format,'own manual format');
  foreach(['Cliente','Proveedor']as$suffix){$family='FacturaScripts\\Core\\Lib\\AjaxForms\\'.($suffix==='Cliente'?'SalesController':'PurchasesController');foreach(['Presupuesto','Pedido','Albaran','Factura']as$type){$class='FacturaScripts\\Dinamic\\Controller\\Edit'.$type.$suffix;check(is_subclass_of($class,$family),'native family '.$type.$suffix);}}
@@ -98,7 +98,7 @@ try {
  $back=false;foreach($xp->query('//a[@href]') as $link){if(str_contains($link->textContent,Tools::trans('beplypdf-return-document'))){$target=parse_url($link->getAttribute('href'));parse_str($target['query']??'',$params);$back=basename($target['path']??'')==='EditPedido'.$kind&&($params['code']??null)===(string)$documents[$kind]->id()&&!isset($params['action']);}}check($back,'denial returns to same document '.$kind);
  if($back){[$returned,$body]=requestHttp('/'.$target['path'].'?'.$target['query'],'bpdfhttp_noexport');check($returned['http']===200&&str_contains($body,'Synthetic HTTP export line'),'return link opens document '.$kind);}
 }
- foreach($documents as$kind=>$doc){$id=$doc->id();$before=serialize([$doc->toArray(),array_map(static fn($line)=>$line->toArray(),$doc->getLines())]);need($doc->loadFromCode($id),'post HTTP reload');check($before===serialize([$doc->toArray(),array_map(static fn($line)=>$line->toArray(),$doc->getLines())]),'HTTP export preserves native '.$kind);}
+ foreach($documents as$kind=>$doc){$id=$doc->id();$before=$preHttpSnapshots[$kind];need($doc->loadFromCode($id),'post HTTP reload');check($before===serialize([$doc->toArray(),array_map(static fn($line)=>$line->toArray(),$doc->getLines())]),'HTTP export preserves native '.$kind);}
 } catch(Throwable $error) {$proof['error']=['type'=>get_class($error),'message'=>$error->getMessage()];$failures[]='runtime error';}
 finally {
  if(is_resource($server)){proc_terminate($server);proc_close($server);$proof['serverStopped']=true;}
