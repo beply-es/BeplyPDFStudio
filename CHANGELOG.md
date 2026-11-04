@@ -1,13 +1,16 @@
 # Changelog
 
-## v5.4 - Pendiente de publicación
+## v5.5 - Pendiente de publicación
 
 - Añade traducciones al neerlandés para Core 2026.72.
 
 - Corrige un error 500 al abrir documentos con el Core estable 2026.65, conservando el escape seguro y el aspecto de las descripciones en tablas.
-- El instalador opcional de fuentes fija y comprueba Noto Sans; no modifica las fuentes ya instaladas en los servicios.
 - Noto Sans usa cuatro fuentes estáticas 400/700 y cursivas. Facturas e informes Marco conservan su negrita real; los informes incrustan solo los glifos usados para evitar PDFs de 1,2 MB. Cambian las métricas frente a Helvetica/DejaVu; la combinación requiere comparación visual revisada antes de adoptar la imagen.
 - En los informes Marco con Noto Sans caben aproximadamente un 17 % menos de filas por página que con Helvetica; la prueba de 100 filas conserva sus tres páginas. El título y la razón social de la cabecera se muestran ahora en negrita real.
+
+## v5.4 - 2026-10-28
+
+- El instalador opcional de fuentes fija y comprueba Noto Sans; no modifica las fuentes ya instaladas en los servicios.
 
 ## v5.3 - 2026-10-27
 
