@@ -12,7 +12,6 @@ on:
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
-  FACTURASCRIPTS_REF: v2025.71
   TZ: Europe/Madrid
 
 concurrency:
@@ -26,18 +25,16 @@ jobs:
   php84_compat:
     name: PHP 8.4 Compatibility and Unit
     timeout-minutes: 10
-    runs-on: ${{ vars.BEPLY_GHA_RUNNER || 'ubuntu-latest' }}
+    runs-on: arc-public-studio
 
     steps:
       - name: Checkout Plugin
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-
-      - name: Setup PHP
-        uses: shivammathur/setup-php@accd6127cb78bee3e8082180cb391013d204ef9f # 2.37.0
         with:
-          php-version: '8.4'
-          extensions: curl
-          coverage: none
+          persist-credentials: false
+
+      - name: Select preinstalled PHP
+        run: bash .github/ci/select-preinstalled-php.sh 8.4
 
       - name: Run PHP 8.4 compatibility scan
         run: php scripts/ci/php84-compat-scan.php "$PWD"
@@ -64,59 +61,73 @@ jobs:
         run: python3 -m unittest scripts.ci.test_verify_release_witness scripts.ci.test_upload_catalog_release
 
       - name: Unit test one Tests run per SHA and draft PR gating
-        run: python3 .github/ci/test_tests_workflow_triggers.py
+        run: |
+          python3 .github/ci/test_tests_workflow_triggers.py
+          python3 .github/ci/test_owned_runner_core_matrix.py
 
   lint:
     name: PHP Lint
     timeout-minutes: 10
-    runs-on: ${{ vars.BEPLY_GHA_RUNNER || 'ubuntu-latest' }}
+    runs-on: arc-public-studio
 
     steps:
       - name: Checkout Plugin
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-
-      - name: Setup PHP
-        uses: shivammathur/setup-php@accd6127cb78bee3e8082180cb391013d204ef9f # 2.37.0
         with:
-          php-version: '8.4'
-          coverage: none
+          persist-credentials: false
+
+      - name: Select preinstalled PHP
+        run: bash .github/ci/select-preinstalled-php.sh 8.4
 
       - name: Lint PHP sources
         run: |
           find . \( -path './.git' -o -path './vendor' \) -prune -o -name '*.php' -print0 | xargs -0 -n1 php -l
 
   runtime:
-    name: Runtime FS v2025.71 PostgreSQL
+    name: Runtime FS ${{ matrix.core_version }} PostgreSQL
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - core_version: '2025.71'
+            core_sha: b4f2422e4a3f5931c7188214fb8e2196b80182b5
+          - core_version: '2026.65'
+            core_sha: 35eeafaf1f9aeb630f7f3bb995cdf6ccc522bb8f
+          - core_version: '2026.72'
+            core_sha: e38f65a60e46bd2aba6bf5e3c4e3e1ad8c4444cc
     timeout-minutes: 25
     if: github.event.pull_request.draft != true
-    runs-on: ${{ vars.BEPLY_GHA_RUNNER || 'ubuntu-latest' }}
+    runs-on: arc-public-studio
 
     steps:
       - name: Checkout FacturaScripts
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
+          persist-credentials: false
           repository: NeoRazorX/facturascripts
-          ref: ${{ env.FACTURASCRIPTS_REF }}
+          ref: ${{ matrix.core_sha }}
           path: facturascripts
 
       - name: Checkout Plugin
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
+          persist-credentials: false
           path: facturascripts/Plugins/BeplyPDFStudio
 
-      - name: Setup PHP
-        uses: shivammathur/setup-php@accd6127cb78bee3e8082180cb391013d204ef9f # 2.37.0
-        with:
-          php-version: '8.2'
-          ini-values: opcache.jit_buffer_size=0
-          extensions: bcmath, gd, mbstring, intl, zip, curl, pgsql, pdo_pgsql
-          coverage: none
+      - name: Select preinstalled PHP
+        run: bash facturascripts/Plugins/BeplyPDFStudio/.github/ci/select-preinstalled-php.sh 8.2
 
       - name: Install Composer dependencies
         working-directory: facturascripts
         run: |
           composer config platform.php 8.2.0
-          composer install --no-interaction --prefer-dist --no-dev
+          composer install --no-interaction --prefer-dist
+
+      - name: Verify exact Core source
+        working-directory: facturascripts
+        env:
+          EXPECTED_CORE_SHA: ${{ matrix.core_sha }}
+        run: test "$(git rev-parse HEAD)" = "$EXPECTED_CORE_SHA"
 
       - name: Start local PostgreSQL
         working-directory: facturascripts
@@ -153,6 +164,10 @@ jobs:
           CI_PLUGIN_FOLDERS: BeplyPDFStudio
         run: php Plugins/BeplyPDFStudio/.github/ci/setup-runtime.php
 
+      - name: Native PHPUnit against selected Core
+        working-directory: facturascripts
+        run: php vendor/bin/phpunit --configuration Plugins/BeplyPDFStudio/phpunit.xml.dist --testdox --fail-on-risky --fail-on-warning
+
       - name: Native hidden totals stay hidden in classic documents
         working-directory: facturascripts
         run: php Plugins/BeplyPDFStudio/Tests/run-hidden-totals.php
@@ -171,8 +186,7 @@ jobs:
       - name: Install PDF engine for receipt contracts
         working-directory: facturascripts/Plugins/BeplyPDFStudio
         run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends ghostscript
+          command -v gs
           gs --version
           python3 -m venv .venv
           .venv/bin/pip install --disable-pip-version-check 'weasyprint==70.0'
@@ -197,7 +211,9 @@ jobs:
 
       - name: Install page measurement tools
         run: |
-          sudo apt-get install -y --no-install-recommends imagemagick poppler-utils
+          command -v convert
+          command -v pdfinfo
+          command -v pdftotext
           # Ubuntu blocks the PDF coder by default; the runtime image allows it.
           policy_dir="${RUNNER_TEMP}/imagemagick-policy"
           mkdir -p "${policy_dir}"
