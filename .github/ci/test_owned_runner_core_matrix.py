@@ -64,6 +64,14 @@ class OwnedRunnerCoreMatrixTest(unittest.TestCase):
         self.assertNotIn('arc-public-studio', self.release)
         self.assertNotIn('pull_request', self.release)
 
+    def test_release_checkout_does_not_persist_credentials(self):
+        publish = triggers.job_blocks(self.release)['release']
+        checkouts = re.findall(r'(?m)^      - uses: actions/checkout@[^\n]+\n((?:(?!^      - ).*\n)*)', publish)
+        self.assertGreater(len(checkouts), 0, 'Publish Candidate needs an explicit checkout')
+        self.assertEqual(len(checkouts), publish.count('uses: actions/checkout@'))
+        for checkout in checkouts:
+            self.assertRegex(checkout, r'(?m)^          persist-credentials: false\s*$')
+
     def test_functional_consumers_remain_in_the_runtime_matrix(self):
         for command in ['Tests/run-http-export-contract.php', 'Tests/run-short-document-pagination.php',
                         'Tests/verify_noto_html_embedded_weights.py', 'Tests/verify_noto_cezpdf_fonts.py',
