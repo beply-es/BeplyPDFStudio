@@ -9,6 +9,17 @@ Al activar el plugin se crea un **estilo global** por defecto (diseño Beply Cla
 3. Pulsa **Configurar** para ajustar logo, colores, página, tipografía, datos visibles,
    líneas, textos y opciones avanzadas.
 
+## Permisos para aplicar y configurar diseños
+
+Consultar la galería y aplicar un diseño son permisos distintos. Los botones
+**Usar esta plantilla** y **Personalizar para esta empresa** aparecen cuando
+puedes modificar los diseños. **Configurar** aparece si tienes acceso a la
+ficha del diseño activo.
+
+Si una acción muestra la pantalla de acceso denegado, pulsa **Atrás** para
+volver a la galería. Tu sesión sigue abierta. Solicita al administrador el
+permiso de modificación si necesitas aplicar otra plantilla.
+
 ## 3. Personalizar un formato de impresión
 1. **Administrador → Diseñador de plantillas → Formatos**.
 2. Pulsa **Personalizar diseño** en el formato que quieras ajustar.

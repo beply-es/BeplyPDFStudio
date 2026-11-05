@@ -242,6 +242,15 @@ jobs:
           BEPDF_SYNTHETIC_SEED_TEST: "1"
         run: php Plugins/BeplyPDFStudio/Tests/run-default-style-seed.php
 
+      - name: Native gallery design permissions
+        working-directory: facturascripts
+        env:
+          BEPDF_SYNTHETIC_HTTP_DESIGN_TEST: "1"
+          BEPDF_HTTP_EXPECTED_DB: facturascripts
+        run: |
+          export BEPDF_HTTP_EXPECTED_CORE="${FACTURASCRIPTS_REF#v}"
+          php Plugins/BeplyPDFStudio/Tests/run-http-design-permission-contract.php
+
       - name: Stop local PostgreSQL
         if: always()
         working-directory: facturascripts

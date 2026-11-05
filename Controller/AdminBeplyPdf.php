@@ -213,6 +213,13 @@ class AdminBeplyPdf extends ListController
      */
     private function useDesignAction(): bool
     {
+        if (!$this->request()->isMethod('POST')
+            || !isset($this->permissions)
+            || $this->permissions->allowUpdate !== true) {
+            $this->response()->setHttpCode(403);
+            $this->setTemplate('BeplyPdfDesignDenied');
+            return false;
+        }
         if (false === $this->validateFormToken()) {
             return true;
         }

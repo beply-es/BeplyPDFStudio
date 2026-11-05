@@ -147,10 +147,12 @@
                                 <div class="small text-muted mb-2">{{ d.layout }}</div>
                                 <div class="mt-auto">
                                 {% if isActive and fsc.activeStyleId %}
+                                    {% if fsc.user.can('EditBeplyPdfStyle') %}
                                     <a href="EditBeplyPdfStyle?code={{ fsc.activeStyleId }}" class="btn btn-sm btn-success w-100">
                                         <i class="fa-solid fa-sliders"></i> {{ trans('configure') }}
                                     </a>
-                                {% else %}
+                                    {% endif %}
+                                {% elseif fsc.permissions.allowUpdate %}
                                     <form method="post">
                                         {{ formToken() }}
                                         <input type="hidden" name="action" value="use-design"/>
