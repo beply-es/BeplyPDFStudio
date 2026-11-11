@@ -1,5 +1,9 @@
 # Changelog
 
+## v5.5 - 2026-11-11
+
+- La descripción del plugin está en español y ya no menciona FacturaScripts.
+
 ## v5.4 - 2026-10-28
 
 - El instalador opcional de fuentes fija y comprueba Noto Sans; no modifica las fuentes ya instaladas en los servicios.
