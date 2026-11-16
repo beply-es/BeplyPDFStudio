@@ -26,7 +26,7 @@
     "group-visible-data": "Visible data",
     "group-texts": "Texts",
     "group-advanced": "Advanced",
-    "order": "Order",
+    "beplypdf-line-order": "Order",
     "field": "Field",
     "alignment": "Alignment",
     "type": "Type",
@@ -123,5 +123,9 @@
     "beplypdf-draft-title-PedidoProveedor": "Bestellung",
     "beplypdf-draft-title-AlbaranCliente": "Lieferschein",
     "beplypdf-draft-title-AlbaranProveedor": "Lieferschein",
-    "beplypdf-certification-settlement": "Show certifications and guarantee retention"
+    "beplypdf-certification-settlement": "Show certifications and guarantee retention",
+    "beplypdf-estimation-number": "Angebotsnummer",
+    "beplypdf-order-number": "Auftragsnummer",
+    "beplypdf-delivery-note-number": "Lieferscheinnummer",
+    "beplypdf-rectifying-invoice-number": "Korrekturrechnungsnummer"
 }

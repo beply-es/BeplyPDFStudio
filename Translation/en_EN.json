@@ -24,7 +24,7 @@
     "group-visible-data": "Visible data",
     "group-texts": "Texts",
     "group-advanced": "Advanced",
-    "order": "Order",
+    "beplypdf-line-order": "Order",
     "field": "Field",
     "alignment": "Alignment",
     "type": "Type",
@@ -123,5 +123,9 @@
     "beplypdf-draft-title-AlbaranProveedor": "Delivery note",
     "beplypdf-certification-settlement": "Show certifications and guarantee retention",
     "beplypdf-tax-subtotals-unavailable": "The document tax breakdown could not be verified.",
-    "beplypdf-mixed-tax-rates": "(mixed)"
+    "beplypdf-mixed-tax-rates": "(mixed)",
+    "beplypdf-estimation-number": "Estimate number",
+    "beplypdf-order-number": "Order number",
+    "beplypdf-delivery-note-number": "Delivery note number",
+    "beplypdf-rectifying-invoice-number": "Corrective invoice number"
 }

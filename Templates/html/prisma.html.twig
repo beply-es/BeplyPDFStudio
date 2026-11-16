@@ -335,7 +335,7 @@
           <div class="total-due-amount">{{ totals.total }}</div>
           <div style="margin-top:10px;">
             <table class="meta-table">
-              {% if doc.code %}<tr><td class="ml">{{ 'invoice-number'|trans }}</td><td class="mr">{{ doc.code }}</td></tr>{% endif %}
+              {% if doc.code %}<tr><td class="ml">{{ (doc.number_label ?: 'number'|trans) }}</td><td class="mr">{{ doc.code }}</td></tr>{% endif %}
               {% if doc.date %}<tr><td class="ml">{{ 'date'|trans }}</td><td class="mr">{{ doc.date }}</td></tr>{% endif %}
               {% if doc.numero %}<tr><td class="ml">{{ 'number'|trans }}</td><td class="mr">{{ doc.numero }}</td></tr>{% endif %}
               {% if doc.supplier_number %}<tr><td class="ml">{{ 'numsupplier'|trans }}</td><td class="mr">{{ doc.supplier_number }}</td></tr>{% endif %}

@@ -26,7 +26,7 @@
     "group-visible-data": "Visible data",
     "group-texts": "Texts",
     "group-advanced": "Advanced",
-    "order": "Order",
+    "beplypdf-line-order": "Order",
     "field": "Field",
     "alignment": "Alignment",
     "type": "Type",
@@ -123,5 +123,9 @@
     "beplypdf-draft-title-PedidoProveedor": "Encomenda",
     "beplypdf-draft-title-AlbaranCliente": "Guia de remessa",
     "beplypdf-draft-title-AlbaranProveedor": "Guia de remessa",
-    "beplypdf-certification-settlement": "Show certifications and guarantee retention"
+    "beplypdf-certification-settlement": "Show certifications and guarantee retention",
+    "beplypdf-estimation-number": "Número de orçamento",
+    "beplypdf-order-number": "Número de encomenda",
+    "beplypdf-delivery-note-number": "Número de guia de remessa",
+    "beplypdf-rectifying-invoice-number": "Número de fatura retificativa"
 }

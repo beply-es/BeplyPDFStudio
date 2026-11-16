@@ -26,7 +26,7 @@
     "group-visible-data": "Datos visibles",
     "group-texts": "Textos",
     "group-advanced": "Avanzado",
-    "order": "Orden",
+    "beplypdf-line-order": "Orden",
     "field": "Campo",
     "alignment": "Alineación",
     "type": "Tipo",
@@ -123,5 +123,9 @@
     "beplypdf-draft-title-PedidoProveedor": "Pedido",
     "beplypdf-draft-title-AlbaranCliente": "Albarán",
     "beplypdf-draft-title-AlbaranProveedor": "Albarán",
-    "beplypdf-certification-settlement": "Mostrar certificaciones y garantías"
+    "beplypdf-certification-settlement": "Mostrar certificaciones y garantías",
+    "beplypdf-estimation-number": "Número de presupuesto",
+    "beplypdf-order-number": "Número de pedido",
+    "beplypdf-delivery-note-number": "Número de albarán",
+    "beplypdf-rectifying-invoice-number": "Número de factura rectificativa"
 }

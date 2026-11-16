@@ -26,7 +26,7 @@
     "group-visible-data": "Visible data",
     "group-texts": "Texts",
     "group-advanced": "Advanced",
-    "order": "Order",
+    "beplypdf-line-order": "Order",
     "field": "Field",
     "alignment": "Alignment",
     "type": "Type",
@@ -123,5 +123,9 @@
     "beplypdf-draft-title-PedidoProveedor": "Ordine",
     "beplypdf-draft-title-AlbaranCliente": "Documento di trasporto",
     "beplypdf-draft-title-AlbaranProveedor": "Documento di trasporto",
-    "beplypdf-certification-settlement": "Show certifications and guarantee retention"
+    "beplypdf-certification-settlement": "Show certifications and guarantee retention",
+    "beplypdf-estimation-number": "Numero di preventivo",
+    "beplypdf-order-number": "Numero d'ordine",
+    "beplypdf-delivery-note-number": "Numero di DDT",
+    "beplypdf-rectifying-invoice-number": "Numero di fattura rettificativa"
 }

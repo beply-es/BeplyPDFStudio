@@ -323,7 +323,7 @@
     <div class="l-meta">
       <div class="meta-inner">
         {% if doc.code %}
-        <div class="meta-row"><b>{{ 'invoice-number'|trans }}:</b><span class="meta-val">{{ doc.code }}</span></div>
+        <div class="meta-row"><b>{{ (doc.number_label ?: 'number'|trans) }}:</b><span class="meta-val">{{ doc.code }}</span></div>
         {% endif %}
         {% if doc.numero %}
         <div class="meta-row"><b>{{ 'number'|trans }}:</b><span class="meta-val">{{ doc.numero }}</span></div>

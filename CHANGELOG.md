@@ -1,5 +1,16 @@
 # Changelog
 
+## v5.5 - 2026-11-16
+
+- Presupuestos, pedidos y albaranes (de venta y de compra) ya no se imprimen con el
+  rótulo «Número de factura»: cada documento muestra el número con su tipo
+  (presupuesto, pedido, albarán, factura o factura rectificativa) en las
+  plantillas Corporativa, Prisma y Azure. Las rectificativas se titulan
+  «Factura rectificativa» y los documentos sin tipo conocido usan «Documento».
+- El título de los pedidos vuelve a ser «Pedido»: el plugin deja de pisar la
+  clave `order` del core y la columna de orden del editor de líneas usa su propia
+  clave. Se mantiene la opción de ocultar el número del documento.
+
 ## v5.4 - 2026-10-28
 
 - El instalador opcional de fuentes fija y comprueba Noto Sans; no modifica las fuentes ya instaladas en los servicios.
