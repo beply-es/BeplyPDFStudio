@@ -18,6 +18,9 @@ docker exec "$CONTAINER" php "$PLUGIN/Tests/run-unit.php"
 echo "== Synthetic invoice fiscal contract (HTML + real PDF) =="
 docker exec -u www-data "$CONTAINER" php "$PLUGIN/Tests/run-invoice-fiscal-contract.php"
 
+echo "== Rótulo del número por tipo de documento (PDF real, venta y compra) =="
+docker exec -u www-data "$CONTAINER" php "$PLUGIN/Tests/run-doc-number-label.php"
+
 echo "== E2E tests =="
 docker exec -u www-data "$CONTAINER" php "$PLUGIN/Tests/run-e2e.php"
 
