@@ -1,7 +1,8 @@
 # Changelog
 
-## v5.5 - 2026-11-16
+## v5.5 - 2026-11-24
 
+- La descripción del plugin está en español y ya no menciona FacturaScripts.
 - Presupuestos, pedidos y albaranes (de venta y de compra) ya no se imprimen con el
   rótulo «Número de factura»: cada documento muestra el número con su tipo
   (presupuesto, pedido, albarán, factura o factura rectificativa) en las
