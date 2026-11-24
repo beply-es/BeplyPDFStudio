@@ -27,6 +27,7 @@ use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfBuyerFiscalIdenti
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfCorporateHeaderGeometry;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfParentDocumentLines;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\PdfEngine\BeplyPdfDraw;
+use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfDocumentLabels;
 
 /**
  * Dibuja la cabecera del documento PDF (logo, datos de empresa, titulo del documento,
@@ -527,7 +528,7 @@ class HeaderRenderer
     {
         $rows = [];
         if (!$cfg->hideInvoiceNumber && !empty($model->codigo)) {
-            $rows[] = [Tools::lang()->trans('invoice-number'), (string) $model->codigo];
+            $rows[] = [BeplyPdfDocumentLabels::numberLabel($model, static fn(string $key): string => Tools::lang()->trans($key)), (string) $model->codigo];
         }
         if (!empty($model->fecha)) {
             $rows[] = [Tools::lang()->trans('date'), Tools::date($model->fecha)];
@@ -1035,14 +1036,7 @@ class HeaderRenderer
             }
         }
 
-        $title = '';
-        if (is_object($model) && method_exists($model, 'modelClassName')) {
-            $title = Tools::lang()->trans($model->modelClassName() . '-min');
-        }
-        if ($title === '' || $title === $model->modelClassName() . '-min') {
-            // Sin traduccion: usamos un titulo generico
-            $title = Tools::lang()->trans('document');
-        }
+        $title = BeplyPdfDocumentLabels::title($model, static fn(string $key): string => Tools::lang()->trans($key));
         return mb_strtoupper(trim($title));
     }
 

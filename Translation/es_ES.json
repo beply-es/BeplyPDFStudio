@@ -24,7 +24,7 @@
     "group-visible-data": "Datos visibles",
     "group-texts": "Textos",
     "group-advanced": "Avanzado",
-    "order": "Orden",
+    "beplypdf-line-order": "Orden",
     "field": "Campo",
     "alignment": "Alineación",
     "type": "Tipo",
@@ -123,5 +123,9 @@
     "beplypdf-draft-title-AlbaranProveedor": "Albarán",
     "beplypdf-certification-settlement": "Mostrar certificaciones y garantías",
     "beplypdf-tax-subtotals-unavailable": "No se ha podido verificar el desglose de impuestos del documento.",
-    "beplypdf-mixed-tax-rates": "(mixto)"
+    "beplypdf-mixed-tax-rates": "(mixto)",
+    "beplypdf-estimation-number": "Número de presupuesto",
+    "beplypdf-order-number": "Número de pedido",
+    "beplypdf-delivery-note-number": "Número de albarán",
+    "beplypdf-rectifying-invoice-number": "Número de factura rectificativa"
 }

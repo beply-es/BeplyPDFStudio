@@ -28,6 +28,7 @@ use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfDocumentContext;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfReceiptPaymentInfo;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfTaxSubtotals;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\PdfEngine\BeplyPdfDraw;
+use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfDocumentLabels;
 
 /**
  * Renderiza el pie del documento de venta/compra: bloque de totales (3 estilos),
@@ -449,14 +450,7 @@ class FooterRenderer
 
     private function corporateTotalLabel($model): string
     {
-        $title = Tools::lang()->trans('invoice');
-        if (is_object($model) && method_exists($model, 'modelClassName')) {
-            $key = $model->modelClassName() . '-min';
-            $translated = Tools::lang()->trans($key);
-            if ($translated !== '' && $translated !== $key) {
-                $title = $translated;
-            }
-        }
+        $title = BeplyPdfDocumentLabels::title($model, static fn(string $key): string => Tools::lang()->trans($key));
 
         return mb_strtoupper(trim(Tools::trans('total') . ' ' . $title));
     }

@@ -72,7 +72,7 @@
     "margin-left": "Sol kenar boşluğu (mm)",
     "margin-right": "Sağ kenar boşluğu (mm)",
     "margin-top": "Üst kenar boşluğu (mm)",
-    "order": "Sıra",
+    "beplypdf-line-order": "Sıra",
     "orientation": "Yönlendirme",
     "orientation-landscape": "Yatay",
     "orientation-portrait": "Dikey",
@@ -123,5 +123,9 @@
     "beplypdf-draft-title-AlbaranCliente": "İrsaliye",
     "beplypdf-draft-title-AlbaranProveedor": "İrsaliye",
     "line-field-unit-price-vat": "KDV dahil birim fiyat",
-    "beplypdf-certification-settlement": "Show certifications and guarantee retention"
+    "beplypdf-certification-settlement": "Show certifications and guarantee retention",
+    "beplypdf-estimation-number": "Teklif numarası",
+    "beplypdf-order-number": "Sipariş numarası",
+    "beplypdf-delivery-note-number": "İrsaliye numarası",
+    "beplypdf-rectifying-invoice-number": "Düzeltme faturası numarası"
 }

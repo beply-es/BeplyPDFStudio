@@ -66,7 +66,7 @@ final class BeplyPdfXmlTranslationTest extends TestCase
     public function testLineEditorLabelsHaveTranslations(): void
     {
         $translations = $this->translations();
-        foreach (['order', 'field', 'alignment', 'type', 'width', 'apply-customer-language'] as $slug) {
+        foreach (['beplypdf-line-order', 'field', 'alignment', 'type', 'width', 'apply-customer-language'] as $slug) {
             $this->assertTrue(isset($translations['es'][$slug]), "falta traducción ES para {$slug}");
             $this->assertTrue(isset($translations['en'][$slug]), "falta traducción EN para {$slug}");
         }

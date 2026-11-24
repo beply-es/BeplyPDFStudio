@@ -34,6 +34,7 @@ use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfTaxSubtotals;
 use Twig\Environment;
 use Twig\Loader\FilesystemLoader;
 use Twig\TwigFilter;
+use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfDocumentLabels;
 
 /**
  * Motor HTML → PDF de BeplyPDFStudio.
@@ -1194,6 +1195,7 @@ class BeplyHtmlRenderService
         return [
             'title' => mb_strtoupper($this->plain($title)),
             'code' => $cfg->hideInvoiceNumber ? '' : (string) ($model->codigo ?? ''),
+            'number_label' => BeplyPdfDocumentLabels::numberLabel($model, static fn(string $key): string => Tools::lang()->trans($key)),
             'numero' => $cfg->hideInvoiceNumber ? '' : (string) ($model->numero ?? ''),
             'numero2' => $cfg->showNumber2 ? (string) ($model->numero2 ?? '') : '',
             'supplier_number' => $cfg->showSupplierNumber ? (string) ($model->numproveedor ?? '') : '',
@@ -1213,14 +1215,7 @@ class BeplyHtmlRenderService
             return (string) $format->titulo;
         }
 
-        $title = Tools::lang()->trans('invoice');
-        if (is_object($model) && method_exists($model, 'modelClassName')) {
-            $key = $model->modelClassName() . '-min';
-            $translated = Tools::lang()->trans($key);
-            if ($translated !== '' && $translated !== $key) {
-                $title = $translated;
-            }
-        }
+        $title = BeplyPdfDocumentLabels::title($model, static fn(string $key): string => Tools::lang()->trans($key));
 
         return $title;
     }

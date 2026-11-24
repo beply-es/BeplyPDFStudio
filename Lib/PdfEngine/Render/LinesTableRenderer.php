@@ -25,6 +25,7 @@ use FacturaScripts\Plugins\BeplyPDFStudio\Lib\BeplyPdfRichTextLite;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfLineAmounts;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfTaxSubtotals;
 use FacturaScripts\Plugins\BeplyPDFStudio\Lib\PdfEngine\BeplyPdfDraw;
+use FacturaScripts\Plugins\BeplyPDFStudio\Lib\Document\BeplyPdfDocumentLabels;
 
 /**
  * Dibuja la tabla de líneas del documento usando ezTable() del motor R&OS pdf-php.
@@ -486,14 +487,7 @@ class LinesTableRenderer
 
     private function corporateContinuationBold(BeplyPdfConfig $cfg, $model): string
     {
-        $title = Tools::lang()->trans('invoice');
-        if (is_object($model) && method_exists($model, 'modelClassName')) {
-            $key = $model->modelClassName() . '-min';
-            $translated = Tools::lang()->trans($key);
-            if ($translated !== '' && $translated !== $key) {
-                $title = $translated;
-            }
-        }
+        $title = BeplyPdfDocumentLabels::title($model, static fn(string $key): string => Tools::lang()->trans($key));
 
         $out = mb_strtoupper(trim($title));
         if (!$cfg->hideInvoiceNumber && is_object($model) && !empty($model->codigo)) {

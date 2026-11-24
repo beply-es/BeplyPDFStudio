@@ -281,7 +281,7 @@
         {# Nº / Fecha #}
         <div style="margin-top:{{ (font_size * 1.2)|round }}px;">
           {% if doc.code %}
-          <div class="az-doc-row"><span class="az-doc-label">{{ 'invoice-number'|trans|upper }}:&nbsp;</span><span class="az-doc-value">{{ doc.code }}</span></div>
+          <div class="az-doc-row"><span class="az-doc-label">{{ (doc.number_label ?: 'number'|trans)|upper }}:&nbsp;</span><span class="az-doc-value">{{ doc.code }}</span></div>
           {% endif %}
           {% if doc.numero %}
           <div class="az-doc-row"><span class="az-doc-label">{{ 'number'|trans|upper }}:&nbsp;</span><span class="az-doc-value">{{ doc.numero }}</span></div>
