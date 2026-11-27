@@ -66,6 +66,9 @@ jobs:
       - name: Unit test one Tests run per SHA and draft PR gating
         run: python3 .github/ci/test_tests_workflow_triggers.py
 
+
+      - name: Test workflow steps.outputs env contract
+        run: python3 -B -m unittest scripts/ci/test_workflow_no_steps_outputs_in_run.py
   lint:
     name: PHP Lint
     timeout-minutes: 10
